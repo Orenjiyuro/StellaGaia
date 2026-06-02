@@ -8,13 +8,13 @@ This gate covers the fixed sample copy, Wwise `.wem` decode/transcode, ffprobe m
 
 ## Source Safety
 
-The source install path remained read-only during this workflow:
+This workflow used read-only source install access by design:
 
 ```text
 C:\SoftGame\YostarGames\StellaSora_CN
 ```
 
-No generated `Extracted`, `Assets`, or `Tools` directory was found under the source install:
+The final guard checks found no generated `Extracted`, `Assets`, or `Tools` directory under the source install:
 
 ```text
 Extracted=False

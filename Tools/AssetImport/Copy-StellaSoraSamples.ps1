@@ -53,6 +53,51 @@ function Assert-PathUnderOrEqual {
     }
 }
 
+function Assert-NoExistingReparsePointUnderRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$RootPath,
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    $candidate = Get-CanonicalPath $Path
+    $root = Get-CanonicalPath $RootPath
+    Assert-PathUnderOrEqual -Path $candidate -RootPath $root -Description $Description
+
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $trimmedRoot = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $trimmedCandidate = $candidate.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+
+    $pathsToCheck = @($trimmedRoot)
+    if (-not [string]::Equals($trimmedRoot, $trimmedCandidate, $comparison)) {
+        $rootWithSeparator = $trimmedRoot + [System.IO.Path]::DirectorySeparatorChar
+        $relativePath = $trimmedCandidate.Substring($rootWithSeparator.Length)
+        $currentPath = $trimmedRoot
+        foreach ($segment in $relativePath.Split([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)) {
+            if ([string]::IsNullOrWhiteSpace($segment)) {
+                continue
+            }
+
+            $currentPath = Join-Path $currentPath $segment
+            $pathsToCheck += $currentPath
+        }
+    }
+
+    foreach ($pathToCheck in $pathsToCheck) {
+        if (-not (Test-Path -LiteralPath $pathToCheck)) {
+            break
+        }
+
+        $item = Get-Item -LiteralPath $pathToCheck -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "$Description must not include symlinks, junctions, or reparse points. Reparse point: $($item.FullName)"
+        }
+    }
+}
+
 function Assert-SafeFileNameSegment {
     param(
         [Parameter(Mandatory = $true)]
@@ -112,10 +157,15 @@ if ([string]::IsNullOrWhiteSpace($LogRoot)) {
 
 $repoRoot = Get-CanonicalPath (Join-Path $PSScriptRoot '..\..')
 $extractedRoot = Get-CanonicalPath (Join-Path $repoRoot 'Extracted')
+$samplesRoot = Get-CanonicalPath (Join-Path $extractedRoot 'Samples')
 $OutputRoot = Get-CanonicalPath $OutputRoot
 $LogRoot = Get-CanonicalPath $LogRoot
 Assert-PathUnderOrEqual -Path $OutputRoot -RootPath $extractedRoot -Description 'OutputRoot'
 Assert-PathUnderOrEqual -Path $LogRoot -RootPath $extractedRoot -Description 'LogRoot'
+Assert-NoExistingReparsePointUnderRoot -Path $extractedRoot -RootPath $repoRoot -Description 'Extracted'
+Assert-NoExistingReparsePointUnderRoot -Path $samplesRoot -RootPath $extractedRoot -Description 'SamplesRoot'
+Assert-NoExistingReparsePointUnderRoot -Path $OutputRoot -RootPath $extractedRoot -Description 'OutputRoot'
+Assert-NoExistingReparsePointUnderRoot -Path $LogRoot -RootPath $extractedRoot -Description 'LogRoot'
 
 $toolManifest = Get-Content -LiteralPath $ToolManifestPath -Raw | ConvertFrom-Json
 $sampleManifest = Get-Content -LiteralPath $SampleManifestPath -Raw | ConvertFrom-Json
@@ -129,6 +179,8 @@ $outputRootInfo = [System.IO.Directory]::CreateDirectory($OutputRoot)
 $logRootInfo = [System.IO.Directory]::CreateDirectory($LogRoot)
 $OutputRoot = $outputRootInfo.FullName
 $LogRoot = $logRootInfo.FullName
+Assert-NoExistingReparsePointUnderRoot -Path $OutputRoot -RootPath $extractedRoot -Description 'OutputRoot'
+Assert-NoExistingReparsePointUnderRoot -Path $LogRoot -RootPath $extractedRoot -Description 'LogRoot'
 
 $items = @()
 $items += @($sampleManifest.assetBundles) | ForEach-Object {
@@ -157,12 +209,17 @@ $copyLog = foreach ($item in $items) {
         throw "Missing sample source: $sourcePath"
     }
 
-    $targetDirectory = Join-Path $OutputRoot (Join-Path $item.Kind $item.Category)
+    $targetDirectory = Get-CanonicalPath (Join-Path $OutputRoot (Join-Path $item.Kind $item.Category))
+    Assert-PathUnderOrEqual -Path $targetDirectory -RootPath $OutputRoot -Description 'Target directory'
+    Assert-NoExistingReparsePointUnderRoot -Path $targetDirectory -RootPath $OutputRoot -Description 'Target directory'
     New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+    Assert-NoExistingReparsePointUnderRoot -Path $targetDirectory -RootPath $OutputRoot -Description 'Target directory'
 
-    $targetPath = Join-Path $targetDirectory $item.TargetName
+    $targetPath = Get-CanonicalPath (Join-Path $targetDirectory $item.TargetName)
     Assert-PathUnderOrEqual -Path $targetPath -RootPath $OutputRoot -Description 'Target path'
+    Assert-NoExistingReparsePointUnderRoot -Path $targetPath -RootPath $OutputRoot -Description 'Target path'
     Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
+    Assert-NoExistingReparsePointUnderRoot -Path $targetPath -RootPath $OutputRoot -Description 'Target path'
 
     $targetItem = Get-Item -LiteralPath $targetPath
     $hash = Get-FileHash -LiteralPath $targetPath -Algorithm SHA256
@@ -176,10 +233,18 @@ $copyLog = foreach ($item in $items) {
     }
 }
 
-$jsonPath = Join-Path $LogRoot 'sample-copy-log.json'
-$csvPath = Join-Path $LogRoot 'sample-copy-log.csv'
+$jsonPath = Get-CanonicalPath (Join-Path $LogRoot 'sample-copy-log.json')
+$csvPath = Get-CanonicalPath (Join-Path $LogRoot 'sample-copy-log.csv')
+Assert-PathUnderOrEqual -Path $jsonPath -RootPath $LogRoot -Description 'Sample copy JSON log path'
+Assert-PathUnderOrEqual -Path $csvPath -RootPath $LogRoot -Description 'Sample copy CSV log path'
+Assert-PathUnderOrEqual -Path $jsonPath -RootPath $extractedRoot -Description 'Sample copy JSON log path'
+Assert-PathUnderOrEqual -Path $csvPath -RootPath $extractedRoot -Description 'Sample copy CSV log path'
+Assert-NoExistingReparsePointUnderRoot -Path $jsonPath -RootPath $LogRoot -Description 'Sample copy JSON log path'
+Assert-NoExistingReparsePointUnderRoot -Path $csvPath -RootPath $LogRoot -Description 'Sample copy CSV log path'
 $copyLog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
 $copyLog | Export-Csv -LiteralPath $csvPath -NoTypeInformation -Encoding UTF8
+Assert-NoExistingReparsePointUnderRoot -Path $jsonPath -RootPath $LogRoot -Description 'Sample copy JSON log path'
+Assert-NoExistingReparsePointUnderRoot -Path $csvPath -RootPath $LogRoot -Description 'Sample copy CSV log path'
 
 $copyLog | Format-Table Kind,Category,Length,TargetPath -AutoSize
 Write-Host "Sample copy log written to $jsonPath"
