@@ -21,20 +21,27 @@ $checks = @(
 
 $results = foreach ($check in $checks) {
     $exists = Test-Path -LiteralPath $check.Path
+    $kindMatches = switch ($check.Kind) {
+        'Directory' { Test-Path -LiteralPath $check.Path -PathType Container }
+        'File' { Test-Path -LiteralPath $check.Path -PathType Leaf }
+        default { $false }
+    }
+
     [PSCustomObject]@{
         Name = $check.Name
         Kind = $check.Kind
         Path = $check.Path
         Exists = $exists
+        KindMatches = $kindMatches
     }
 }
 
-$missing = $results | Where-Object { -not $_.Exists }
+$invalid = $results | Where-Object { -not $_.Exists -or -not $_.KindMatches }
 $results | Format-Table -AutoSize
 
-if ($missing) {
-    $names = ($missing | ForEach-Object { "$($_.Name)=$($_.Path)" }) -join '; '
-    throw "Missing required paths: $names"
+if ($invalid) {
+    $names = ($invalid | ForEach-Object { "$($_.Name)=$($_.Path) (expected $($_.Kind))" }) -join '; '
+    throw "Missing or invalid required paths: $names"
 }
 
 $unityData = Join-Path $manifest.sourceInstall 'xtlr_Data\data.unity3d'
