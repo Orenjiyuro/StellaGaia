@@ -10,6 +10,48 @@ if (-not $ManifestPath) {
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 
+function Test-AbsoluteFileSystemPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    return $Path -match '^[A-Za-z]:[\\/]' -or $Path -match '^[\\/]{2}[^\\/]+[\\/][^\\/]+'
+}
+
+$requiredFields = @(
+    'sourceInstall',
+    'unityEditor',
+    'assetRipper',
+    'vgmstreamCli',
+    'ffmpeg',
+    'ffprobe',
+    'unityVersion'
+)
+
+foreach ($field in $requiredFields) {
+    $value = $manifest.$field
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        throw "Missing required manifest field: $field"
+    }
+}
+
+$pathFields = @(
+    'sourceInstall',
+    'unityEditor',
+    'assetRipper',
+    'vgmstreamCli',
+    'ffmpeg',
+    'ffprobe'
+)
+
+foreach ($field in $pathFields) {
+    $value = [string]$manifest.$field
+    if (-not (Test-AbsoluteFileSystemPath -Path $value)) {
+        throw "Manifest path field $field must be an absolute filesystem path: $value"
+    }
+}
+
 $checks = @(
     @{ Name = 'sourceInstall'; Path = $manifest.sourceInstall; Kind = 'Directory' },
     @{ Name = 'unityEditor'; Path = $manifest.unityEditor; Kind = 'File' },
@@ -49,7 +91,18 @@ if (-not (Test-Path -LiteralPath $unityData)) {
     throw "Missing Unity data file: $unityData"
 }
 
-$headerBytes = ([System.IO.File]::ReadAllBytes($unityData))[0..63]
+$headerBytes = [byte[]]::new(64)
+$stream = [System.IO.File]::Open($unityData, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+try {
+    $bytesRead = $stream.Read($headerBytes, 0, $headerBytes.Length)
+} finally {
+    $stream.Dispose()
+}
+
+if ($bytesRead -lt $headerBytes.Length) {
+    throw "Unity data file header is shorter than 64 bytes: $unityData"
+}
+
 $headerText = [System.Text.Encoding]::ASCII.GetString($headerBytes)
 if ($headerText -notmatch 'UnityFS' -or $headerText -notmatch [regex]::Escape($manifest.unityVersion)) {
     throw "UnityFS version check failed for $unityData. Expected $($manifest.unityVersion)."
