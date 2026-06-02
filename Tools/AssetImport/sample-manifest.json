@@ -1,0 +1,56 @@
+{
+  "assetBundles": [
+    {
+      "category": "Characters",
+      "source": "Persistent_Store\\AssetBundles\\char_14401_animations.unity3d",
+      "targetName": "char_14401_animations.unity3d"
+    },
+    {
+      "category": "Enemies",
+      "source": "Persistent_Store\\AssetBundles\\mons_16510fengcao_animations.unity3d",
+      "targetName": "mons_16510fengcao_animations.unity3d"
+    },
+    {
+      "category": "Environments",
+      "source": "xtlr_Data\\StreamingAssets\\InstallResource\\env_roguelike_2_texture-7.unity3d",
+      "targetName": "env_roguelike_2_texture-7.unity3d"
+    },
+    {
+      "category": "Effects",
+      "source": "Persistent_Store\\AssetBundles\\fx_actorcommon_textures_uncollated.unity3d",
+      "targetName": "fx_actorcommon_textures_uncollated.unity3d"
+    },
+    {
+      "category": "UI",
+      "source": "Persistent_Store\\AssetBundles\\ui_big_sprites.unity3d",
+      "targetName": "ui_big_sprites.unity3d"
+    },
+    {
+      "category": "Items",
+      "source": "Persistent_Store\\AssetBundles\\icon-0.unity3d",
+      "targetName": "icon-0.unity3d"
+    }
+  ],
+  "audio": [
+    {
+      "category": "CombatVoice",
+      "source": "Persistent_Store\\SoundBanks\\vo_108_combat_ultskill_002_jp.wem",
+      "targetName": "vo_108_combat_ultskill_002_jp.wem"
+    },
+    {
+      "category": "MusicCandidate",
+      "source": "Persistent_Store\\SoundBanks\\Media\\195906654.wem",
+      "targetName": "195906654.wem"
+    },
+    {
+      "category": "BankMetadata",
+      "source": "Persistent_Store\\SoundBanks\\Music_Common.bnk",
+      "targetName": "Music_Common.bnk"
+    },
+    {
+      "category": "BankMetadata",
+      "source": "Persistent_Store\\SoundBanks\\Voice_Combat.bnk",
+      "targetName": "Voice_Combat.bnk"
+    }
+  ]
+}
