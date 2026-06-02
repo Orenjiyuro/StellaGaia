@@ -10,6 +10,7 @@ namespace StellaGaia.EditorTools
     public static class CreateSampleValidationScene
     {
         private const string ScenePath = "Assets/StellaGaia/Scenes/SampleValidation.unity";
+        private const string ValidatorObjectName = "SampleAssetBundleValidator";
         private const string SfxPath = "Assets/StellaGaia/Audio/SFX/vo_108_combat_ultskill_002_jp.ogg";
         private const string MusicPath = "Assets/StellaGaia/Audio/Music/195906654.ogg";
 
@@ -24,9 +25,21 @@ namespace StellaGaia.EditorTools
             AssetDatabase.ImportAsset(MusicPath, ImportAssetOptions.ForceUpdate);
             AssetDatabase.Refresh();
 
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-            var validatorObject = new GameObject("SampleAssetBundleValidator");
-            var validator = validatorObject.AddComponent<SampleAssetBundleValidator>();
+            var scene = File.Exists(ScenePath)
+                ? EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single)
+                : EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+
+            GameObject validatorObject = FindGameObjectInScene(scene, ValidatorObjectName);
+            if (validatorObject == null)
+            {
+                validatorObject = new GameObject(ValidatorObjectName);
+            }
+
+            var validator = validatorObject.GetComponent<SampleAssetBundleValidator>();
+            if (validator == null)
+            {
+                validator = validatorObject.AddComponent<SampleAssetBundleValidator>();
+            }
 
             validator.bundleSamples = new[]
             {
@@ -64,9 +77,44 @@ namespace StellaGaia.EditorTools
 
             validator.audioSamples = LoadAudioSamples();
 
+            EditorUtility.SetDirty(validator);
+            EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.Refresh();
             Debug.Log($"Created validation scene at {ScenePath}");
+        }
+
+        private static GameObject FindGameObjectInScene(UnityEngine.SceneManagement.Scene scene, string objectName)
+        {
+            foreach (GameObject rootObject in scene.GetRootGameObjects())
+            {
+                GameObject match = FindGameObjectInHierarchy(rootObject.transform, objectName);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
+        private static GameObject FindGameObjectInHierarchy(Transform transform, string objectName)
+        {
+            if (transform.name == objectName)
+            {
+                return transform.gameObject;
+            }
+
+            foreach (Transform child in transform)
+            {
+                GameObject match = FindGameObjectInHierarchy(child, objectName);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
         }
 
         private static AudioClip[] LoadAudioSamples()
