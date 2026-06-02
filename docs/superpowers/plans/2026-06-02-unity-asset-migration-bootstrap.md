@@ -813,6 +813,8 @@ git commit -m "Add Unity sample asset validation scene"
 
 - [ ] **Step 1: Create `Tools/AssetImport/Start-AssetRipperSample.ps1`**
 
+AssetRipper GUI Free `1.3.14.0` was verified locally to exit without opening a listener when optional booleans are passed as separated values such as `--headless true --log true`. Use the equals-form optional booleans: `--headless=true --port <assetRipperPort> --log=true --log-path <repo>\Extracted\Logs\assetripper-sample.log`.
+
 Use this file content:
 
 ```powershell
@@ -829,12 +831,10 @@ $logPath = Join-Path $logRoot 'assetripper-sample.log'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
 $args = @(
-    '--headless',
-    'true',
+    '--headless=true',
     '--port',
     [string]$manifest.assetRipperPort,
-    '--log',
-    'true',
+    '--log=true',
     '--log-path',
     $logPath
 )
