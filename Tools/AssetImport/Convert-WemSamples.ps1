@@ -327,7 +327,11 @@ $decodeLog = foreach ($wem in $wemFiles) {
 }
 
 $jsonPath = Join-Path $LogRoot 'wem-decode-log.json'
+Assert-PathUnderOrEqual -Path $jsonPath -RootPath $LogRoot -Description 'WEM decode log path'
+Assert-PathUnderOrEqual -Path $jsonPath -RootPath $extractedRoot -Description 'WEM decode log path'
+Assert-NoExistingReparsePointUnderRoot -Path $jsonPath -RootPath $LogRoot -Description 'WEM decode log path'
 $decodeLog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
+Assert-NoExistingReparsePointUnderRoot -Path $jsonPath -RootPath $LogRoot -Description 'WEM decode log path'
 $decodeLog | Format-Table SourcePath,DecodedWav,TranscodedOgg,MetadataWritten,WavLength,OggLength,MetadataLength,DecodeExitCode,TranscodeExitCode,FfprobeExitCode -AutoSize
 
 $failed = $decodeLog | Where-Object {
