@@ -1,0 +1,10 @@
+{
+  "sourceInstall": "C:\\SoftGame\\YostarGames\\StellaSora_CN",
+  "unityEditor": "C:\\SoftWork\\Unity\\Editor\\Unity.exe",
+  "assetRipper": "C:\\SoftWork\\GameTool\\AssetRipper\\AssetRipper.GUI.Free.exe",
+  "vgmstreamCli": "C:\\SoftWork\\GameTool\\Vgmstream-cli\\vgmstream-cli.exe",
+  "ffmpeg": "C:\\SoftWork\\GameTool\\FFmpeg\\bin\\ffmpeg.exe",
+  "ffprobe": "C:\\SoftWork\\GameTool\\FFmpeg\\bin\\ffprobe.exe",
+  "assetRipperPort": 17777,
+  "unityVersion": "2022.3.62f2"
+}
