@@ -233,6 +233,7 @@ if ($wemFiles.Count -eq 0) {
 
 $decodeLog = foreach ($wem in $wemFiles) {
     Assert-PathUnderOrEqual -Path $wem.FullName -RootPath $SampleRoot -Description 'WEM source path'
+    Assert-NoExistingReparsePointUnderRoot -Path $wem.FullName -RootPath $SampleRoot -Description 'WEM source path'
 
     $relativeDirectory = Get-RelativeDirectoryPath -RootPath $SampleRoot -DirectoryPath $wem.DirectoryName
 
