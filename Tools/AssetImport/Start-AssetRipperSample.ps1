@@ -257,33 +257,17 @@ if ($preExistingListener) {
     throw "AssetRipper port $assetRipperPort is already listening before startup: $preExistingListener. LogPath: $logPath"
 }
 
-$processStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
-$processStartInfo.FileName = [string]$manifest.assetRipper
-$processStartInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-$processStartInfo.CreateNoWindow = $true
-$processStartInfo.UseShellExecute = $false
 $assetRipperArgs = @(
-    '--headless',
+    '--headless=true',
     '--port',
     [string]$assetRipperPort,
-    '--log',
+    '--log=true',
     '--log-path',
     $logPath
 )
 
-if ($null -ne $processStartInfo.ArgumentList) {
-    foreach ($argument in $assetRipperArgs) {
-        [void]$processStartInfo.ArgumentList.Add([string]$argument)
-    }
-}
-else {
-    $processStartInfo.Arguments = Join-WindowsProcessArguments -ArgumentList $assetRipperArgs
-}
-
-$process = [System.Diagnostics.Process]::Start($processStartInfo)
-if ($null -eq $process) {
-    throw "Failed to start AssetRipper. LogPath: $logPath"
-}
+$argumentLine = Join-WindowsProcessArguments -ArgumentList $assetRipperArgs
+$process = Start-Process -FilePath $manifest.assetRipper -ArgumentList $argumentLine -WindowStyle Hidden -PassThru
 
 $deadline = [DateTime]::UtcNow.AddSeconds(15)
 $urlResponded = $false
@@ -308,6 +292,11 @@ $process.Refresh()
 if ($process.HasExited -or (-not $urlResponded -and -not $portListening)) {
     $status = Get-ProcessStatusText -Process $process
     $listenerText = if ($listenerSummary) { $listenerSummary } else { 'none' }
+    if (-not $process.HasExited) {
+        Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+        [void]$process.WaitForExit(5000)
+        $status = Get-ProcessStatusText -Process $process
+    }
     throw "AssetRipper startup failed or port $assetRipperPort did not become available within 15 seconds. ProcessId: $($process.Id). ProcessStatus: $status. UrlResponded: $urlResponded. PortListening: $portListening. Listeners: $listenerText. LogPath: $logPath"
 }
 
