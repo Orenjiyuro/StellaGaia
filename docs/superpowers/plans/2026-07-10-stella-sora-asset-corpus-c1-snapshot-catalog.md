@@ -86,7 +86,20 @@ The summary uses exact-case fields and rejects extra properties:
   "snapshotId": "snapshot-pc-install-001",
   "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "ledgerInputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "ledgerPath": "Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-source-corpus-ledger.json",
+  "ledgerPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json",
+  "toolVersions": [
+    {
+      "toolName": "source-corpus-gate",
+      "version": "1.0.0"
+    }
+  ],
+  "operationIdentity": "C1.SourceCorpusGate.FixtureValidation",
+  "directChildSummaries": [
+    "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json"
+  ],
+  "directChildReports": [],
+  "failureAttribution": "None; the positive fixture intentionally contains no failures.",
+  "nextAllowedAction": "Implement deterministic G0 fingerprints against temporary synthetic roots.",
   "sourceCount": 1,
   "sourceFileCount": 1,
   "catalogedFileCount": 1,
@@ -116,7 +129,7 @@ sourceBytes = catalogedBytes + explicitlyExcludedBytes
 
 ### Canonical fingerprint encoding
 
-Normalize portable relative paths to forward slashes. Reject absolute paths, URI schemes, empty paths, dot or dot-dot segments, duplicate normalized paths, and case-only collisions.
+Normalize portable relative paths to forward slashes. Reject absolute paths, URI schemes, empty paths, dot or dot-dot segments, duplicate normalized paths, and case-only collisions. Reject sourceId values containing NUL, CR, or LF before canonical encoding.
 
 For each file, compute lowercase SHA-256 over its bytes. Encode one canonical file record as UTF-8 without BOM:
 
@@ -157,16 +170,17 @@ containerKind may describe a known direct format or UnknownInput, but it must no
 **Files:**
 
 - Create: Tools/AssetImport/Test-SourceCorpusGate.ps1
+- Create: Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json
 - Create: Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json
 - Create: Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-count-conservation.json
 - Create: Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-byte-conservation.json
 - Create: Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-ledger-fingerprint.json
 - Create: Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-unreasoned-exclusion.json
-- Read: Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-source-corpus-ledger.json
+- Read: docs/asset-migration/schemas/source-corpus-ledger.schema.json
 
 - [ ] **Step 1: Add the summary-first failing harness**
 
-Create Test-SourceCorpusGate.ps1 with optional SummaryPath and LedgerPath parameters. Default LedgerPath points to the C0 valid source-ledger fixture. Default SummaryPath points to the not-yet-created C1 valid summary.
+Create Test-SourceCorpusGate.ps1 with optional SummaryPath and LedgerPath parameters. Default LedgerPath points to the not-yet-created C1 G1 positive ledger. Default SummaryPath points to the not-yet-created C1 valid summary.
 
 The result object is:
 
@@ -182,6 +196,8 @@ The result object is:
     sourceBytes                 = 0
     catalogedBytes              = 0
     explicitlyExcludedBytes     = 0
+    positiveFixtureCount        = 0
+    negativeFixtureCount        = 0
     childProcessCount           = 0
     durationMs                  = $stopwatch.ElapsedMilliseconds
 }
@@ -199,11 +215,15 @@ pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
 
 Expected: exit 1; stdout parses as JSON; first issue starts with Missing contract file: and ends with valid-source-corpus-summary.json; childProcessCount is 0; no Extracted directory is created.
 
-- [ ] **Step 3: Add the valid private summary**
+- [ ] **Step 3: Add a dedicated C1 positive ledger**
 
-Add the exact private-summary shape above. Make ledgerInputFingerprint equal inputFingerprint. Match sourceCount, file count, and byte totals to the checked-in C0 valid source-ledger fixture.
+Create valid-c1-source-corpus-ledger.json with one PcInstall source and one file. Use the same run-level generatedAt value for source/file capturedAt, parseStatus NotAttempted, Cataloged/NotAttempted/Unknown/NotTested/RetainForLater status, no object rows, and no machine path. Keep the existing C0 schema exact: do not add C1 summary fields to the ledger.
 
-- [ ] **Step 4: Add four one-rule negative summaries**
+- [ ] **Step 4: Add the matching private summary**
+
+Add the exact private-summary shape above. Make ledgerInputFingerprint equal the ledger inputFingerprint. Require sourceCount to equal ledger.sources.Count; sourceId, sourceKind, and rootFingerprint to match the ledger source row exactly; catalogedFileCount to equal ledger.files.Count; and catalogedBytes to equal the sum of ledger file sizeBytes.
+
+- [ ] **Step 5: Add four one-rule negative summaries**
 
 Each negative vector changes one rule only:
 
@@ -221,11 +241,13 @@ Source corpus ledger input fingerprint is stale.
 Explicit exclusion requires a non-empty reason for '<sourceId>/<relativePath>'.
 ~~~
 
-- [ ] **Step 5: Require exact negative outcomes**
+- [ ] **Step 6: Require cross-ledger and exact negative outcomes**
+
+Before evaluating negative summaries, cross-check the positive ledger and summary. Stable cross-ledger issues are Source count does not match source corpus ledger., Source identity does not match source corpus ledger for '<sourceId>'., Cataloged file count does not match source corpus ledger., and Cataloged bytes do not match source corpus ledger.
 
 Load each negative fixture into an isolated issue list. A fixture passes only when its actual list exactly equals its one designated issue. Missing expected issues, structural issues, or unexpected extra issues fail the overall gate. Count only exact-verified negative fixtures.
 
-- [ ] **Step 6: Verify GREEN**
+- [ ] **Step 7: Verify GREEN**
 
 Run:
 
@@ -234,16 +256,50 @@ $result = pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1 | 
 $result | Format-List
 ~~~
 
-Expected: Passed; issueCount 0; sourceCount 1; positiveFixtureCount 1; negativeFixtureCount 4; childProcessCount 0; under five seconds; no Extracted.
+Expected: Passed; issueCount 0; sourceCount 1; positiveFixtureCount 2; negativeFixtureCount 4; childProcessCount 0; under five seconds; no Extracted.
 
-- [ ] **Step 7: Static verification and commit**
+- [ ] **Step 8: Parse the harness AST**
 
-Parse the PowerShell AST, strictly parse the five C1 JSON fixtures, search the AST for Start-Process, pwsh, Unity, AssetRipper, and .ps1 invocations, run git diff --check, and confirm only the five fixtures plus Test-SourceCorpusGate.ps1 changed.
+Run:
+
+~~~powershell
+$tokens = $null
+$errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\Tools\AssetImport\Test-SourceCorpusGate.ps1), [ref]$tokens, [ref]$errors)
+if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+~~~
+
+Expected: no output and exit 0.
+
+- [ ] **Step 9: Strictly parse all six Task 0 JSON fixtures**
+
+Run:
+
+~~~powershell
+Get-ChildItem .\Tools\AssetImport\Fixtures\SourceCorpusGate\*.json | ForEach-Object {
+    $text = Get-Content -LiteralPath $_.FullName -Raw
+    $null = $text | ConvertFrom-Json -Depth 100 -DateKind String
+    $document = [System.Text.Json.JsonDocument]::Parse($text)
+    $document.Dispose()
+}
+~~~
+
+Expected: exit 0 with no parser errors.
+
+- [ ] **Step 10: Check dangerous commands**
+
+Use the Step 8 AST and fail when a CommandAst resolves to Start-Process, pwsh, powershell, Unity, AssetRipper, or a .ps1 path. Expected dangerous command count: 0.
+
+- [ ] **Step 11: Check scope and whitespace**
+
+Run git diff --check and git diff --name-only. Expected: Test-SourceCorpusGate.ps1 plus exactly six SourceCorpusGate JSON fixtures; Test-Path .\Extracted remains false.
+
+- [ ] **Step 12: Commit Task 0**
 
 Commit:
 
 ~~~powershell
-git add -- Tools/AssetImport/Test-SourceCorpusGate.ps1 Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-count-conservation.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-byte-conservation.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-ledger-fingerprint.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-unreasoned-exclusion.json
+git add -- Tools/AssetImport/Test-SourceCorpusGate.ps1 Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-count-conservation.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-source-byte-conservation.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-ledger-fingerprint.json Tools/AssetImport/Fixtures/SourceCorpusGate/invalid-unreasoned-exclusion.json
 git commit -m "test: freeze source corpus gate contract"
 ~~~
 
@@ -260,39 +316,155 @@ git commit -m "test: freeze source corpus gate contract"
 
 - [ ] **Step 1: Write canonical-record RED tests**
 
-In Test-SourceCorpusSnapshotFunctions.ps1, import the module after asserting it is missing. Define expected UTF-8 byte sequences for one file record and one source record, including literal NUL separators and LF termination.
+In Test-SourceCorpusSnapshotFunctions.ps1, accept Case with Primitive, Root, Input, or All. Import the module after asserting it is missing. Define expected UTF-8 byte sequences for one file record and one source record, including literal NUL separators and LF termination.
+
+~~~powershell
+[CmdletBinding()]
+param([ValidateSet('Primitive', 'Root', 'Input', 'All')][string]$Case = 'All')
+
+$modulePath = Join-Path $PSScriptRoot 'SourceCorpusGate.psm1'
+if (-not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+    throw "Missing module: $modulePath"
+}
+Import-Module $modulePath -Force
+~~~
 
 - [ ] **Step 2: Run RED**
 
-Run the test and expect exit 1 because SourceCorpusGate.psm1 does not exist, not because the test has a parser error.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case Primitive
+~~~
+
+Expected: exit 1 with Missing module: ...SourceCorpusGate.psm1 and no parser or parameter-binding error.
 
 - [ ] **Step 3: Implement exact JSON and path primitives**
 
-Implement exported functions for exact-case property lookup, relative-path normalization, lowercase SHA-256, and ordinal sorting. Path normalization accepts separators from the host, emits slash-separated portable paths, and rejects absolute, URI, empty, dot-segment, duplicate, and case-collision inputs.
+Implement and export these exact functions:
+
+~~~powershell
+function Get-ExactJsonPropertyByPath {
+    param([AllowNull()][object]$Value, [Parameter(Mandatory)][string]$Path)
+}
+
+function ConvertTo-PortableRelativePath {
+    param([Parameter(Mandatory)][string]$RootPath, [Parameter(Mandatory)][string]$FilePath)
+}
+
+function Get-LowercaseSha256 {
+    param([Parameter(Mandatory)][byte[]]$Bytes)
+}
+
+function New-CanonicalFileRecordBytes {
+    param(
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][long]$SizeBytes,
+        [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{64}$')][string]$Sha256
+    )
+    $sizeText = $SizeBytes.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+    $record = $RelativePath + [char]0 + $sizeText + [char]0 + $Sha256 + [char]10
+    return [System.Text.UTF8Encoding]::new($false, $true).GetBytes($record)
+}
+
+function New-CanonicalSourceRecordBytes {
+    param(
+        [Parameter(Mandatory)][string]$SourceId,
+        [Parameter(Mandatory)][string]$SourceKind,
+        [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{64}$')][string]$RootFingerprint
+    )
+    if ([string]::IsNullOrWhiteSpace($SourceId) -or $SourceId -match "[\x00\r\n]") {
+        throw 'sourceId must be non-empty and must not contain NUL, CR, or LF.'
+    }
+    $record = $SourceId + [char]0 + $SourceKind + [char]0 + $RootFingerprint + [char]10
+    return [System.Text.UTF8Encoding]::new($false, $true).GetBytes($record)
+}
+~~~
+
+ConvertTo-PortableRelativePath accepts host separators, emits slash-separated paths, and rejects absolute, URI, empty, dot-segment, duplicate, and case-collision inputs. Exact JSON traversal enumerates PSObject.Properties and compares Name with -ceq.
 
 - [ ] **Step 4: Verify primitive GREEN**
 
-Run tests for valid nested paths and each rejected path class. Include wrong JSON field casing and two paths that differ only by case.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case Primitive
+~~~
+
+Expected: one compressed JSON line with status Passed, case Primitive, issueCount 0, and no temp paths left behind.
 
 - [ ] **Step 5: Write root fingerprint RED tests**
 
-Create two temporary roots with the same two tiny text files created in opposite order. Assert equal root fingerprints and exact expected SHA-256. Modify one byte and assert a different fingerprint.
+Create two temporary roots with the same two tiny text files created in opposite order. Assert equal root fingerprints and exact expected SHA-256. Modify one byte and assert a different fingerprint. Wrap creation and cleanup in try/finally.
 
 - [ ] **Step 6: Implement file and root hashing**
 
-Hash file bytes, encode canonical records exactly as frozen above, sort ordinally, and hash the concatenated bytes. Use invariant base-10 size formatting.
+Add and export:
 
-- [ ] **Step 7: Write aggregate input fingerprint RED tests**
+~~~powershell
+function Get-SourceRootFingerprint {
+    param([Parameter(Mandatory)][object[]]$Files)
+}
+~~~
 
-Create two source descriptions in opposite order. Assert equal inputFingerprint after sourceId ordinal sorting. Assert duplicate sourceId, invalid sourceKind, and root fingerprint with non-lowercase hex fail.
+Clone and sort the file records with a comparer that calls [System.StringComparer]::Ordinal.Compare on RelativePath. Append New-CanonicalFileRecordBytes output to a MemoryStream, hash stream.ToArray(), and dispose the stream in finally.
 
-- [ ] **Step 8: Implement aggregate fingerprint**
+- [ ] **Step 7: Verify root fingerprint GREEN**
 
-Validate sourceId uniqueness with ordinal comparison, validate the four C0 sourceKind values, encode canonical source records, and return lowercase SHA-256.
+Run:
 
-- [ ] **Step 9: Verify and commit**
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case Root
+~~~
 
-Run snapshot-function tests twice, AST checks on module and test, git diff --check, scope checks, and Test-SourceCorpusGate.ps1 regression. Confirm temporary directories were removed and repository Extracted is absent.
+Expected: status Passed, case Root, issueCount 0; the one-byte mutation changes the root fingerprint.
+
+- [ ] **Step 8: Write aggregate input fingerprint RED tests**
+
+Create two source descriptions in opposite order. Assert equal inputFingerprint after sourceId ordinal sorting. Assert duplicate sourceId, sourceId containing NUL/CR/LF, invalid sourceKind, and root fingerprint with non-lowercase hex fail.
+
+- [ ] **Step 9: Implement aggregate fingerprint**
+
+Add and export:
+
+~~~powershell
+function Get-SourceInputFingerprint {
+    param([Parameter(Mandatory)][object[]]$Sources)
+}
+~~~
+
+Validate sourceId uniqueness with [System.StringComparer]::Ordinal, reject NUL/CR/LF, validate the four C0 sourceKind values, sort with an ordinal sourceId comparer, encode canonical source records, and return lowercase SHA-256.
+
+- [ ] **Step 10: Verify aggregate and full GREEN**
+
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case Input
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case All
+~~~
+
+Expected: both invocations exit 0 with status Passed and issueCount 0.
+
+- [ ] **Step 11: Parse module and test ASTs**
+
+Parse both PowerShell files with Parser.ParseFile. Expected error count: 0.
+
+- [ ] **Step 12: Run the Task 0 gate regression**
+
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
+~~~
+
+Expected: Passed with positiveFixtureCount 2, negativeFixtureCount 4, and childProcessCount 0.
+
+- [ ] **Step 13: Check scope and side effects**
+
+Run git diff --check and git diff --name-only. Expected changed files: SourceCorpusGate.psm1 and Test-SourceCorpusSnapshotFunctions.ps1 only. Test-Path .\Extracted must be false, and the test result must report zero leftover temp roots.
+
+- [ ] **Step 14: Commit Task 1**
 
 Commit:
 
@@ -327,11 +499,34 @@ empty/zero.bin
 
 Use tiny text content and a zero-byte file. Assert all six relative paths appear exactly once, including the hidden, extensionless, unknown-extension, and zero-byte files.
 
+Test-SourceCorpusCatalog.ps1 accepts Case with AllFile, Conservation, FailureModes, or All and always removes its unique temp root in finally.
+
 - [ ] **Step 2: Run RED**
 
-Expected: the module has no catalog function. The failure must not come from temp-root setup or permissions.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case AllFile
+~~~
+
+Expected: exit 1 because New-SourceCorpusCatalog is not exported; temp-root setup and cleanup both succeed.
 
 - [ ] **Step 3: Implement fail-closed enumeration**
+
+Add and export:
+
+~~~powershell
+function New-SourceCorpusCatalog {
+    param(
+        [Parameter(Mandatory)][string]$SnapshotId,
+        [Parameter(Mandatory)][string]$SourceId,
+        [Parameter(Mandatory)][string]$SourceKind,
+        [Parameter(Mandatory)][string]$RootPath,
+        [Parameter(Mandatory)][datetimeoffset]$CapturedAt,
+        [object[]]$Exclusions = @()
+    )
+}
+~~~
 
 Enumerate every regular file without extension filtering. Do not use ErrorAction SilentlyContinue. Reject a source root or child that is a reparse point, symlink, or junction. Turn access failures, duplicate normalized paths, and case collisions into structured fatal issues.
 
@@ -339,21 +534,75 @@ Enumerate every regular file without extension filtering. Do not use ErrorAction
 
 For each file emit snapshotId, sourceId, sourceKind, normalized relativePath, sizeBytes, lowercase sha256, the run-level capturedAt, containerKind, parseStatus, disposition, evidence, and orthogonal status. Keep objects empty.
 
+The default status object is exactly:
+
+~~~powershell
+[pscustomobject][ordered]@{
+    corpus = 'Cataloged'
+    extraction = 'NotAttempted'
+    semantics = 'Unknown'
+    unity = 'NotTested'
+    disposition = 'RetainForLater'
+}
+~~~
+
 - [ ] **Step 5: Add conservation RED tests**
 
 Assert the generated private summary satisfies both count and byte formulas. Mutate cataloged count, cataloged bytes, and an exclusion reason independently and confirm the lightweight gate rejects each.
 
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case Conservation
+~~~
+
+Expected RED: exit 1 because exclusion/conservation support is not implemented; the failure identifies the missing behavior.
+
 - [ ] **Step 6: Implement exclusions**
 
-Support explicit exclusions only when sourceId, normalized relativePath, non-negative sizeBytes, and non-empty reason are supplied. Phase A catalog generation uses no exclusions. Never silently convert an access or reparse error into an exclusion.
+Support explicit exclusions only when sourceId, normalized relativePath, non-negative sizeBytes, and non-empty reason are supplied:
+
+~~~powershell
+[pscustomobject][ordered]@{
+    sourceId = 'pc-install'
+    relativePath = 'known/explicitly-excluded.bin'
+    sizeBytes = 3
+    reason = 'Fixture-only explicit exclusion.'
+}
+~~~
+
+Phase A catalog generation uses no exclusions. Never silently convert an access or reparse error into an exclusion.
 
 - [ ] **Step 7: Verify C0 status semantics**
 
 Assert unknown and extensionless files are Cataloged, NotAttempted, Unknown, NotTested, and RetainForLater. Confirm they increase corpus counts and bytes and do not create object rows.
 
-- [ ] **Step 8: Verify and commit**
+- [ ] **Step 8: Verify all catalog cases**
 
-Run catalog tests, snapshot tests, lightweight gate, AST, JSON parsing, dangerous-command checks, git diff --check, scope checks, and no-Extracted assertion. Confirm finally removed temp roots even when a negative case throws.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case AllFile
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case Conservation
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case FailureModes
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case All
+~~~
+
+Expected: each invocation emits status Passed and issueCount 0. All reports show leftoverTempRootCount 0.
+
+- [ ] **Step 9: Run prior C1 regressions**
+
+Run Test-SourceCorpusSnapshotFunctions.ps1 -Case All and Test-SourceCorpusGate.ps1. Expected: both pass with no Extracted.
+
+- [ ] **Step 10: Parse ASTs and scan dangerous commands**
+
+Parse SourceCorpusGate.psm1 and Test-SourceCorpusCatalog.ps1. Expected AST error count 0 and command count 0 for Start-Process, pwsh, powershell, Unity, AssetRipper, and .ps1 invocation.
+
+- [ ] **Step 11: Check scope and whitespace**
+
+Run git diff --check and git diff --name-only. Expected changed files: SourceCorpusGate.psm1 and Test-SourceCorpusCatalog.ps1 only. Test-Path .\Extracted must be false.
+
+- [ ] **Step 12: Commit Task 2**
 
 Commit:
 
@@ -375,15 +624,36 @@ git commit -m "feat: catalog every source file"
 
 - [ ] **Step 1: Write fail-closed CLI RED tests**
 
-Require SourceRootManifestPath, OutputRoot, ThreadId, and the explicit RefreshSnapshot switch. Without RefreshSnapshot the script must emit a structured refusal and create no directory.
+Create Test-SourceCorpusRunnerPolicy.ps1 with Case values MissingRefresh, WrongOutput, InvalidThreadId, Reparse, or All. Require SourceRootManifestPath, OutputRoot, ThreadId, and the explicit RefreshSnapshot switch. Without RefreshSnapshot the script must emit a structured refusal and create no directory.
 
 - [ ] **Step 2: Run RED**
 
-Expected: the runner file is missing. Confirm repository Extracted remains absent.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case MissingRefresh
+~~~
+
+Expected: exit 1 because New-StellaSoraSourceCorpusSnapshot.ps1 is missing. Confirm repository Extracted remains absent.
 
 - [ ] **Step 3: Implement runtime manifest validation**
 
-Require schemaVersion 1.0.0 and exact-case sourceId, sourceKind, rootPath fields. Allow absolute rootPath only in this runtime input. Never copy rootPath into portable outputs.
+Start the runner with this exact parameter contract:
+
+~~~powershell
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string]$SourceRootManifestPath,
+    [Parameter(Mandatory)][string]$OutputRoot,
+    [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')][string]$ThreadId,
+    [switch]$RefreshSnapshot
+)
+if (-not $RefreshSnapshot) {
+    throw 'RefreshSnapshot is required; no source roots were read and no output was created.'
+}
+~~~
+
+Require schemaVersion 1.0.0 and exact-case sourceId, sourceKind, rootPath fields. Allow absolute rootPath only in this runtime input. Reject ThreadId values containing separators, dot segments, uppercase hex, or any non-GUID shape before joining paths. Never copy rootPath into portable outputs.
 
 - [ ] **Step 4: Implement output containment**
 
@@ -395,6 +665,18 @@ Join-Path $repositoryRoot "Extracted\Threads\$ThreadId\C1"
 
 Reject reparse points in the repository-to-output chain. Write to a sibling temporary directory, then atomically rename only after ledger and summary validation succeeds.
 
+Compute the expected path only after ThreadId validation:
+
+~~~powershell
+$expectedOutputRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $repositoryRoot "Extracted\Threads\$ThreadId\C1")
+)
+$actualOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
+if (-not [string]::Equals($actualOutputRoot, $expectedOutputRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "OutputRoot must equal $expectedOutputRoot."
+}
+~~~
+
 - [ ] **Step 5: Implement portable output writing**
 
 Write source-corpus-ledger.json and source-corpus-summary.json. The ledger must conform to the C0 schema and contain no machine path. The summary uses the C1 private contract. Both share snapshotId, generatedAt, and inputFingerprint.
@@ -403,9 +685,30 @@ Write source-corpus-ledger.json and source-corpus-summary.json. The ledger must 
 
 Use the module to write outputs below a temporary directory and validate them. Do not invoke RefreshSnapshot against real roots and do not create repository Extracted. AST-check the real runner for the explicit switch and containment call.
 
-- [ ] **Step 7: Verify and commit**
+Run:
 
-Run all C1 tests, C0 contract regression, AST, strict JSON parsing, dangerous-command checks, diff-check, scope, and no-Extracted assertion.
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case WrongOutput
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case InvalidThreadId
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case Reparse
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case All
+~~~
+
+Expected: the first three cases pass by observing fail-closed refusal with zero created outputs; All reports status Passed, issueCount 0, and createdOutputCount 0.
+
+- [ ] **Step 7: Parse runner and policy-test ASTs**
+
+Expected AST error count: 0. The runner may not contain Start-Process, Unity, AssetRipper, extraction, or decoding commands.
+
+- [ ] **Step 8: Run all prior C1 regressions**
+
+Run Test-SourceCorpusGate.ps1, Test-SourceCorpusSnapshotFunctions.ps1 -Case All, and Test-SourceCorpusCatalog.ps1 -Case All. Expected: all pass and Test-Path .\Extracted is false.
+
+- [ ] **Step 9: Check scope and whitespace**
+
+Run git diff --check and git diff --name-only. Expected changed files: New-StellaSoraSourceCorpusSnapshot.ps1 and Test-SourceCorpusRunnerPolicy.ps1 only.
+
+- [ ] **Step 10: Commit Task 3**
 
 Commit:
 
@@ -429,21 +732,71 @@ git commit -m "feat: add guarded source snapshot runner"
 
 Generate a C1 ledger from a temp root, create a temporary copy of the C0 AssetCorpusContracts fixture directory, replace only valid-source-corpus-ledger.json, and invoke the C0 contract harness. Expect the first RED to identify any C0 schema incompatibility.
 
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case C0Schema
+~~~
+
+Expected RED: exit 1 because the compatibility test or handoff fixture is missing; no real roots or repository Extracted are accessed.
+
 - [ ] **Step 2: Resolve only C1-owned incompatibilities**
 
 Fix C1 output field names, types, paths, statuses, or additional properties. If the public schema itself is insufficient, stop and write a handoff contract-change request; do not edit docs/asset-migration/schemas.
+
+Expected GREEN command:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case C0Schema
+~~~
+
+Expected: status Passed, c0SchemaCompatible true, childProcessCount 1 for the explicitly tested lightweight C0 harness, and heavyChildProcessCount 0.
 
 - [ ] **Step 3: Freeze the C2 handoff fixture**
 
 The handoff fixture contains exact-case repository-relative ledgerPath and summaryPath, snapshotId, inputFingerprint, sourceCount, fileCount, fileBytes, and objectCount 0. It contains no machine root paths.
 
+~~~json
+{
+  "schemaVersion": "1.0.0",
+  "ledgerPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json",
+  "summaryPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceCount": 1,
+  "fileCount": 1,
+  "fileBytes": 4096,
+  "objectCount": 0
+}
+~~~
+
 - [ ] **Step 4: Verify stale and path failures**
 
 Wrong inputFingerprint, absolute path, URI path, dot-segment path, and nonzero objectCount without G2 evidence must each fail with one stable designated issue.
 
-- [ ] **Step 5: Full Phase A verification and commit**
+- [ ] **Step 5: Run handoff negative cases**
 
-Run C0 contract tests, every C1 test, AST checks, strict parse of all C0/C1 JSON, dangerous-command scans, git diff --check, scope checks, worktree clean checks, and no-Extracted checks.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case Handoff
+~~~
+
+Expected: status Passed and each isolated negative vector produces exactly one designated issue.
+
+- [ ] **Step 6: Run the complete Phase A C0/C1 suite**
+
+Run the C0 asset-corpus contract harness plus all four C1 test scripts. Expected: every command exits 0; lightweight compatibility may start only the C0 contract harness; no command runs the snapshot runner, extraction, or Unity.
+
+- [ ] **Step 7: Parse all C1 AST and JSON files**
+
+Expected: AST error count 0, JSON parse issue count 0, and dangerous heavy-command count 0.
+
+- [ ] **Step 8: Check scope and side effects**
+
+Run git diff --check and git diff --name-only. Expected changed paths are Test-SourceCorpusC0Compatibility.ps1 and valid-c2-source-corpus-handoff.json only. Test-Path .\Extracted must be false.
+
+- [ ] **Step 9: Commit Task 4**
 
 Commit:
 
