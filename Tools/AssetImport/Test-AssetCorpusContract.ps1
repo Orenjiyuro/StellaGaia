@@ -78,7 +78,7 @@ function Read-JsonContractFile {
             throw 'Contract JSON root must be an object.'
         }
 
-        $value = $serialized | ConvertFrom-Json -Depth 100
+        $value = $serialized | ConvertFrom-Json -Depth 100 -DateKind String
         if ($null -eq $value -or $value -isnot [System.Management.Automation.PSCustomObject]) {
             throw 'Contract JSON root must be an object.'
         }
@@ -291,6 +291,261 @@ function Get-PropertyByPath {
     }
 
     return $current
+}
+
+function Test-IsIntegerValue {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object] $Value
+    )
+
+    return (
+        $Value -is [sbyte] -or
+        $Value -is [byte] -or
+        $Value -is [int16] -or
+        $Value -is [uint16] -or
+        $Value -is [int32] -or
+        $Value -is [uint32] -or
+        $Value -is [int64] -or
+        $Value -is [uint64]
+    )
+}
+
+function Test-JsonPrimitiveEquals {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object] $Left,
+
+        [Parameter()]
+        [AllowNull()]
+        [object] $Right
+    )
+
+    if ($null -eq $Left -or $null -eq $Right) {
+        return $null -eq $Left -and $null -eq $Right
+    }
+
+    if ($Left -is [string] -or $Right -is [string]) {
+        return $Left -is [string] -and $Right -is [string] -and $Left -ceq $Right
+    }
+
+    return $Left -eq $Right
+}
+
+function Add-FixtureSchemaIssue {
+    param(
+        [Parameter(Mandatory)]
+        [string] $FixtureName,
+
+        [Parameter(Mandatory)]
+        [string] $InstancePath,
+
+        [Parameter(Mandatory)]
+        [string] $Keyword,
+
+        [Parameter(Mandatory)]
+        [string] $Detail
+    )
+
+    $issues.Add("Fixture '$FixtureName' at '$InstancePath' failed schema keyword '$Keyword': $Detail.")
+}
+
+function Resolve-LocalSchemaReference {
+    param(
+        [Parameter(Mandatory)]
+        [object] $RootSchema,
+
+        [Parameter(Mandatory)]
+        [string] $Reference
+    )
+
+    if (-not $Reference.StartsWith('#/', [System.StringComparison]::Ordinal)) {
+        return $null
+    }
+
+    $current = $RootSchema
+    foreach ($encodedSegment in $Reference.Substring(2).Split('/')) {
+        if ($null -eq $current -or $current -isnot [System.Management.Automation.PSCustomObject]) {
+            return $null
+        }
+
+        $segment = $encodedSegment.Replace('~1', '/').Replace('~0', '~')
+        $property = $current.PSObject.Properties[$segment]
+        if ($null -eq $property) {
+            return $null
+        }
+
+        $current = $property.Value
+    }
+
+    return $current
+}
+
+function Test-JsonSchemaSubset {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object] $Value,
+
+        [Parameter(Mandatory)]
+        [object] $Schema,
+
+        [Parameter(Mandatory)]
+        [object] $RootSchema,
+
+        [Parameter(Mandatory)]
+        [string] $FixtureName,
+
+        [Parameter(Mandatory)]
+        [string] $InstancePath,
+
+        [Parameter()]
+        [switch] $SkipCurrentRequired
+    )
+
+    $referenceProperty = $Schema.PSObject.Properties['$ref']
+    if ($null -ne $referenceProperty) {
+        $resolvedSchema = Resolve-LocalSchemaReference -RootSchema $RootSchema -Reference ([string]$referenceProperty.Value)
+        if ($null -eq $resolvedSchema) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword '$ref' -Detail "unresolved local reference '$($referenceProperty.Value)'"
+            return
+        }
+
+        Test-JsonSchemaSubset -Value $Value -Schema $resolvedSchema -RootSchema $RootSchema -FixtureName $FixtureName -InstancePath $InstancePath
+        return
+    }
+
+    $typeProperty = $Schema.PSObject.Properties['type']
+    if ($null -ne $typeProperty) {
+        $expectedType = [string]$typeProperty.Value
+        $typeMatches = switch ($expectedType) {
+            'object' { $Value -is [System.Management.Automation.PSCustomObject]; break }
+            'array' { $Value -is [System.Array] -or $Value -is [System.Collections.IList]; break }
+            'string' { $Value -is [string]; break }
+            'integer' { Test-IsIntegerValue -Value $Value; break }
+            'boolean' { $Value -is [bool]; break }
+            default { $false; break }
+        }
+
+        if (-not $typeMatches) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'type' -Detail "expected $expectedType"
+            return
+        }
+    }
+
+    $constProperty = $Schema.PSObject.Properties['const']
+    if ($null -ne $constProperty -and -not (Test-JsonPrimitiveEquals -Left $Value -Right $constProperty.Value)) {
+        Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'const' -Detail "value does not equal the schema constant"
+    }
+
+    $enumProperty = $Schema.PSObject.Properties['enum']
+    if ($null -ne $enumProperty) {
+        $enumMatches = $false
+        foreach ($allowedValue in @($enumProperty.Value)) {
+            if (Test-JsonPrimitiveEquals -Left $Value -Right $allowedValue) {
+                $enumMatches = $true
+                break
+            }
+        }
+
+        if (-not $enumMatches) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'enum' -Detail "value is not in the allowed set"
+        }
+    }
+
+    if ($Value -is [string]) {
+        $minLengthProperty = $Schema.PSObject.Properties['minLength']
+        if ($null -ne $minLengthProperty -and $Value.Length -lt [int]$minLengthProperty.Value) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'minLength' -Detail "length is less than $($minLengthProperty.Value)"
+        }
+
+        $patternProperty = $Schema.PSObject.Properties['pattern']
+        if ($null -ne $patternProperty -and -not [System.Text.RegularExpressions.Regex]::IsMatch($Value, [string]$patternProperty.Value, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'pattern' -Detail "value does not match '$($patternProperty.Value)'"
+        }
+
+        $formatProperty = $Schema.PSObject.Properties['format']
+        if ($null -ne $formatProperty -and $formatProperty.Value -ceq 'date-time') {
+            $parsedDateTime = [System.DateTimeOffset]::MinValue
+            $hasIsoShape = $Value -cmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$'
+            $isDateTime = $hasIsoShape -and [System.DateTimeOffset]::TryParse(
+                $Value,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::RoundtripKind,
+                [ref]$parsedDateTime
+            )
+            if (-not $isDateTime) {
+                Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'format' -Detail "value is not a date-time"
+            }
+        }
+    }
+
+    if (Test-IsIntegerValue -Value $Value) {
+        $minimumProperty = $Schema.PSObject.Properties['minimum']
+        if ($null -ne $minimumProperty -and $Value -lt $minimumProperty.Value) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'minimum' -Detail "value is less than $($minimumProperty.Value)"
+        }
+    }
+
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $requiredProperty = $Schema.PSObject.Properties['required']
+        if (-not $SkipCurrentRequired -and $null -ne $requiredProperty) {
+            foreach ($requiredName in @($requiredProperty.Value)) {
+                if ($null -eq $Value.PSObject.Properties[[string]$requiredName]) {
+                    Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'required' -Detail "missing property '$requiredName'"
+                }
+            }
+        }
+
+        $propertiesProperty = $Schema.PSObject.Properties['properties']
+        if ($null -ne $propertiesProperty) {
+            foreach ($schemaProperty in $propertiesProperty.Value.PSObject.Properties) {
+                $instanceProperty = $Value.PSObject.Properties[$schemaProperty.Name]
+                if ($null -ne $instanceProperty) {
+                    Test-JsonSchemaSubset -Value $instanceProperty.Value -Schema $schemaProperty.Value -RootSchema $RootSchema -FixtureName $FixtureName -InstancePath "$InstancePath.$($schemaProperty.Name)"
+                }
+            }
+
+            $additionalProperties = $Schema.PSObject.Properties['additionalProperties']
+            if ($null -ne $additionalProperties -and $additionalProperties.Value -eq $false) {
+                $allowedNames = @($propertiesProperty.Value.PSObject.Properties.Name)
+                foreach ($instanceProperty in $Value.PSObject.Properties) {
+                    if ($instanceProperty.Name -cnotin $allowedNames) {
+                        Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath "$InstancePath.$($instanceProperty.Name)" -Keyword 'additionalProperties' -Detail "property is not allowed"
+                    }
+                }
+            }
+        }
+    }
+
+    if ($Value -is [System.Array] -or $Value -is [System.Collections.IList]) {
+        $items = @($Value)
+        $minItemsProperty = $Schema.PSObject.Properties['minItems']
+        if ($null -ne $minItemsProperty -and $items.Count -lt [int]$minItemsProperty.Value) {
+            Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'minItems' -Detail "item count is less than $($minItemsProperty.Value)"
+        }
+
+        $uniqueItemsProperty = $Schema.PSObject.Properties['uniqueItems']
+        if ($null -ne $uniqueItemsProperty -and $uniqueItemsProperty.Value -eq $true) {
+            $seenItems = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+            foreach ($item in $items) {
+                $serializedItem = $item | ConvertTo-Json -Depth 100 -Compress
+                if (-not $seenItems.Add($serializedItem)) {
+                    Add-FixtureSchemaIssue -FixtureName $FixtureName -InstancePath $InstancePath -Keyword 'uniqueItems' -Detail "array contains duplicate items"
+                    break
+                }
+            }
+        }
+
+        $itemsProperty = $Schema.PSObject.Properties['items']
+        if ($null -ne $itemsProperty) {
+            for ($index = 0; $index -lt $items.Count; $index++) {
+                Test-JsonSchemaSubset -Value $items[$index] -Schema $itemsProperty.Value -RootSchema $RootSchema -FixtureName $FixtureName -InstancePath "$InstancePath[$index]"
+            }
+        }
+    }
 }
 
 function Test-RequiredProperties {
@@ -608,6 +863,8 @@ foreach ($contract in $fixtureContracts) {
         if ($null -ne $schemaRequired) {
             Test-RequiredProperties -Value $fixture -RequiredProperties @($schemaRequired.Value) -FixtureName $contract.Name
         }
+
+        Test-JsonSchemaSubset -Value $fixture -Schema $fixtureSchema -RootSchema $fixtureSchema -FixtureName $contract.Name -InstancePath '$' -SkipCurrentRequired
     }
 
     $schemaVersion = $fixture.PSObject.Properties['schemaVersion']
@@ -667,4 +924,4 @@ if ($issues.Count -gt 0) {
     throw "Asset corpus contract validation failed with $($issues.Count) issue(s)."
 }
 
-Write-Output $result
+Write-Output ($result | ConvertTo-Json -Depth 5 -Compress)
