@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ledgerInputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ledgerPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json",
+  "toolVersions": [
+    {
+      "toolName": "source-corpus-gate",
+      "version": "1.0.0"
+    }
+  ],
+  "operationIdentity": "C1.SourceCorpusGate.FixtureValidation",
+  "directChildSummaries": [
+    "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json"
+  ],
+  "directChildReports": [],
+  "failureAttribution": "None; the positive fixture intentionally contains no failures.",
+  "nextAllowedAction": "Implement deterministic G0 fingerprints against temporary synthetic roots.",
+  "sourceCount": 1,
+  "sourceFileCount": 1,
+  "catalogedFileCount": 1,
+  "explicitlyExcludedFileCount": 0,
+  "sourceBytes": 4096,
+  "catalogedBytes": 4096,
+  "explicitlyExcludedBytes": 0,
+  "sources": [
+    {
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "rootFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceFileCount": 1,
+      "sourceBytes": 4096
+    }
+  ],
+  "exclusions": []
+}

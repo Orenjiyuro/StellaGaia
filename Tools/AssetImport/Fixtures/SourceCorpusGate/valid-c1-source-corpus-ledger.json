@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "toolVersions": [
+    {
+      "toolName": "contract-fixture",
+      "version": "1.0.0"
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "capturedAt": "2026-07-10T12:00:00+08:00",
+      "rootFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "files": [
+    {
+      "snapshotId": "snapshot-pc-install-001",
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "relativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "sizeBytes": 4096,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "capturedAt": "2026-07-10T12:00:00+08:00",
+      "containerKind": "UnknownInput",
+      "parseStatus": "NotAttempted",
+      "disposition": "RetainForLater",
+      "evidence": [],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "NotAttempted",
+        "semantics": "Unknown",
+        "unity": "NotTested",
+        "disposition": "RetainForLater"
+      }
+    }
+  ],
+  "objects": []
+}
