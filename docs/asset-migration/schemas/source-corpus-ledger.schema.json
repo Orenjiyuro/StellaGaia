@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/source-corpus-ledger.schema.json",
+  "title": "StellaGaia Source Corpus Ledger",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "snapshotId",
+    "generatedAt",
+    "inputFingerprint",
+    "toolVersions",
+    "sources",
+    "files",
+    "objects"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "inputFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "toolVersions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/toolVersion"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "sourceKind",
+          "capturedAt",
+          "rootFingerprint"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "PcInstall",
+              "PcPatchOrCache",
+              "AndroidApk",
+              "AndroidDataOrCache"
+            ]
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rootFingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "sourceId",
+          "sourceKind",
+          "relativePath",
+          "sizeBytes",
+          "sha256",
+          "capturedAt",
+          "containerKind",
+          "parseStatus",
+          "disposition",
+          "evidence",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "PcInstall",
+              "PcPatchOrCache",
+              "AndroidApk",
+              "AndroidDataOrCache"
+            ]
+          },
+          "relativePath": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "containerKind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parseStatus": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "NeedsDiagnosis",
+              "UseOriginalAsset",
+              "RepairOnce",
+              "PrototypeReplacement",
+              "RetainForLater",
+              "DiagnosticOnly",
+              "Stop"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/repositoryPath"
+            }
+          },
+          "status": {
+            "$ref": "#/$defs/status"
+          }
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "assetObjectId",
+          "sourceId",
+          "containerRelativePath",
+          "classId",
+          "objectType",
+          "objectName",
+          "serializedSizeBytes",
+          "dependencyObjectIds",
+          "toolObservations",
+          "canonicalAssetId",
+          "platformVariant",
+          "configurationDisposition",
+          "evidence",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "assetObjectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "containerRelativePath": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "classId": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "objectType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "objectName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serializedSizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dependencyObjectIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "toolObservations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "toolName",
+                "observation"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "toolName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observation": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "canonicalAssetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platformVariant": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configurationDisposition": {
+            "type": "string",
+            "enum": [
+              "Parsed",
+              "DiscoveredOpaque",
+              "Encrypted",
+              "RequiresRuntimeType",
+              "LikelyServerDependent",
+              "NotConfiguration"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/repositoryPath"
+            }
+          },
+          "status": {
+            "$ref": "#/$defs/status"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![\\\\/]).+"
+    },
+    "toolVersion": {
+      "type": "object",
+      "required": [
+        "toolName",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "toolName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "corpus",
+        "extraction",
+        "semantics",
+        "unity",
+        "disposition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "corpus": {
+          "type": "string",
+          "enum": [
+            "Cataloged",
+            "Missing",
+            "StaleInput"
+          ]
+        },
+        "extraction": {
+          "type": "string",
+          "enum": [
+            "NotAttempted",
+            "ExtractedReadable",
+            "CrossToolVerified",
+            "Opaque",
+            "Failed"
+          ]
+        },
+        "semantics": {
+          "type": "string",
+          "enum": [
+            "Known",
+            "PartiallyKnown",
+            "Unknown"
+          ]
+        },
+        "unity": {
+          "type": "string",
+          "enum": [
+            "NotTested",
+            "StaticQualified",
+            "RepresentativeValidated",
+            "Rejected",
+            "UnityExecutionUnavailable"
+          ]
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "NeedsDiagnosis",
+            "UseOriginalAsset",
+            "RepairOnce",
+            "PrototypeReplacement",
+            "RetainForLater",
+            "DiagnosticOnly",
+            "Stop"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "toolVersions": [
+    {
+      "toolName": "contract-fixture",
+      "version": "1.0.0"
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "capturedAt": "2026-07-10T11:55:00+08:00",
+      "rootFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "files": [
+    {
+      "snapshotId": "snapshot-pc-install-001",
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "relativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "sizeBytes": 4096,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "capturedAt": "2026-07-10T11:55:00+08:00",
+      "containerKind": "UnityBundle",
+      "parseStatus": "Opaque",
+      "disposition": "RetainForLater",
+      "evidence": [
+        "docs/asset-migration/evidence/source-corpus/pc-install-primary.json"
+      ],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "Opaque",
+        "semantics": "Unknown",
+        "unity": "NotTested",
+        "disposition": "RetainForLater"
+      }
+    }
+  ],
+  "objects": [
+    {
+      "assetObjectId": "pc-install-primary:game-data.bundle:114:1",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "classId": 114,
+      "objectType": "MonoBehaviour",
+      "objectName": "StellaConfiguration",
+      "serializedSizeBytes": 512,
+      "dependencyObjectIds": [],
+      "toolObservations": [
+        {
+          "toolName": "static-catalog",
+          "observation": "Object identity is linked to the canonical Unity asset record."
+        }
+      ],
+      "canonicalAssetId": "stella-configuration-primary",
+      "platformVariant": "windows-x64",
+      "configurationDisposition": "DiscoveredOpaque",
+      "evidence": [
+        "docs/asset-migration/evidence/objects/stella-configuration-primary.json"
+      ],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "ExtractedReadable",
+        "semantics": "Known",
+        "unity": "StaticQualified",
+        "disposition": "UseOriginalAsset"
+      }
+    }
+  ]
+}

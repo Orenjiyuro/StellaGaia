@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "inputFingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "toolVersions": [
+    {
+      "toolName": "contract-fixture",
+      "version": "1.0.0"
+    }
+  ],
+  "families": [
+    {
+      "familyId": "authoring-family-environment-001",
+      "category": "Environment",
+      "memberSelector": "canonicalAssetId startsWith environment-",
+      "memberCount": 2,
+      "staticPassedCount": 1,
+      "staticFailedCount": 1,
+      "uncheckedCount": 0,
+      "representativeAssetIds": [
+        "environment-forest-001"
+      ],
+      "representativeSelectionReason": "The representative covers the shared material and prefab dependency shape.",
+      "unityEvidence": [
+        "docs/asset-migration/evidence/unity/environment-family-summary.json"
+      ],
+      "residualIssues": [
+        "One member still has an unresolved shader dependency."
+      ],
+      "failureAttribution": "The failed member references a shader variant absent from the authoring project.",
+      "decision": "NeedsDiagnosis",
+      "nextAllowedAction": "Diagnose the isolated failed member before any family-wide reuse decision.",
+      "generatedAt": "2026-07-10T12:00:00+08:00",
+      "inputFingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "toolVersions": [
+        {
+          "toolName": "static-family-gate",
+          "version": "1.0.0"
+        }
+      ],
+      "directGateSummary": "docs/asset-migration/gates/environment-family-summary.json",
+      "directGateReport": "docs/asset-migration/gates/environment-family-report.md",
+      "staticOutcome": "NeedsDiagnosis"
+    }
+  ]
+}

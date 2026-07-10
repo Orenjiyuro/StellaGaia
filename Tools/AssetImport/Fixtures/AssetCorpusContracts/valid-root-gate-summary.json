@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "inputFingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "toolVersions": [
+    {
+      "toolName": "contract-fixture",
+      "version": "1.0.0"
+    }
+  ],
+  "directGateSummaries": [
+    "docs/asset-migration/gates/environment-family-summary.json"
+  ],
+  "directGateReports": [
+    "docs/asset-migration/gates/environment-family-report.md"
+  ],
+  "corpusSnapshotComplete": {
+    "value": true,
+    "catalogedFileCount": 1,
+    "sourceFileCount": 1,
+    "catalogedBytes": 4096,
+    "sourceBytes": 4096
+  },
+  "structuredObjectCoverage": {
+    "parsedContainerCount": 0,
+    "parsedContainerBytes": 0,
+    "opaqueOrFailedContainerCount": 1,
+    "opaqueOrFailedContainerBytes": 4096,
+    "enumeratedObjectCount": 1,
+    "classifiedObjectCount": 0,
+    "unclassifiedObjectCount": 1,
+    "configurationCandidateCount": 1,
+    "configurationParsedCount": 0
+  },
+  "originalAssetBatchCoverage": {
+    "reusableFamilyCount": 0,
+    "totalFamilyCount": 1,
+    "reusableMemberCount": 1,
+    "totalMemberCount": 2,
+    "reusableBytes": 4096,
+    "totalBytes": 8192
+  },
+  "stellaSora2AuthoringReady": {
+    "value": false,
+    "requiredCapabilities": [
+      "source-corpus-complete",
+      "authoring-family-qualified"
+    ],
+    "satisfiedCapabilities": [
+      "source-corpus-complete"
+    ],
+    "isolatedFailedMemberCount": 1
+  }
+}

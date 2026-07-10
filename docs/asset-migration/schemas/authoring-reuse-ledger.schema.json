@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/authoring-reuse-ledger.schema.json",
+  "title": "StellaGaia Authoring Reuse Ledger",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "inputFingerprint",
+    "toolVersions",
+    "families"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "inputFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "toolVersions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/toolVersion"
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "familyId",
+          "category",
+          "memberSelector",
+          "memberCount",
+          "staticPassedCount",
+          "staticFailedCount",
+          "uncheckedCount",
+          "representativeAssetIds",
+          "representativeSelectionReason",
+          "unityEvidence",
+          "residualIssues",
+          "failureAttribution",
+          "decision",
+          "nextAllowedAction",
+          "generatedAt",
+          "inputFingerprint",
+          "toolVersions",
+          "directGateSummary",
+          "directGateReport",
+          "staticOutcome"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "familyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "memberSelector": {
+            "type": "string",
+            "minLength": 1
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "staticPassedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "staticFailedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "uncheckedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "representativeAssetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "representativeSelectionReason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unityEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/repositoryPath"
+            }
+          },
+          "residualIssues": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "failureAttribution": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "NeedsDiagnosis",
+              "UseOriginalAsset",
+              "RepairOnce",
+              "PrototypeReplacement",
+              "RetainForLater",
+              "DiagnosticOnly",
+              "Stop"
+            ]
+          },
+          "nextAllowedAction": {
+            "type": "string",
+            "minLength": 1
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "toolVersions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/toolVersion"
+            }
+          },
+          "directGateSummary": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "directGateReport": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "staticOutcome": {
+            "type": "string",
+            "enum": [
+              "StaticQualified",
+              "StaticRejected",
+              "NeedsDiagnosis"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![\\\\/]).+"
+    },
+    "toolVersion": {
+      "type": "object",
+      "required": [
+        "toolName",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "toolName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
