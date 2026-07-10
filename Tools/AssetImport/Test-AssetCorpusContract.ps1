@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $issues = [System.Collections.Generic.List[string]]::new()
 
-function Test-ContainsForbiddenPropertyName {
+function Get-ForbiddenPropertyNames {
     param(
         [Parameter()]
         [AllowNull()]
@@ -21,46 +21,38 @@ function Test-ContainsForbiddenPropertyName {
     )
 
     if ($null -eq $Value -or $Value -is [string]) {
-        return $false
+        return
     }
 
     if ($Value -is [System.Management.Automation.PSCustomObject]) {
         foreach ($property in $Value.PSObject.Properties) {
             if ($property.Name -cin @('OriginalUnityProjectRestored', 'originalUnityProjectRestored')) {
-                return $true
+                Write-Output $property.Name
             }
 
-            if (Test-ContainsForbiddenPropertyName -Value $property.Value) {
-                return $true
-            }
+            Get-ForbiddenPropertyNames -Value $property.Value
         }
 
-        return $false
+        return
     }
 
     if ($Value -is [System.Collections.IDictionary]) {
         foreach ($key in $Value.Keys) {
             if ([string]$key -cin @('OriginalUnityProjectRestored', 'originalUnityProjectRestored')) {
-                return $true
+                Write-Output ([string]$key)
             }
 
-            if (Test-ContainsForbiddenPropertyName -Value $Value[$key]) {
-                return $true
-            }
+            Get-ForbiddenPropertyNames -Value $Value[$key]
         }
 
-        return $false
+        return
     }
 
     if ($Value -is [System.Collections.IEnumerable]) {
         foreach ($item in $Value) {
-            if (Test-ContainsForbiddenPropertyName -Value $item) {
-                return $true
-            }
+            Get-ForbiddenPropertyNames -Value $item
         }
     }
-
-    return $false
 }
 
 function Read-JsonContractFile {
@@ -473,8 +465,8 @@ if ($null -ne $vocabulary) {
         }
     }
 
-    if (Test-ContainsForbiddenPropertyName -Value $vocabulary) {
-        $issues.Add('Forbidden OriginalUnityProjectRestored property name is present')
+    foreach ($forbiddenPropertyName in @(Get-ForbiddenPropertyNames -Value $vocabulary)) {
+        $issues.Add("Forbidden original project restoration property found in '$forbiddenPropertyName'.")
     }
 }
 
@@ -501,17 +493,14 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-source-corpus-ledger.json'
         SchemaName = 'source-corpus-ledger.schema.json'
-        Required = $schemaContracts[0].Required
     },
     [pscustomobject]@{
         Name = 'valid-authoring-reuse-ledger.json'
         SchemaName = 'authoring-reuse-ledger.schema.json'
-        Required = $schemaContracts[1].Required
     },
     [pscustomobject]@{
         Name = 'valid-root-gate-summary.json'
         SchemaName = 'root-gate-summary.schema.json'
-        Required = $schemaContracts[2].Required
     }
 )
 
@@ -568,8 +557,8 @@ foreach ($contract in $schemaContracts) {
 
     Test-SchemaObjectClosure -Node $schema -SchemaName $contract.Name -Location '$'
     Test-SchemaPropertyConstraints -Node $schema -SchemaName $contract.Name
-    if (Test-ContainsForbiddenPropertyName -Value $schema) {
-        $issues.Add("Schema '$($contract.Name)' contains a forbidden restoration property name.")
+    foreach ($forbiddenPropertyName in @(Get-ForbiddenPropertyNames -Value $schema)) {
+        $issues.Add("Forbidden original project restoration property found in '$forbiddenPropertyName'.")
     }
 }
 
@@ -581,6 +570,7 @@ if ($schemas.ContainsKey('source-corpus-ledger.schema.json')) {
     Test-SchemaRequiredSet -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path '$defs.status.required' -Expected @('corpus', 'extraction', 'semantics', 'unity', 'disposition')
     Test-SchemaEnum -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path 'properties.sources.items.properties.sourceKind.enum' -VocabularyDimension 'sourceKind'
     Test-SchemaEnum -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path 'properties.files.items.properties.sourceKind.enum' -VocabularyDimension 'sourceKind'
+    Test-SchemaEnum -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path 'properties.files.items.properties.parseStatus.enum' -VocabularyDimension 'extraction'
     Test-SchemaEnum -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path 'properties.files.items.properties.disposition.enum' -VocabularyDimension 'disposition'
     Test-SchemaEnum -Schema $schema -SchemaName 'source-corpus-ledger.schema.json' -Path 'properties.objects.items.properties.configurationDisposition.enum' -VocabularyDimension 'configurationDisposition'
     foreach ($dimension in @('corpus', 'extraction', 'semantics', 'unity', 'disposition')) {
@@ -612,15 +602,21 @@ foreach ($contract in $fixtureContracts) {
     }
 
     $fixtures[$contract.Name] = $fixture
-    Test-RequiredProperties -Value $fixture -RequiredProperties $contract.Required -FixtureName $contract.Name
+    $fixtureSchema = $schemas[$contract.SchemaName]
+    if ($null -ne $fixtureSchema) {
+        $schemaRequired = $fixtureSchema.PSObject.Properties['required']
+        if ($null -ne $schemaRequired) {
+            Test-RequiredProperties -Value $fixture -RequiredProperties @($schemaRequired.Value) -FixtureName $contract.Name
+        }
+    }
 
     $schemaVersion = $fixture.PSObject.Properties['schemaVersion']
     if ($null -eq $schemaVersion -or $schemaVersion.Value -cne '1.0.0') {
         $issues.Add("Fixture '$($contract.Name)' schemaVersion must be exactly 1.0.0.")
     }
 
-    if (Test-ContainsForbiddenPropertyName -Value $fixture) {
-        $issues.Add("Fixture '$($contract.Name)' contains a forbidden restoration property name.")
+    foreach ($forbiddenPropertyName in @(Get-ForbiddenPropertyNames -Value $fixture)) {
+        $issues.Add("Forbidden original project restoration property found in '$forbiddenPropertyName'.")
     }
 }
 
@@ -632,6 +628,7 @@ if ($null -ne $sourceFixture) {
 
     foreach ($file in @(Get-PropertyByPath -Value $sourceFixture -Path 'files')) {
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $file -Path 'sourceKind') -Dimension 'sourceKind' -VocabularyDimension 'sourceKind' -FixtureName 'valid-source-corpus-ledger.json'
+        Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $file -Path 'parseStatus') -Dimension 'extraction' -VocabularyDimension 'extraction' -FixtureName 'valid-source-corpus-ledger.json'
         foreach ($dimension in @('corpus', 'extraction', 'semantics', 'unity', 'disposition')) {
             Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $file -Path "status.$dimension") -Dimension $dimension -VocabularyDimension $dimension -FixtureName 'valid-source-corpus-ledger.json'
         }

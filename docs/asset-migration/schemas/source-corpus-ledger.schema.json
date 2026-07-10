@@ -130,7 +130,13 @@
           },
           "parseStatus": {
             "type": "string",
-            "minLength": 1
+            "enum": [
+              "NotAttempted",
+              "ExtractedReadable",
+              "CrossToolVerified",
+              "Opaque",
+              "Failed"
+            ]
           },
           "disposition": {
             "type": "string",
