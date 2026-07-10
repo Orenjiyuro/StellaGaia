@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "corpus": [
+    "Cataloged",
+    "Missing",
+    "StaleInput"
+  ],
+  "extraction": [
+    "NotAttempted",
+    "ExtractedReadable",
+    "CrossToolVerified",
+    "Opaque",
+    "Failed"
+  ],
+  "semantics": [
+    "Known",
+    "PartiallyKnown",
+    "Unknown"
+  ],
+  "configurationDisposition": [
+    "Parsed",
+    "DiscoveredOpaque",
+    "Encrypted",
+    "RequiresRuntimeType",
+    "LikelyServerDependent",
+    "NotConfiguration"
+  ],
+  "unity": [
+    "NotTested",
+    "StaticQualified",
+    "RepresentativeValidated",
+    "Rejected",
+    "UnityExecutionUnavailable"
+  ],
+  "disposition": [
+    "NeedsDiagnosis",
+    "UseOriginalAsset",
+    "RepairOnce",
+    "PrototypeReplacement",
+    "RetainForLater",
+    "DiagnosticOnly",
+    "Stop"
+  ],
+  "familyStaticOutcome": [
+    "StaticQualified",
+    "StaticRejected",
+    "NeedsDiagnosis"
+  ],
+  "sourceKind": [
+    "PcInstall",
+    "PcPatchOrCache",
+    "AndroidApk",
+    "AndroidDataOrCache"
+  ]
+}
