@@ -2,6 +2,6 @@
   "family": {
     "familyId": "family.invalid-repair-once",
     "decision": "RepairOnce",
-    "failureAttribution": []
+    "failureAttribution": ""
   }
 }
