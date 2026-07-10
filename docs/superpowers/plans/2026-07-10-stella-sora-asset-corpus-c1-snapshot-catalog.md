@@ -125,7 +125,13 @@ The summary, not the C0 portable ledger, owns count and exclusion conservation. 
 ~~~text
 sourceFileCount = catalogedFileCount + explicitlyExcludedFileCount
 sourceBytes = catalogedBytes + explicitlyExcludedBytes
+sourceFileCount = sum(sources[*].sourceFileCount)
+sourceBytes = sum(sources[*].sourceBytes)
+explicitlyExcludedFileCount = exclusions.Count
+explicitlyExcludedBytes = sum(exclusions[*].sizeBytes)
 ~~~
+
+For every sourceId, the source row totals must equal that source's ledger file rows plus that source's exclusion rows. The summary source IDs/kinds/root fingerprints must match the ledger sources exactly; no missing or extra source row is permitted.
 
 ### Canonical fingerprint encoding
 
@@ -221,7 +227,7 @@ Create valid-c1-source-corpus-ledger.json with one PcInstall source and one file
 
 - [ ] **Step 4: Add the matching private summary**
 
-Add the exact private-summary shape above. Make ledgerInputFingerprint equal the ledger inputFingerprint. Require sourceCount to equal ledger.sources.Count; sourceId, sourceKind, and rootFingerprint to match the ledger source row exactly; catalogedFileCount to equal ledger.files.Count; and catalogedBytes to equal the sum of ledger file sizeBytes.
+Add the exact private-summary shape above. Make ledgerInputFingerprint equal the ledger inputFingerprint. Require sourceCount to equal ledger.sources.Count; sourceId, sourceKind, and rootFingerprint to match the ledger source row exactly; catalogedFileCount to equal ledger.files.Count; catalogedBytes to equal the sum of ledger file sizeBytes; summary sourceFileCount/sourceBytes to equal the sums of per-source totals; exclusions count/bytes to equal the exclusions array; and each source row's totals to equal its own ledger rows plus its own exclusions.
 
 - [ ] **Step 5: Add four one-rule negative summaries**
 
@@ -243,7 +249,7 @@ Explicit exclusion requires a non-empty reason for '<sourceId>/<relativePath>'.
 
 - [ ] **Step 6: Require cross-ledger and exact negative outcomes**
 
-Before evaluating negative summaries, cross-check the positive ledger and summary. Stable cross-ledger issues are Source count does not match source corpus ledger., Source identity does not match source corpus ledger for '<sourceId>'., Cataloged file count does not match source corpus ledger., and Cataloged bytes do not match source corpus ledger.
+Before evaluating negative summaries, cross-check the positive ledger and summary. Stable cross-ledger issues are Source count does not match source corpus ledger., Source identity does not match source corpus ledger for '<sourceId>'., Cataloged file count does not match source corpus ledger., Cataloged bytes do not match source corpus ledger., Source totals do not equal per-source totals., Exclusion totals do not match the exclusion rows., and Per-source conservation failed for '<sourceId>'.
 
 Load each negative fixture into an isolated issue list. A fixture passes only when its actual list exactly equals its one designated issue. Missing expected issues, structural issues, or unexpected extra issues fail the overall gate. Count only exact-verified negative fixtures.
 
@@ -290,9 +296,27 @@ Expected: exit 0 with no parser errors.
 
 Use the Step 8 AST and fail when a CommandAst resolves to Start-Process, pwsh, powershell, Unity, AssetRipper, or a .ps1 path. Expected dangerous command count: 0.
 
+~~~powershell
+$danger = @($ast.FindAll({
+    param($node)
+    if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
+    $name = $node.GetCommandName()
+    return $name -in @('Start-Process', 'pwsh', 'powershell', 'Unity', 'AssetRipper') -or
+        ($null -ne $name -and $name -like '*.ps1')
+}, $true))
+if ($danger.Count -ne 0) { throw ($danger.Extent.Text -join [Environment]::NewLine) }
+~~~
+
 - [ ] **Step 11: Check scope and whitespace**
 
 Run git diff --check and git diff --name-only. Expected: Test-SourceCorpusGate.ps1 plus exactly six SourceCorpusGate JSON fixtures; Test-Path .\Extracted remains false.
+
+~~~powershell
+git diff --check
+$changed = @(git diff --name-only)
+if ($changed.Count -ne 7) { throw "Expected 7 Task 0 paths, got $($changed.Count)." }
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 0 created Extracted.' }
+~~~
 
 - [ ] **Step 12: Commit Task 0**
 
@@ -346,14 +370,51 @@ Implement and export these exact functions:
 ~~~powershell
 function Get-ExactJsonPropertyByPath {
     param([AllowNull()][object]$Value, [Parameter(Mandatory)][string]$Path)
+    $current = $Value
+    foreach ($segment in $Path.Split('.')) {
+        if ($current -isnot [System.Management.Automation.PSCustomObject]) { return $null }
+        $match = @($current.PSObject.Properties | Where-Object Name -CEQ $segment)
+        if ($match.Count -ne 1) { return $null }
+        $current = $match[0].Value
+    }
+    return $current
 }
 
 function ConvertTo-PortableRelativePath {
     param([Parameter(Mandatory)][string]$RootPath, [Parameter(Mandatory)][string]$FilePath)
+    $root = [System.IO.Path]::GetFullPath($RootPath).TrimEnd('\', '/')
+    $file = [System.IO.Path]::GetFullPath($FilePath)
+    $prefix = $root + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $file.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "File path is outside source root: $FilePath"
+    }
+    $relative = [System.IO.Path]::GetRelativePath($root, $file).Replace('\', '/')
+    if (
+        [string]::IsNullOrWhiteSpace($relative) -or
+        [System.IO.Path]::IsPathRooted($relative) -or
+        $relative -match '^[A-Za-z][A-Za-z0-9+.-]*:' -or
+        $relative -match '(^|/)\.{1,2}(/|$)'
+    ) {
+        throw "Invalid portable relative path: $relative"
+    }
+    return $relative
 }
 
 function Get-LowercaseSha256 {
     param([Parameter(Mandatory)][byte[]]$Bytes)
+    return [System.Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData($Bytes)
+    ).ToLowerInvariant()
+}
+
+function Assert-UniquePortablePaths {
+    param([Parameter(Mandatory)][string[]]$RelativePaths)
+    $ordinal = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $ignoreCase = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $RelativePaths) {
+        if (-not $ordinal.Add($path)) { throw "Duplicate normalized relative path: $path" }
+        if (-not $ignoreCase.Add($path)) { throw "Case-only relative path collision: $path" }
+    }
 }
 
 function New-CanonicalFileRecordBytes {
@@ -381,7 +442,7 @@ function New-CanonicalSourceRecordBytes {
 }
 ~~~
 
-ConvertTo-PortableRelativePath accepts host separators, emits slash-separated paths, and rejects absolute, URI, empty, dot-segment, duplicate, and case-collision inputs. Exact JSON traversal enumerates PSObject.Properties and compares Name with -ceq.
+ConvertTo-PortableRelativePath validates one root/file pair. Assert-UniquePortablePaths performs collection-level duplicate and case-only collision checks without hidden mutable state. Exact JSON traversal enumerates PSObject.Properties and compares Name with -ceq.
 
 - [ ] **Step 4: Verify primitive GREEN**
 
@@ -404,10 +465,29 @@ Add and export:
 ~~~powershell
 function Get-SourceRootFingerprint {
     param([Parameter(Mandatory)][object[]]$Files)
+    $ordered = [object[]]$Files.Clone()
+    $comparison = [System.Comparison[object]]{
+        param($left, $right)
+        [System.StringComparer]::Ordinal.Compare(
+            [string]$left.relativePath,
+            [string]$right.relativePath
+        )
+    }
+    [System.Array]::Sort($ordered, $comparison)
+    Assert-UniquePortablePaths -RelativePaths @($ordered | ForEach-Object relativePath)
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        foreach ($file in $ordered) {
+            $record = New-CanonicalFileRecordBytes -RelativePath $file.relativePath -SizeBytes $file.sizeBytes -Sha256 $file.sha256
+            $stream.Write($record, 0, $record.Length)
+        }
+        return Get-LowercaseSha256 -Bytes $stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+    }
 }
 ~~~
-
-Clone and sort the file records with a comparer that calls [System.StringComparer]::Ordinal.Compare on RelativePath. Append New-CanonicalFileRecordBytes output to a MemoryStream, hash stream.ToArray(), and dispose the stream in finally.
 
 - [ ] **Step 7: Verify root fingerprint GREEN**
 
@@ -430,10 +510,42 @@ Add and export:
 ~~~powershell
 function Get-SourceInputFingerprint {
     param([Parameter(Mandatory)][object[]]$Sources)
+    $allowedKinds = @('PcInstall', 'PcPatchOrCache', 'AndroidApk', 'AndroidDataOrCache')
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($source in $Sources) {
+        if (
+            [string]::IsNullOrWhiteSpace([string]$source.sourceId) -or
+            [string]$source.sourceId -match "[\x00\r\n]" -or
+            -not $seen.Add([string]$source.sourceId)
+        ) {
+            throw "Invalid or duplicate sourceId: $($source.sourceId)"
+        }
+        if ([string]$source.sourceKind -cnotin $allowedKinds) {
+            throw "Unsupported sourceKind: $($source.sourceKind)"
+        }
+        if ([string]$source.rootFingerprint -cnotmatch '^[0-9a-f]{64}$') {
+            throw "Invalid rootFingerprint for sourceId '$($source.sourceId)'."
+        }
+    }
+    $ordered = [object[]]$Sources.Clone()
+    $comparison = [System.Comparison[object]]{
+        param($left, $right)
+        [System.StringComparer]::Ordinal.Compare([string]$left.sourceId, [string]$right.sourceId)
+    }
+    [System.Array]::Sort($ordered, $comparison)
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        foreach ($source in $ordered) {
+            $record = New-CanonicalSourceRecordBytes -SourceId $source.sourceId -SourceKind $source.sourceKind -RootFingerprint $source.rootFingerprint
+            $stream.Write($record, 0, $record.Length)
+        }
+        return Get-LowercaseSha256 -Bytes $stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+    }
 }
 ~~~
-
-Validate sourceId uniqueness with [System.StringComparer]::Ordinal, reject NUL/CR/LF, validate the four C0 sourceKind values, sort with an ordinal sourceId comparer, encode canonical source records, and return lowercase SHA-256.
 
 - [ ] **Step 10: Verify aggregate and full GREEN**
 
@@ -448,7 +560,21 @@ Expected: both invocations exit 0 with status Passed and issueCount 0.
 
 - [ ] **Step 11: Parse module and test ASTs**
 
-Parse both PowerShell files with Parser.ParseFile. Expected error count: 0.
+Run:
+
+~~~powershell
+foreach ($path in @(
+    '.\Tools\AssetImport\SourceCorpusGate.psm1',
+    '.\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1'
+)) {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+}
+~~~
+
+Expected: exit 0 with no AST errors.
 
 - [ ] **Step 12: Run the Task 0 gate regression**
 
@@ -463,6 +589,13 @@ Expected: Passed with positiveFixtureCount 2, negativeFixtureCount 4, and childP
 - [ ] **Step 13: Check scope and side effects**
 
 Run git diff --check and git diff --name-only. Expected changed files: SourceCorpusGate.psm1 and Test-SourceCorpusSnapshotFunctions.ps1 only. Test-Path .\Extracted must be false, and the test result must report zero leftover temp roots.
+
+~~~powershell
+git diff --check
+$changed = @(git diff --name-only)
+if ($changed.Count -ne 2) { throw "Expected 2 Task 1 paths, got $($changed.Count)." }
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 1 created Extracted.' }
+~~~
 
 - [ ] **Step 14: Commit Task 1**
 
@@ -493,11 +626,20 @@ known/data.unity3d
 unknown/payload.arcx
 unknown/metadata.arch
 unknown/README
-hidden/.catalog
+hidden/hidden.dat
 empty/zero.bin
 ~~~
 
-Use tiny text content and a zero-byte file. Assert all six relative paths appear exactly once, including the hidden, extensionless, unknown-extension, and zero-byte files.
+Use tiny text content and a zero-byte file. After creating hidden/hidden.dat, set the real Windows Hidden attribute:
+
+~~~powershell
+$hiddenPath = Join-Path $root 'hidden\hidden.dat'
+[System.IO.File]::WriteAllText($hiddenPath, 'hidden')
+$attributes = [System.IO.File]::GetAttributes($hiddenPath)
+[System.IO.File]::SetAttributes($hiddenPath, $attributes -bor [System.IO.FileAttributes]::Hidden)
+~~~
+
+Assert all six relative paths appear exactly once, including the Hidden-attribute, extensionless, unknown-extension, and zero-byte files. The production enumerator must use -Force.
 
 Test-SourceCorpusCatalog.ps1 accepts Case with AllFile, Conservation, FailureModes, or All and always removes its unique temp root in finally.
 
@@ -523,12 +665,101 @@ function New-SourceCorpusCatalog {
         [Parameter(Mandatory)][string]$SourceKind,
         [Parameter(Mandatory)][string]$RootPath,
         [Parameter(Mandatory)][datetimeoffset]$CapturedAt,
-        [object[]]$Exclusions = @()
+        [object[]]$Exclusions = @(),
+        [scriptblock]$FileEnumerator = {
+            param($path)
+            Get-ChildItem -LiteralPath $path -Recurse -File -Force -ErrorAction Stop
+        }
     )
+    $rootItem = Get-Item -LiteralPath $RootPath -Force -ErrorAction Stop
+    Assert-NoReparsePoint -Attributes $rootItem.Attributes -Label 'Source root'
+    try {
+        $items = @(& $FileEnumerator $rootItem.FullName)
+    }
+    catch {
+        throw "Source enumeration failed: $($_.Exception.Message)"
+    }
+
+    $portablePaths = [System.Collections.Generic.List[string]]::new()
+    $rows = [System.Collections.Generic.List[object]]::new()
+    foreach ($item in $items) {
+        Assert-NoReparsePoint -Attributes $item.Attributes -Label $item.FullName
+        $relativePath = ConvertTo-PortableRelativePath -RootPath $rootItem.FullName -FilePath $item.FullName
+        $portablePaths.Add($relativePath)
+        $bytes = [System.IO.File]::ReadAllBytes($item.FullName)
+        $status = [pscustomobject][ordered]@{
+            corpus = 'Cataloged'
+            extraction = 'NotAttempted'
+            semantics = 'Unknown'
+            unity = 'NotTested'
+            disposition = 'RetainForLater'
+        }
+        $rows.Add([pscustomobject][ordered]@{
+            snapshotId = $SnapshotId
+            sourceId = $SourceId
+            sourceKind = $SourceKind
+            relativePath = $relativePath
+            sizeBytes = [long]$bytes.Length
+            sha256 = Get-LowercaseSha256 -Bytes $bytes
+            capturedAt = $CapturedAt.ToUniversalTime().ToString('O')
+            containerKind = Get-SourceContainerKind -RelativePath $relativePath
+            parseStatus = 'NotAttempted'
+            disposition = 'RetainForLater'
+            evidence = @()
+            status = $status
+        })
+    }
+    Assert-UniquePortablePaths -RelativePaths $portablePaths.ToArray()
+    $validatedExclusions = Assert-ValidSourceExclusions -Exclusions $Exclusions -SourceId $SourceId
+    return [pscustomobject][ordered]@{
+        files = $rows.ToArray()
+        exclusions = $validatedExclusions
+        catalogedFileCount = $rows.Count
+        catalogedBytes = [long](($rows | Measure-Object sizeBytes -Sum).Sum)
+        explicitlyExcludedFileCount = $validatedExclusions.Count
+        explicitlyExcludedBytes = [long](($validatedExclusions | Measure-Object sizeBytes -Sum).Sum)
+    }
+}
+
+function Assert-NoReparsePoint {
+    param([System.IO.FileAttributes]$Attributes, [Parameter(Mandatory)][string]$Label)
+    if (($Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "$Label is a reparse point."
+    }
+}
+
+function Assert-ValidSourceExclusions {
+    param([object[]]$Exclusions, [Parameter(Mandatory)][string]$SourceId)
+    foreach ($exclusion in $Exclusions) {
+        if (
+            [string]$exclusion.sourceId -cne $SourceId -or
+            [string]::IsNullOrWhiteSpace([string]$exclusion.relativePath) -or
+            [long]$exclusion.sizeBytes -lt 0 -or
+            [string]::IsNullOrWhiteSpace([string]$exclusion.reason)
+        ) {
+            throw "Invalid explicit exclusion for sourceId '$SourceId'."
+        }
+    }
+    return @($Exclusions)
+}
+
+function Get-SourceContainerKind {
+    param([Parameter(Mandatory)][string]$RelativePath)
+    switch ([System.IO.Path]::GetExtension($RelativePath).ToLowerInvariant()) {
+        '.unity3d' { return 'UnityBundle' }
+        '.bundle' { return 'UnityBundle' }
+        '.assets' { return 'UnitySerializedAsset' }
+        '.wem' { return 'DirectAudio' }
+        '.bnk' { return 'AudioMetadata' }
+        '.mp4' { return 'DirectVideo' }
+        '.srt' { return 'Metadata' }
+        '.json' { return 'ConfigurationCandidate' }
+        default { return 'UnknownInput' }
+    }
 }
 ~~~
 
-Enumerate every regular file without extension filtering. Do not use ErrorAction SilentlyContinue. Reject a source root or child that is a reparse point, symlink, or junction. Turn access failures, duplicate normalized paths, and case collisions into structured fatal issues.
+Get-SourceContainerKind is a pure classifier; its default is UnknownInput and it never changes parseStatus. Enumerate every regular file without extension filtering. Do not use ErrorAction SilentlyContinue. Reject a source root or child that is a reparse point, symlink, or junction. Turn access failures, duplicate normalized paths, and case collisions into structured fatal issues.
 
 - [ ] **Step 4: Emit C0-compatible file rows**
 
@@ -573,11 +804,21 @@ Support explicit exclusions only when sourceId, normalized relativePath, non-neg
 
 Phase A catalog generation uses no exclusions. Never silently convert an access or reparse error into an exclusion.
 
-- [ ] **Step 7: Verify C0 status semantics**
+- [ ] **Step 7: Define exact failure-mode tests**
+
+In the FailureModes case:
+
+- pass a FileEnumerator that throws [System.UnauthorizedAccessException]::new('denied-fixture') and require Source enumeration failed: denied-fixture;
+- call Assert-NoReparsePoint with ReparsePoint for labels Source root and child-link and require the respective stable reparse issue;
+- pass @('a/b.bin', 'a/b.bin') to Assert-UniquePortablePaths and require Duplicate normalized relative path: a/b.bin;
+- pass @('A/b.bin', 'a/b.bin') and require Case-only relative path collision: a/b.bin;
+- verify every failure leaves leftoverTempRootCount 0.
+
+- [ ] **Step 8: Verify C0 status semantics**
 
 Assert unknown and extensionless files are Cataloged, NotAttempted, Unknown, NotTested, and RetainForLater. Confirm they increase corpus counts and bytes and do not create object rows.
 
-- [ ] **Step 8: Verify all catalog cases**
+- [ ] **Step 9: Verify all catalog cases**
 
 Run:
 
@@ -590,19 +831,56 @@ pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case All
 
 Expected: each invocation emits status Passed and issueCount 0. All reports show leftoverTempRootCount 0.
 
-- [ ] **Step 9: Run prior C1 regressions**
+- [ ] **Step 10: Run prior C1 regressions**
 
-Run Test-SourceCorpusSnapshotFunctions.ps1 -Case All and Test-SourceCorpusGate.ps1. Expected: both pass with no Extracted.
+Run:
 
-- [ ] **Step 10: Parse ASTs and scan dangerous commands**
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case All
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 2 regression created Extracted.' }
+~~~
 
-Parse SourceCorpusGate.psm1 and Test-SourceCorpusCatalog.ps1. Expected AST error count 0 and command count 0 for Start-Process, pwsh, powershell, Unity, AssetRipper, and .ps1 invocation.
+Expected: both scripts emit status Passed and the final assertion exits 0.
 
-- [ ] **Step 11: Check scope and whitespace**
+- [ ] **Step 11: Parse ASTs and scan dangerous commands**
 
-Run git diff --check and git diff --name-only. Expected changed files: SourceCorpusGate.psm1 and Test-SourceCorpusCatalog.ps1 only. Test-Path .\Extracted must be false.
+Run:
 
-- [ ] **Step 12: Commit Task 2**
+~~~powershell
+foreach ($path in @(
+    '.\Tools\AssetImport\SourceCorpusGate.psm1',
+    '.\Tools\AssetImport\Test-SourceCorpusCatalog.ps1'
+)) {
+    $tokens = $null
+    $errors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors)
+    if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+    $danger = @($ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.CommandAst] -and
+        $node.GetCommandName() -in @('Start-Process', 'pwsh', 'powershell', 'Unity', 'AssetRipper')
+    }, $true))
+    if ($danger.Count -ne 0) { throw ($danger.Extent.Text -join [Environment]::NewLine) }
+}
+~~~
+
+Expected AST error count 0 and dangerous-command count 0.
+
+- [ ] **Step 12: Check scope and whitespace**
+
+Run:
+
+~~~powershell
+git diff --check
+$changed = @(git diff --name-only)
+if ($changed.Count -ne 2) { throw "Expected 2 Task 2 paths, got $($changed.Count)." }
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 2 created Extracted.' }
+~~~
+
+Expected: exit 0; changed files are SourceCorpusGate.psm1 and Test-SourceCorpusCatalog.ps1 only.
+
+- [ ] **Step 13: Commit Task 2**
 
 Commit:
 
@@ -621,6 +899,7 @@ git commit -m "feat: catalog every source file"
 
 - Create: Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1
 - Create: Tools/AssetImport/Test-SourceCorpusRunnerPolicy.ps1
+- Modify: Tools/AssetImport/SourceCorpusGate.psm1
 
 - [ ] **Step 1: Write fail-closed CLI RED tests**
 
@@ -663,27 +942,187 @@ Canonicalize OutputRoot and require it to equal:
 Join-Path $repositoryRoot "Extracted\Threads\$ThreadId\C1"
 ~~~
 
-Reject reparse points in the repository-to-output chain. Write to a sibling temporary directory, then atomically rename only after ledger and summary validation succeeds.
-
-Compute the expected path only after ThreadId validation:
+Add and export a pure policy function. The runner supplies real existing-chain attributes; the policy test supplies synthetic attribute records, so Phase A never creates repository Extracted:
 
 ~~~powershell
-$expectedOutputRoot = [System.IO.Path]::GetFullPath(
-    (Join-Path $repositoryRoot "Extracted\Threads\$ThreadId\C1")
-)
-$actualOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
-if (-not [string]::Equals($actualOutputRoot, $expectedOutputRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "OutputRoot must equal $expectedOutputRoot."
+function Assert-C1OutputPathPolicy {
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$OutputRoot,
+        [Parameter(Mandatory)][string]$ThreadId,
+        [object[]]$ExistingPathAttributes = @()
+    )
+    if ($ThreadId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+        throw "Invalid ThreadId: $ThreadId"
+    }
+    $expected = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepositoryRoot "Extracted\Threads\$ThreadId\C1")
+    )
+    $actual = [System.IO.Path]::GetFullPath($OutputRoot)
+    if (-not [string]::Equals($actual, $expected, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "OutputRoot must equal $expected."
+    }
+    foreach ($item in $ExistingPathAttributes) {
+        Assert-NoReparsePoint -Attributes $item.attributes -Label $item.path
+    }
+    return $expected
 }
 ~~~
+
+The runner enumerates only currently existing repository/output ancestors with Get-Item -Force -ErrorAction Stop and passes their path/attributes to Assert-C1OutputPathPolicy before creating anything.
 
 - [ ] **Step 5: Implement portable output writing**
 
 Write source-corpus-ledger.json and source-corpus-summary.json. The ledger must conform to the C0 schema and contain no machine path. The summary uses the C1 private contract. Both share snapshotId, generatedAt, and inputFingerprint.
 
+Add and export the pure writer used by temp tests and by the guarded runner:
+
+~~~powershell
+function New-SourceCorpusSummary {
+    param(
+        [Parameter(Mandatory)][object]$Ledger,
+        [Parameter(Mandatory)][string]$LedgerPath,
+        [Parameter(Mandatory)][object[]]$SourceTotals,
+        [object[]]$Exclusions = @()
+    )
+    $catalogedBytes = [long](($Ledger.files | Measure-Object sizeBytes -Sum).Sum)
+    $excludedBytes = [long](($Exclusions | Measure-Object sizeBytes -Sum).Sum)
+    $sourceFileCount = [long](($SourceTotals | Measure-Object sourceFileCount -Sum).Sum)
+    $sourceBytes = [long](($SourceTotals | Measure-Object sourceBytes -Sum).Sum)
+    if ($sourceFileCount -ne @($Ledger.files).Count + @($Exclusions).Count) {
+        throw 'Source file conservation failed.'
+    }
+    if ($sourceBytes -ne $catalogedBytes + $excludedBytes) {
+        throw 'Source byte conservation failed.'
+    }
+    return [pscustomobject][ordered]@{
+        schemaVersion = '1.0.0'
+        generatedAt = $Ledger.generatedAt
+        snapshotId = $Ledger.snapshotId
+        inputFingerprint = $Ledger.inputFingerprint
+        ledgerInputFingerprint = $Ledger.inputFingerprint
+        ledgerPath = $LedgerPath
+        toolVersions = @([pscustomobject]@{ toolName = 'source-corpus-gate'; version = '1.0.0' })
+        operationIdentity = 'C1.SourceCorpusSnapshot.Refresh'
+        directChildSummaries = @($LedgerPath)
+        directChildReports = @()
+        failureAttribution = 'None; snapshot generation completed without a recorded failure.'
+        nextAllowedAction = 'Provide the portable ledger and summary to C2 discovery.'
+        sourceCount = @($Ledger.sources).Count
+        sourceFileCount = $sourceFileCount
+        catalogedFileCount = @($Ledger.files).Count
+        explicitlyExcludedFileCount = @($Exclusions).Count
+        sourceBytes = $sourceBytes
+        catalogedBytes = $catalogedBytes
+        explicitlyExcludedBytes = $excludedBytes
+        sources = $SourceTotals
+        exclusions = @($Exclusions)
+    }
+}
+
+function Write-SourceCorpusOutputs {
+    param(
+        [Parameter(Mandatory)][string]$OutputRoot,
+        [Parameter(Mandatory)][object]$Ledger,
+        [Parameter(Mandatory)][object]$Summary
+    )
+    $parent = Split-Path -Parent $OutputRoot
+    $staging = Join-Path $parent ('.c1-staging-' + [guid]::NewGuid().ToString('N'))
+    try {
+        $null = [System.IO.Directory]::CreateDirectory($staging)
+        $ledgerPath = Join-Path $staging 'source-corpus-ledger.json'
+        $summaryPath = Join-Path $staging 'source-corpus-summary.json'
+        $Ledger | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $ledgerPath -Encoding utf8NoBOM
+        $Summary | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $summaryPath -Encoding utf8NoBOM
+        if (Test-Path -LiteralPath $OutputRoot) { throw "OutputRoot already exists: $OutputRoot" }
+        Move-Item -LiteralPath $staging -Destination $OutputRoot
+        return [pscustomobject][ordered]@{
+            ledgerPath = Join-Path $OutputRoot 'source-corpus-ledger.json'
+            summaryPath = Join-Path $OutputRoot 'source-corpus-summary.json'
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $staging) {
+            Remove-Item -LiteralPath $staging -Recurse -Force
+        }
+    }
+}
+~~~
+
+After importing SourceCorpusGate.psm1, the runner body is:
+
+~~~powershell
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$existingAttributes = [System.Collections.Generic.List[object]]::new()
+$cursor = $repositoryRoot
+foreach ($segment in @('Extracted', 'Threads', $ThreadId, 'C1')) {
+    $cursor = Join-Path $cursor $segment
+    if (Test-Path -LiteralPath $cursor) {
+        $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        $existingAttributes.Add([pscustomobject]@{ path = $item.FullName; attributes = $item.Attributes })
+    }
+}
+$validatedOutput = Assert-C1OutputPathPolicy -RepositoryRoot $repositoryRoot -OutputRoot $OutputRoot -ThreadId $ThreadId -ExistingPathAttributes $existingAttributes.ToArray()
+
+$manifestText = Get-Content -LiteralPath $SourceRootManifestPath -Raw -ErrorAction Stop
+$manifestDocument = [System.Text.Json.JsonDocument]::Parse($manifestText)
+try {
+    $manifest = $manifestText | ConvertFrom-Json -Depth 100 -DateKind String
+}
+finally {
+    $manifestDocument.Dispose()
+}
+if ([string]$manifest.schemaVersion -cne '1.0.0' -or @($manifest.sources).Count -eq 0) {
+    throw 'Source-root manifest must use schemaVersion 1.0.0 and contain sources.'
+}
+
+$generatedAt = [datetimeoffset]::UtcNow
+$snapshotId = 'snapshot-' + $generatedAt.ToString('yyyyMMddTHHmmssZ')
+$sourceRows = [System.Collections.Generic.List[object]]::new()
+$fileRows = [System.Collections.Generic.List[object]]::new()
+$allExclusions = [System.Collections.Generic.List[object]]::new()
+foreach ($source in @($manifest.sources)) {
+    $catalog = New-SourceCorpusCatalog -SnapshotId $snapshotId -SourceId $source.sourceId -SourceKind $source.sourceKind -RootPath $source.rootPath -CapturedAt $generatedAt
+    foreach ($row in $catalog.files) { $fileRows.Add($row) }
+    foreach ($row in $catalog.exclusions) { $allExclusions.Add($row) }
+    $rootFingerprint = Get-SourceRootFingerprint -Files $catalog.files
+    $sourceRows.Add([pscustomobject][ordered]@{
+        sourceId = [string]$source.sourceId
+        sourceKind = [string]$source.sourceKind
+        capturedAt = $generatedAt.ToString('O')
+        rootFingerprint = $rootFingerprint
+        sourceFileCount = $catalog.catalogedFileCount + $catalog.explicitlyExcludedFileCount
+        sourceBytes = $catalog.catalogedBytes + $catalog.explicitlyExcludedBytes
+    })
+}
+$inputFingerprint = Get-SourceInputFingerprint -Sources $sourceRows.ToArray()
+$portableLedgerPath = "Extracted/Threads/$ThreadId/C1/source-corpus-ledger.json"
+$ledger = [pscustomobject][ordered]@{
+    schemaVersion = '1.0.0'
+    snapshotId = $snapshotId
+    generatedAt = $generatedAt.ToString('O')
+    inputFingerprint = $inputFingerprint
+    toolVersions = @([pscustomobject]@{ toolName = 'New-StellaSoraSourceCorpusSnapshot'; version = '1.0.0' })
+    sources = @($sourceRows | ForEach-Object {
+        [pscustomobject][ordered]@{
+            sourceId = $_.sourceId
+            sourceKind = $_.sourceKind
+            capturedAt = $_.capturedAt
+            rootFingerprint = $_.rootFingerprint
+        }
+    })
+    files = $fileRows.ToArray()
+    objects = @()
+}
+$summary = New-SourceCorpusSummary -Ledger $ledger -LedgerPath $portableLedgerPath -SourceTotals $sourceRows.ToArray() -Exclusions $allExclusions.ToArray()
+$null = Write-SourceCorpusOutputs -OutputRoot $validatedOutput -Ledger $ledger -Summary $summary
+~~~
+
+New-SourceCorpusSummary receives no machine root path and returns only the frozen private-summary fields.
+
 - [ ] **Step 6: Test only policy and pure writer behavior in Phase A**
 
-Use the module to write outputs below a temporary directory and validate them. Do not invoke RefreshSnapshot against real roots and do not create repository Extracted. AST-check the real runner for the explicit switch and containment call.
+Use Write-SourceCorpusOutputs below a temporary directory and validate both JSON files. Use Assert-C1OutputPathPolicy with synthetic reparse attributes to test containment. Do not invoke RefreshSnapshot against real roots and do not create repository Extracted. AST-check the real runner for the explicit switch and calls to both module functions.
 
 Run:
 
@@ -698,22 +1137,61 @@ Expected: the first three cases pass by observing fail-closed refusal with zero 
 
 - [ ] **Step 7: Parse runner and policy-test ASTs**
 
-Expected AST error count: 0. The runner may not contain Start-Process, Unity, AssetRipper, extraction, or decoding commands.
+Run:
+
+~~~powershell
+foreach ($path in @(
+    '.\Tools\AssetImport\SourceCorpusGate.psm1',
+    '.\Tools\AssetImport\New-StellaSoraSourceCorpusSnapshot.ps1',
+    '.\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1'
+)) {
+    $tokens = $null
+    $errors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors)
+    if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+    $forbiddenText = @($ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.CommandAst] -and
+        $node.GetCommandName() -in @('Start-Process', 'Unity', 'AssetRipper', 'ffmpeg', 'vgmstream-cli')
+    }, $true))
+    if ($forbiddenText.Count -ne 0) { throw ($forbiddenText.Extent.Text -join [Environment]::NewLine) }
+}
+~~~
+
+Expected AST error count 0 and forbidden heavy-command count 0.
 
 - [ ] **Step 8: Run all prior C1 regressions**
 
-Run Test-SourceCorpusGate.ps1, Test-SourceCorpusSnapshotFunctions.ps1 -Case All, and Test-SourceCorpusCatalog.ps1 -Case All. Expected: all pass and Test-Path .\Extracted is false.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case All
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case All
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 3 created Extracted.' }
+~~~
+
+Expected: all three scripts pass and the final assertion exits 0.
 
 - [ ] **Step 9: Check scope and whitespace**
 
-Run git diff --check and git diff --name-only. Expected changed files: New-StellaSoraSourceCorpusSnapshot.ps1 and Test-SourceCorpusRunnerPolicy.ps1 only.
+Run:
+
+~~~powershell
+git diff --check
+$changed = @(git diff --name-only)
+if ($changed.Count -ne 3) { throw "Expected 3 Task 3 paths, got $($changed.Count)." }
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 3 created Extracted.' }
+~~~
+
+Expected: exit 0 with the three declared Task 3 paths only.
 
 - [ ] **Step 10: Commit Task 3**
 
 Commit:
 
 ~~~powershell
-git add -- Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1 Tools/AssetImport/Test-SourceCorpusRunnerPolicy.ps1
+git add -- Tools/AssetImport/SourceCorpusGate.psm1 Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1 Tools/AssetImport/Test-SourceCorpusRunnerPolicy.ps1
 git commit -m "feat: add guarded source snapshot runner"
 ~~~
 
@@ -786,15 +1264,51 @@ Expected: status Passed and each isolated negative vector produces exactly one d
 
 - [ ] **Step 6: Run the complete Phase A C0/C1 suite**
 
-Run the C0 asset-corpus contract harness plus all four C1 test scripts. Expected: every command exits 0; lightweight compatibility may start only the C0 contract harness; no command runs the snapshot runner, extraction, or Unity.
+Run:
+
+~~~powershell
+pwsh -NoProfile -File .\Tools\AssetImport\Test-AssetCorpusContract.ps1
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case All
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case All
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case All
+pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case All
+~~~
+
+Expected: every command exits 0; compatibility may start only the lightweight C0 contract harness; no command runs RefreshSnapshot, extraction, or Unity.
 
 - [ ] **Step 7: Parse all C1 AST and JSON files**
 
-Expected: AST error count 0, JSON parse issue count 0, and dangerous heavy-command count 0.
+Run Parser.ParseFile over every Tools/AssetImport/SourceCorpusGate*.psm1 and Test-SourceCorpus*.ps1 file, then strictly parse every C0/C1 JSON with ConvertFrom-Json -Depth 100 -DateKind String and JsonDocument.Parse.
+
+~~~powershell
+$jsonIssues = 0
+Get-ChildItem .\Tools\AssetImport\Fixtures\AssetCorpusContracts\*.json, .\Tools\AssetImport\Fixtures\SourceCorpusGate\*.json | ForEach-Object {
+    try {
+        $text = Get-Content -LiteralPath $_.FullName -Raw
+        $null = $text | ConvertFrom-Json -Depth 100 -DateKind String
+        $document = [System.Text.Json.JsonDocument]::Parse($text)
+        $document.Dispose()
+    }
+    catch { $jsonIssues++ }
+}
+if ($jsonIssues -ne 0) { throw "$jsonIssues JSON files failed strict parsing." }
+~~~
+
+Expected: AST error count 0, JSON issue count 0, and dangerous heavy-command count 0.
 
 - [ ] **Step 8: Check scope and side effects**
 
-Run git diff --check and git diff --name-only. Expected changed paths are Test-SourceCorpusC0Compatibility.ps1 and valid-c2-source-corpus-handoff.json only. Test-Path .\Extracted must be false.
+Run:
+
+~~~powershell
+git diff --check
+$changed = @(git diff --name-only)
+if ($changed.Count -ne 2) { throw "Expected 2 Task 4 paths, got $($changed.Count)." }
+if (Test-Path -LiteralPath .\Extracted) { throw 'Task 4 created Extracted.' }
+~~~
+
+Expected: exit 0 with Test-SourceCorpusC0Compatibility.ps1 and valid-c2-source-corpus-handoff.json only.
 
 - [ ] **Step 9: Commit Task 4**
 
