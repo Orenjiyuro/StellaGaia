@@ -10,6 +10,56 @@ $ErrorActionPreference = 'Stop'
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $issues = [System.Collections.Generic.List[string]]::new()
 
+function Test-ContainsForbiddenPropertyName {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object] $Value
+    )
+
+    if ($null -eq $Value -or $Value -is [string]) {
+        return $false
+    }
+
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($property in $Value.PSObject.Properties) {
+            if ($property.Name -cin @('OriginalUnityProjectRestored', 'originalUnityProjectRestored')) {
+                return $true
+            }
+
+            if (Test-ContainsForbiddenPropertyName -Value $property.Value) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        foreach ($key in $Value.Keys) {
+            if ([string]$key -cin @('OriginalUnityProjectRestored', 'originalUnityProjectRestored')) {
+                return $true
+            }
+
+            if (Test-ContainsForbiddenPropertyName -Value $Value[$key]) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        foreach ($item in $Value) {
+            if (Test-ContainsForbiddenPropertyName -Value $item) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
 if ([string]::IsNullOrWhiteSpace($ContractRoot)) {
     $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
     $ContractRoot = Join-Path $repositoryRoot 'docs\asset-migration\schemas'
@@ -76,7 +126,7 @@ if ($null -ne $vocabulary) {
         }
     }
 
-    if ($serializedVocabulary -cmatch '"(?:OriginalUnityProjectRestored|originalUnityProjectRestored)"\s*:') {
+    if (Test-ContainsForbiddenPropertyName -Value $vocabulary) {
         $issues.Add('Forbidden OriginalUnityProjectRestored property name is present')
     }
 }
