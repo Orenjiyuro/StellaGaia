@@ -74,15 +74,30 @@ else {
 $vocabularyPath = [System.IO.Path]::GetFullPath((Join-Path $ContractRoot 'status-vocabulary.json'))
 $vocabulary = $null
 $serializedVocabulary = $null
+$generatedAtText = ''
 
 if (-not (Test-Path -LiteralPath $vocabularyPath -PathType Leaf)) {
     $issues.Add("Missing contract file: $vocabularyPath")
 }
 else {
-    $serializedVocabulary = Get-Content -LiteralPath $vocabularyPath -Raw
+    $jsonDocument = $null
     try {
+        $serializedVocabulary = Get-Content -LiteralPath $vocabularyPath -Raw
         if ([string]::IsNullOrWhiteSpace($serializedVocabulary)) {
             throw 'Vocabulary JSON is empty.'
+        }
+
+        $jsonDocument = [System.Text.Json.JsonDocument]::Parse($serializedVocabulary)
+        if ($jsonDocument.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+            throw 'Vocabulary JSON root must be an object.'
+        }
+
+        $generatedAtElement = [System.Text.Json.JsonElement]::new()
+        if (
+            $jsonDocument.RootElement.TryGetProperty('generatedAt', [ref]$generatedAtElement) -and
+            $generatedAtElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String
+        ) {
+            $generatedAtText = $generatedAtElement.GetString()
         }
 
         $vocabulary = $serializedVocabulary | ConvertFrom-Json
@@ -94,6 +109,11 @@ else {
         $issues.Add("Invalid JSON contract file: $vocabularyPath")
         $vocabulary = $null
     }
+    finally {
+        if ($null -ne $jsonDocument) {
+            $jsonDocument.Dispose()
+        }
+    }
 }
 
 if ($null -ne $vocabulary) {
@@ -102,24 +122,6 @@ if ($null -ne $vocabulary) {
         $issues.Add('schemaVersion must be exactly 1.0.0')
     }
 
-    $generatedAtText = ''
-    $jsonDocument = $null
-    try {
-        $jsonDocument = [System.Text.Json.JsonDocument]::Parse($serializedVocabulary)
-        $generatedAtElement = [System.Text.Json.JsonElement]::new()
-        if (
-            $jsonDocument.RootElement.ValueKind -eq [System.Text.Json.JsonValueKind]::Object -and
-            $jsonDocument.RootElement.TryGetProperty('generatedAt', [ref]$generatedAtElement) -and
-            $generatedAtElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String
-        ) {
-            $generatedAtText = $generatedAtElement.GetString()
-        }
-    }
-    finally {
-        if ($null -ne $jsonDocument) {
-            $jsonDocument.Dispose()
-        }
-    }
     $parsedGeneratedAt = [System.DateTimeOffset]::MinValue
     $hasIsoShape = $generatedAtText -cmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$'
     $canParseGeneratedAt = $hasIsoShape -and [System.DateTimeOffset]::TryParse(
