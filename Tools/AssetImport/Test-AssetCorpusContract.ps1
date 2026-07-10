@@ -593,6 +593,45 @@ function Test-FixtureVocabularyValue {
     }
 }
 
+function Get-ExactJsonPropertyByPath {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object] $Value,
+
+        [Parameter(Mandatory)]
+        [string] $Path
+    )
+
+    $current = $Value
+    $segments = $Path.Split('.')
+    for ($index = 0; $index -lt $segments.Count; $index++) {
+        if ($current -isnot [System.Management.Automation.PSCustomObject]) {
+            return $null
+        }
+
+        $property = $null
+        foreach ($candidate in $current.PSObject.Properties) {
+            if ($candidate.Name -ceq $segments[$index]) {
+                $property = $candidate
+                break
+            }
+        }
+
+        if ($null -eq $property) {
+            return $null
+        }
+
+        if ($index -eq $segments.Count - 1) {
+            return $property
+        }
+
+        $current = $property.Value
+    }
+
+    return $null
+}
+
 function Add-NegativeFixtureIssue {
     param(
         [Parameter(Mandatory)]
@@ -621,12 +660,11 @@ function Get-NegativeFixtureSemanticIssues {
     )
 
     $fixtureIssues = [System.Collections.Generic.List[string]]::new()
-    $rootProperties = $Fixture.PSObject.Properties
 
     $sourceCountNames = @('sourceFileCount', 'catalogedFileCount', 'explicitlyExcludedFileCount')
     $sourceApplicable = $PrimaryRule -ceq 'SourceFileConservation'
     foreach ($propertyName in $sourceCountNames) {
-        if ($null -ne $rootProperties[$propertyName]) {
+        if ($null -ne (Get-ExactJsonPropertyByPath -Value $Fixture -Path $propertyName)) {
             $sourceApplicable = $true
         }
     }
@@ -634,7 +672,7 @@ function Get-NegativeFixtureSemanticIssues {
     if ($sourceApplicable) {
         $sourceStructureValid = $true
         foreach ($propertyName in $sourceCountNames) {
-            $property = $rootProperties[$propertyName]
+            $property = Get-ExactJsonPropertyByPath -Value $Fixture -Path $propertyName
             if ($null -eq $property) {
                 Add-NegativeFixtureIssue -IssueList $fixtureIssues -Message "Negative fixture '$FixtureName' field '$propertyName' must be present."
                 $sourceStructureValid = $false
@@ -647,16 +685,16 @@ function Get-NegativeFixtureSemanticIssues {
 
         if (
             $sourceStructureValid -and
-            $rootProperties['sourceFileCount'].Value -ne (
-                $rootProperties['catalogedFileCount'].Value +
-                $rootProperties['explicitlyExcludedFileCount'].Value
+            (Get-ExactJsonPropertyByPath -Value $Fixture -Path 'sourceFileCount').Value -ne (
+                (Get-ExactJsonPropertyByPath -Value $Fixture -Path 'catalogedFileCount').Value +
+                (Get-ExactJsonPropertyByPath -Value $Fixture -Path 'explicitlyExcludedFileCount').Value
             )
         ) {
             $fixtureIssues.Add('Source file conservation failed.')
         }
     }
 
-    $familyProperty = $rootProperties['family']
+    $familyProperty = Get-ExactJsonPropertyByPath -Value $Fixture -Path 'family'
     $family = if ($null -ne $familyProperty) { $familyProperty.Value } else { $null }
     $familyIsObject = $family -is [System.Management.Automation.PSCustomObject]
     $familyCountNames = @('memberCount', 'staticPassedCount', 'staticFailedCount', 'uncheckedCount')
@@ -665,14 +703,14 @@ function Get-NegativeFixtureSemanticIssues {
 
     if ($familyIsObject) {
         foreach ($propertyName in $familyCountNames) {
-            if ($null -ne $family.PSObject.Properties[$propertyName]) {
+            if ($null -ne (Get-ExactJsonPropertyByPath -Value $family -Path $propertyName)) {
                 $familyConservationApplicable = $true
             }
         }
 
         if (
-            $null -ne $family.PSObject.Properties['decision'] -or
-            $null -ne $family.PSObject.Properties['failureAttribution']
+            $null -ne (Get-ExactJsonPropertyByPath -Value $family -Path 'decision') -or
+            $null -ne (Get-ExactJsonPropertyByPath -Value $family -Path 'failureAttribution')
         ) {
             $repairOnceApplicable = $true
         }
@@ -687,7 +725,7 @@ function Get-NegativeFixtureSemanticIssues {
 
     if ($familyConservationApplicable -and $familyIsObject) {
         $familyConservationStructureValid = $true
-        $familyIdProperty = $family.PSObject.Properties['familyId']
+        $familyIdProperty = Get-ExactJsonPropertyByPath -Value $family -Path 'familyId'
         if (
             $null -eq $familyIdProperty -or
             $familyIdProperty.Value -isnot [string] -or
@@ -698,7 +736,7 @@ function Get-NegativeFixtureSemanticIssues {
         }
 
         foreach ($propertyName in $familyCountNames) {
-            $property = $family.PSObject.Properties[$propertyName]
+            $property = Get-ExactJsonPropertyByPath -Value $family -Path $propertyName
             if ($null -eq $property) {
                 Add-NegativeFixtureIssue -IssueList $fixtureIssues -Message "Negative fixture '$FixtureName' field 'family.$propertyName' must be present."
                 $familyConservationStructureValid = $false
@@ -711,10 +749,10 @@ function Get-NegativeFixtureSemanticIssues {
 
         if (
             $familyConservationStructureValid -and
-            $family.PSObject.Properties['memberCount'].Value -ne (
-                $family.PSObject.Properties['staticPassedCount'].Value +
-                $family.PSObject.Properties['staticFailedCount'].Value +
-                $family.PSObject.Properties['uncheckedCount'].Value
+            (Get-ExactJsonPropertyByPath -Value $family -Path 'memberCount').Value -ne (
+                (Get-ExactJsonPropertyByPath -Value $family -Path 'staticPassedCount').Value +
+                (Get-ExactJsonPropertyByPath -Value $family -Path 'staticFailedCount').Value +
+                (Get-ExactJsonPropertyByPath -Value $family -Path 'uncheckedCount').Value
             )
         ) {
             $fixtureIssues.Add("Asset family member conservation failed for '$($familyIdProperty.Value)'.")
@@ -723,7 +761,7 @@ function Get-NegativeFixtureSemanticIssues {
 
     if ($repairOnceApplicable -and $familyIsObject) {
         $repairOnceStructureValid = $true
-        $familyIdProperty = $family.PSObject.Properties['familyId']
+        $familyIdProperty = Get-ExactJsonPropertyByPath -Value $family -Path 'familyId'
         if (
             $null -eq $familyIdProperty -or
             $familyIdProperty.Value -isnot [string] -or
@@ -733,7 +771,7 @@ function Get-NegativeFixtureSemanticIssues {
             $repairOnceStructureValid = $false
         }
 
-        $decisionProperty = $family.PSObject.Properties['decision']
+        $decisionProperty = Get-ExactJsonPropertyByPath -Value $family -Path 'decision'
         if (
             $null -eq $decisionProperty -or
             $decisionProperty.Value -isnot [string] -or
@@ -743,7 +781,7 @@ function Get-NegativeFixtureSemanticIssues {
             $repairOnceStructureValid = $false
         }
 
-        $failureAttributionProperty = $family.PSObject.Properties['failureAttribution']
+        $failureAttributionProperty = Get-ExactJsonPropertyByPath -Value $family -Path 'failureAttribution'
         if ($null -eq $failureAttributionProperty) {
             Add-NegativeFixtureIssue -IssueList $fixtureIssues -Message "Negative fixture '$FixtureName' field 'family.failureAttribution' must be present."
             $repairOnceStructureValid = $false
@@ -762,8 +800,8 @@ function Get-NegativeFixtureSemanticIssues {
         }
     }
 
-    $directChildFingerprintProperty = $rootProperties['directChildFingerprint']
-    $downstreamSummaryProperty = $rootProperties['downstreamSummary']
+    $directChildFingerprintProperty = Get-ExactJsonPropertyByPath -Value $Fixture -Path 'directChildFingerprint'
+    $downstreamSummaryProperty = Get-ExactJsonPropertyByPath -Value $Fixture -Path 'downstreamSummary'
     $fingerprintApplicable = (
         $PrimaryRule -ceq 'StaleFingerprint' -or
         $null -ne $directChildFingerprintProperty -or
@@ -793,7 +831,7 @@ function Get-NegativeFixtureSemanticIssues {
             $fingerprintStructureValid = $false
         }
         else {
-            $inputFingerprintProperty = $downstreamSummaryProperty.Value.PSObject.Properties['inputFingerprint']
+            $inputFingerprintProperty = Get-ExactJsonPropertyByPath -Value $Fixture -Path 'downstreamSummary.inputFingerprint'
             if ($null -eq $inputFingerprintProperty) {
                 Add-NegativeFixtureIssue -IssueList $fixtureIssues -Message "Negative fixture '$FixtureName' field 'downstreamSummary.inputFingerprint' must be present."
                 $fingerprintStructureValid = $false
@@ -809,7 +847,7 @@ function Get-NegativeFixtureSemanticIssues {
 
         if (
             $fingerprintStructureValid -and
-            $downstreamSummaryProperty.Value.PSObject.Properties['inputFingerprint'].Value -cne $directChildFingerprintProperty.Value
+            (Get-ExactJsonPropertyByPath -Value $Fixture -Path 'downstreamSummary.inputFingerprint').Value -cne $directChildFingerprintProperty.Value
         ) {
             $fixtureIssues.Add('Downstream summary input fingerprint is stale.')
         }
@@ -1192,7 +1230,7 @@ foreach ($contract in $negativeFixtureContracts) {
     }
     else {
         $expectedText = $expectedIssues | ConvertTo-Json -Compress
-        $actualText = $actualIssues | ConvertTo-Json -Compress
+        $actualText = ConvertTo-Json -InputObject ([object[]]$actualIssues) -Compress
         $issues.Add("Negative fixture '$($contract.Name)' did not produce exactly its expected issues. Expected: $expectedText; Actual: $actualText.")
     }
 }
