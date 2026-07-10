@@ -60,9 +60,12 @@ function Test-ContainsForbiddenPropertyName {
     return $false
 }
 
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 if ([string]::IsNullOrWhiteSpace($ContractRoot)) {
-    $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
     $ContractRoot = Join-Path $repositoryRoot 'docs\asset-migration\schemas'
+}
+elseif (-not [System.IO.Path]::IsPathRooted($ContractRoot)) {
+    $ContractRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ContractRoot))
 }
 else {
     $ContractRoot = [System.IO.Path]::GetFullPath($ContractRoot)
@@ -76,12 +79,20 @@ if (-not (Test-Path -LiteralPath $vocabularyPath -PathType Leaf)) {
     $issues.Add("Missing contract file: $vocabularyPath")
 }
 else {
+    $serializedVocabulary = Get-Content -LiteralPath $vocabularyPath -Raw
     try {
-        $serializedVocabulary = Get-Content -LiteralPath $vocabularyPath -Raw
+        if ([string]::IsNullOrWhiteSpace($serializedVocabulary)) {
+            throw 'Vocabulary JSON is empty.'
+        }
+
         $vocabulary = $serializedVocabulary | ConvertFrom-Json
+        if ($null -eq $vocabulary -or $vocabulary -isnot [System.Management.Automation.PSCustomObject]) {
+            throw 'Vocabulary JSON root must be an object.'
+        }
     }
     catch {
         $issues.Add("Invalid JSON contract file: $vocabularyPath")
+        $vocabulary = $null
     }
 }
 
@@ -89,6 +100,36 @@ if ($null -ne $vocabulary) {
     $schemaVersionProperty = $vocabulary.PSObject.Properties['schemaVersion']
     if ($null -eq $schemaVersionProperty -or $schemaVersionProperty.Value -isnot [string] -or $schemaVersionProperty.Value -cne '1.0.0') {
         $issues.Add('schemaVersion must be exactly 1.0.0')
+    }
+
+    $generatedAtText = ''
+    $jsonDocument = $null
+    try {
+        $jsonDocument = [System.Text.Json.JsonDocument]::Parse($serializedVocabulary)
+        $generatedAtElement = [System.Text.Json.JsonElement]::new()
+        if (
+            $jsonDocument.RootElement.ValueKind -eq [System.Text.Json.JsonValueKind]::Object -and
+            $jsonDocument.RootElement.TryGetProperty('generatedAt', [ref]$generatedAtElement) -and
+            $generatedAtElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String
+        ) {
+            $generatedAtText = $generatedAtElement.GetString()
+        }
+    }
+    finally {
+        if ($null -ne $jsonDocument) {
+            $jsonDocument.Dispose()
+        }
+    }
+    $parsedGeneratedAt = [System.DateTimeOffset]::MinValue
+    $hasIsoShape = $generatedAtText -cmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$'
+    $canParseGeneratedAt = $hasIsoShape -and [System.DateTimeOffset]::TryParse(
+        $generatedAtText,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::RoundtripKind,
+        [ref]$parsedGeneratedAt
+    )
+    if (-not $canParseGeneratedAt) {
+        $issues.Add('generatedAt must be a valid ISO-8601 timestamp')
     }
 
     $expectedArrays = [ordered]@{
@@ -100,6 +141,14 @@ if ($null -ne $vocabulary) {
         disposition              = @('NeedsDiagnosis', 'UseOriginalAsset', 'RepairOnce', 'PrototypeReplacement', 'RetainForLater', 'DiagnosticOnly', 'Stop')
         familyStaticOutcome      = @('StaticQualified', 'StaticRejected', 'NeedsDiagnosis')
         sourceKind               = @('PcInstall', 'PcPatchOrCache', 'AndroidApk', 'AndroidDataOrCache')
+    }
+
+    $expectedPropertyNames = @('schemaVersion', 'generatedAt') + @($expectedArrays.Keys)
+    $actualPropertyNames = @($vocabulary.PSObject.Properties.Name)
+    $missingPropertyNames = @($expectedPropertyNames | Where-Object { $_ -cnotin $actualPropertyNames })
+    $unexpectedPropertyNames = @($actualPropertyNames | Where-Object { $_ -cnotin $expectedPropertyNames })
+    if ($missingPropertyNames.Count -gt 0 -or $unexpectedPropertyNames.Count -gt 0) {
+        $issues.Add('Vocabulary document properties do not match the contract')
     }
 
     foreach ($entry in $expectedArrays.GetEnumerator()) {
