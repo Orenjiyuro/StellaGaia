@@ -1,0 +1,91 @@
+{
+  "generatedAt": "2026-06-05",
+  "source": "Extracted\\DecodedAudio\\Full",
+  "decodeEvidence": "docs\\asset-migration\\full-audio-decode-report.md",
+  "status": "SelectedNeedsUnityPlaybackValidation",
+  "semanticStatus": "BankNameSemanticCandidateNeedsListening",
+  "summary": "Minimum prototype audio candidates are selected from decoded WAV media. ffprobe can read them, and combat SFX candidates now come from decoded Wwise bank media rather than unrelated Music_* banks. Exact event semantics and Unity playback behavior are still not validated. Use Tools\\AssetImport\\Test-AudioReuseGate.ps1 -RunUnity after Unity licensing is active.",
+  "selections": [
+    {
+      "id": "combat_bgm_01",
+      "role": "CombatMusic",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "semanticStatus": "DurationBasedMusicCandidate",
+      "sourceBank": "Music_Combat.bnk",
+      "semanticEvidence": "DIDX media id 195906654 is indexed by Music_Combat.bnk.",
+      "path": "Extracted\\DecodedAudio\\Full\\Persistent_Store\\SoundBanks\\Media\\195906654.wav",
+      "reason": "Decoded MusicAudioCandidate with long duration suitable for a loopable combat BGM candidate.",
+      "expected": {
+        "minDurationSeconds": 60,
+        "maxDurationSeconds": 600,
+        "minChannels": 1
+      }
+    },
+    {
+      "id": "combat_sfx_attack_01",
+      "role": "CombatSfxAttack",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "semanticStatus": "BankNameSemanticCandidateNeedsListening",
+      "sourceBank": "Character_Common.bnk",
+      "semanticEvidence": "Decoded from Character_Common.bnk DIDX/DATA media; bank string scan contains weak combat-action fragments but no complete event mapping.",
+      "path": "Extracted\\DecodedAudio\\BankMedia\\Character_Common\\985190894.wav",
+      "reason": "Short decoded bank-media candidate from Character_Common.bnk; stronger than the previous Music_System numeric candidate, but final attack meaning must be confirmed by listening or Wwise event mapping.",
+      "expected": {
+        "minDurationSeconds": 0.05,
+        "maxDurationSeconds": 5,
+        "minChannels": 1
+      }
+    },
+    {
+      "id": "combat_sfx_hit_01",
+      "role": "CombatSfxHit",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "semanticStatus": "BankNameSemanticCandidateNeedsListening",
+      "sourceBank": "Impact.bnk",
+      "semanticEvidence": "Decoded from Impact.bnk DIDX/DATA media; bank name and weak HIRC string fragments contain HIT/ATK hints.",
+      "path": "Extracted\\DecodedAudio\\BankMedia\\Impact\\452402013.wav",
+      "reason": "Short decoded bank-media candidate from Impact.bnk; likely better aligned with hit/impact SFX than the previous Music_Combat numeric candidate, but final hit meaning must be confirmed by listening or Wwise event mapping.",
+      "expected": {
+        "minDurationSeconds": 0.05,
+        "maxDurationSeconds": 5,
+        "minChannels": 1
+      }
+    },
+    {
+      "id": "combat_sfx_death_01",
+      "role": "CombatSfxDeath",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "semanticStatus": "BankNameSemanticCandidateNeedsListening",
+      "sourceBank": "Monster_10001.bnk",
+      "semanticEvidence": "Decoded from Monster_10001.bnk DIDX/DATA media; bank name matches the selected enemy family and weak HIRC string fragments contain DIe/atK hints.",
+      "path": "Extracted\\DecodedAudio\\BankMedia\\Monster_10001\\883507557.wav",
+      "reason": "Decoded bank-media candidate from the selected enemy's Monster_10001.bnk; better aligned with enemy combat/death than the previous Music_System numeric candidate, but final death meaning must be confirmed by listening or Wwise event mapping.",
+      "expected": {
+        "minDurationSeconds": 0.05,
+        "maxDurationSeconds": 5,
+        "minChannels": 1
+      }
+    },
+    {
+      "id": "combat_voice_ult_01",
+      "role": "CombatVoice",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "semanticStatus": "FilenameSemanticCandidate",
+      "sourceBank": "Voice_Combat or character voice SoundBank family",
+      "semanticEvidence": "Filename explicitly includes combat_ultskill.",
+      "path": "Extracted\\DecodedAudio\\Full\\Persistent_Store\\SoundBanks\\vo_108_combat_ultskill_002_jp.wav",
+      "reason": "Filename explicitly identifies a combat ultimate skill voice candidate.",
+      "expected": {
+        "minDurationSeconds": 0.1,
+        "maxDurationSeconds": 10,
+        "minChannels": 1
+      }
+    }
+  ],
+  "nextRequiredEvidence": [
+    "Unity imports each selected WAV as AudioClip without blocking errors.",
+    "Play Mode can play the BGM and SFX clips with controllable volume.",
+    "SFX role semantics are confirmed by Wwise event mapping or manual listening; bank-name evidence is not enough by itself.",
+    "BGM loop behavior is checked in Unity."
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-07-09",
+  "objective": "Record evidence that StellaSora assets can be located, extracted, decoded, and cross-checked for a local StellaGaia fan prototype without claiming Unity development usability.",
+  "sourceInstall": "C:\\SoftGame\\YostarGames\\StellaSora_CN",
+  "extractWorkspace": "C:\\SoftWork\\Git\\StellaGaia\\Extracted",
+  "gate": "Tools\\AssetImport\\Test-AssetAcquisitionGate.ps1",
+  "statusVocabulary": [
+    "AssetLocated",
+    "ExtractedReadable",
+    "CrossToolVerified",
+    "SemanticContextRecovered",
+    "UnityImportCandidate",
+    "ReconstructedPrototypeAsset",
+    "DevelopmentUsable",
+    "DiagnosticInputOnly"
+  ],
+  "policy": {
+    "assetAcquisitionDoesNotGrantDevelopmentUsability": true,
+    "requiresUnityVisibleOrAudibleEvidenceForDevelopmentUsable": true,
+    "originalProjectRestorationIsNotTheGoal": true,
+    "targetRoute": "Extract assets and semantic context, then rebuild local Unity control layers and validate selected candidates."
+  },
+  "toolRoutes": [
+    {
+      "id": "AssetRipper",
+      "role": "Unity-like project export, reference graph inspection, prefab/material/animation reconstruction input.",
+      "configuredBy": "Tools\\AssetImport\\tool-manifest.json",
+      "requiredForCurrentGate": false,
+      "evidence": [
+        "docs\\asset-migration\\category-assetripper-export-report.md",
+        "docs\\asset-migration\\unity-reference-graph-report.md",
+        "docs\\asset-migration\\unity-placeholder-context-report.md",
+        "docs\\asset-migration\\unity-salvage-candidates-report.md"
+      ]
+    },
+    {
+      "id": "AssetStudio",
+      "role": "Independent quick export/preview route for textures, sprites, meshes, audio clips, Animator, and AnimationClip assets.",
+      "configuredBy": "external research",
+      "requiredForCurrentGate": false,
+      "evidence": [
+        "docs\\asset-migration\\external-asset-reuse-research.md"
+      ]
+    },
+    {
+      "id": "Il2CppDumper",
+      "role": "Optional script/type metadata recovery route for MonoBehaviour field semantics and dummy assemblies.",
+      "configuredBy": "external research",
+      "requiredForCurrentGate": false,
+      "evidence": [
+        "docs\\asset-migration\\external-asset-reuse-research.md"
+      ]
+    },
+    {
+      "id": "wwiser",
+      "role": "Optional Wwise bank event and TXTP semantic reconstruction route; stronger than direct WEM playback.",
+      "configuredBy": "external research",
+      "requiredForCurrentGate": false,
+      "evidence": [
+        "docs\\asset-migration\\external-asset-reuse-research.md"
+      ]
+    },
+    {
+      "id": "vgmstream",
+      "role": "Configured audio decode/playback route for WEM and game audio media.",
+      "configuredBy": "Tools\\AssetImport\\tool-manifest.json",
+      "requiredForCurrentGate": true,
+      "evidence": [
+        "docs\\asset-migration\\full-audio-decode-report.md",
+        "docs\\asset-migration\\bank-media-decode-report.md"
+      ]
+    }
+  ],
+  "evidenceGroups": [
+    {
+      "id": "source_install",
+      "label": "Local StellaSora source install",
+      "status": "AssetLocated",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "AssetLocated",
+      "evidence": [
+        "Tools\\AssetImport\\tool-manifest.json",
+        "docs\\asset-migration\\full-inventory-report.md"
+      ],
+      "meaning": "The local source install and inventory boundary exist. This does not mean any asset is accepted into the Unity project."
+    },
+    {
+      "id": "pc_assetbundle_inventory",
+      "label": "PC Unity bundle inventory and AssetRipper category exports",
+      "status": "ExtractedReadable",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "ExtractedReadable",
+      "evidence": [
+        "docs\\asset-migration\\full-inventory-report.md",
+        "docs\\asset-migration\\category-assetripper-export-report.md",
+        "docs\\asset-migration\\category-usability-report.md"
+      ],
+      "meaning": "PC bundles and several visual categories have extraction/export evidence. This is stronger than a raw file list and weaker than Unity development usability."
+    },
+    {
+      "id": "audio_media",
+      "label": "Decoded Wwise audio media",
+      "status": "CrossToolVerified",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "CrossToolVerified",
+      "evidence": [
+        "docs\\asset-migration\\full-audio-decode-report.md",
+        "docs\\asset-migration\\bank-media-decode-report.md",
+        "docs\\asset-migration\\minimum-audio-selection.json",
+        "Extracted\\Validation\\AudioReuseGate\\MinimumAudioSelection\\audio-reuse-gate-summary.json",
+        "Extracted\\Validation\\MinimumAudioSemanticHints\\minimum-audio-semantic-hints-summary.json"
+      ],
+      "meaning": "WEM/WAV media can be decoded and selected, with bank/media hints. Unity playback and Wwise event semantics still need separate validation."
+    },
+    {
+      "id": "actor_candidates",
+      "label": "Player/enemy actor extraction candidates",
+      "status": "UnityImportCandidate",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "CrossToolVerified",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\CharacterArt\\validation.json",
+        "Extracted\\Validation\\CategoryUsability\\EnemyArt\\validation.json",
+        "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+        "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json"
+      ],
+      "meaning": "A player and enemy candidate have extraction and reconstruction-route evidence. Animator Controller recovery is a local prototype rebuild route, not original controller restoration."
+    },
+    {
+      "id": "environment_module",
+      "label": "Environment module salvage candidate",
+      "status": "UnityImportCandidate",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "CrossToolVerified",
+      "evidence": [
+        "Tools\\AssetImport\\ManualTextureMaps\\Environment009ModuleSalvageSet01TextureRebind04.csv",
+        "Extracted\\Validation\\UnityReferenceGraph\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\reference-graph-summary.json",
+        "Extracted\\Validation\\UnityPlaceholderContext\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\placeholder-context-summary.json",
+        "Extracted\\Validation\\UnitySalvageCandidates\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\salvage-candidates-summary.json",
+        "Extracted\\Validation\\EnvironmentModuleMaterialReviewPack\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-material-review-pack-summary.json"
+      ],
+      "meaning": "Rebind04 is the current module-level extraction/reconstruction candidate. It is not proof of full room or original scene recovery."
+    },
+    {
+      "id": "ui_reward_texture_route",
+      "label": "UI/reward texture-only rebuild route",
+      "status": "UnityImportCandidate",
+      "requiredForAssetAcquisitionGate": true,
+      "minimumRequiredStatus": "CrossToolVerified",
+      "evidence": [
+        "docs\\asset-migration\\minimum-ui-reward-selection.json",
+        "Extracted\\Validation\\UiRewardPrototypeRebuildPlan\\ui-reward-prototype-rebuild-plan-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json"
+      ],
+      "meaning": "Selected UI textures can feed a rebuilt local Canvas/prefab route. Original complex UI prefabs remain high-risk unless separately validated."
+    },
+    {
+      "id": "android_diagnostic_payload",
+      "label": "Android package/cache comparison input",
+      "status": "DiagnosticInputOnly",
+      "requiredForAssetAcquisitionGate": false,
+      "minimumRequiredStatus": "AssetLocated",
+      "evidence": [
+        "docs\\asset-migration\\android-package-intake-report.md",
+        "docs\\asset-migration\\android-pc-bundle-comparison-report.md",
+        "docs\\asset-migration\\android-pc-variant-slice-report.md"
+      ],
+      "meaning": "Android evidence helps comparison and dependency search. It cannot replace PC/Unity visible validation."
+    }
+  ],
+  "nextAllowedActions": [
+    "Use this manifest to support acquisition feasibility only.",
+    "Do not mark any gameplay asset DevelopmentUsable from this gate alone.",
+    "Run the Original Asset Reuse Gate after this gate to decide Unity-focused triage and lane outcomes."
+  ]
+}

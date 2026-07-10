@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-06-06",
+  "objective": "Use StellaSora assets in Unity for a local Hades-like fan prototype only after original asset reuse is proven.",
+  "assetAcquisitionManifest": "docs\\asset-migration\\asset-acquisition-manifest.json",
+  "assetAcquisitionGate": "Tools\\AssetImport\\Test-AssetAcquisitionGate.ps1",
+  "assetAcquisitionGateSummary": "Extracted\\Validation\\AssetAcquisitionGate\\asset-acquisition-gate-summary.json",
+  "assetAcquisitionInterpretation": "Asset acquisition evidence can support Unity import triage, but it cannot grant DevelopmentUsable status or gameplay mainline approval.",
+  "assetAcceptanceManifest": "docs\\asset-migration\\asset-acceptance-manifest.json",
+  "originalAssetReuseGate": "Tools\\AssetImport\\Test-OriginalAssetReuseGate.ps1",
+  "originalAssetReuseGateSummary": "Extracted\\Validation\\OriginalAssetReuseGate\\original-asset-reuse-gate-summary.json",
+  "controlledImportCandidateGate": "Tools\\AssetImport\\Test-ControlledImportCandidateGate.ps1",
+  "controlledImportCandidateGateSummary": "Extracted\\Validation\\ControlledImportCandidateGate\\controlled-import-candidate-gate-summary.json",
+  "actorPrototypeControllerGate": "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+  "actorPrototypeControllerGateSummary": "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json",
+  "uiRewardPrototypeBuildGate": "Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1",
+  "uiRewardPrototypeBuildGateSummary": "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json",
+  "environmentModuleGate": "Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1",
+  "environmentModuleGateSummary": "Extracted\\Validation\\EnvironmentModuleReuseGate\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-reuse-gate-summary.json",
+  "audioReuseGate": "Tools\\AssetImport\\Test-AudioReuseGate.ps1",
+  "audioReuseGateSummary": "Extracted\\Validation\\AudioReuseGate\\MinimumAudioSelection\\audio-reuse-gate-summary.json",
+  "readinessStatus": "NotReady",
+  "canStartGameplayMainline": false,
+  "blockingReason": "The StellaSora original asset reuse gate is not passed: player/enemy/effect assets are single-asset candidates but still need controlled import proof, EnvironmentArt has no Unity-visible Rebind04 fidelity proof, selected reward/card/item candidates now have a staged rebuilt Texture2D route but still need Unity generated-prefab screenshot validation, and selected combat audio still needs Unity playback plus semantic confirmation.",
+  "minimumRequirements": [
+    {
+      "id": "player_character",
+      "label": "One usable StellaSora player character",
+      "requiredForGameplayMainline": true,
+      "status": "CandidateReadyForControlledImport",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "Assets/assetbundles/actor/character/14401/14401_fx_battle_0.prefab",
+      "controlledImportPath": "Assets/StellaGaia/Imported/ControlledCandidates/player_character/14401_fx_battle_0.prefab",
+      "sourceCategory": "CharacterArt",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\CharacterArt\\validation.json",
+        "Extracted\\Validation\\CategoryUsability\\CharacterArt\\screenshots\\Assets_assetbundles_actor_character_14401_14401_fx_battle_0_prefab.png",
+        "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+        "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json"
+      ],
+      "gap": "Category still has missing dependencies and Animator Controller gaps; only this single prefab is a reuse candidate. Static evidence is checked by Tools\\AssetImport\\Test-ControlledImportCandidateGate.ps1. The actor repair route is now staged by Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1, but Unity builder validation with visible sampled-animation screenshots is still required before this can count as a development-usable player actor."
+    },
+    {
+      "id": "enemy",
+      "label": "One usable StellaSora enemy",
+      "requiredForGameplayMainline": true,
+      "status": "CandidateReadyForControlledImport",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "Assets/assetbundles/actor/monster/10001tuboshu/10001TuBoShu_Actor.prefab",
+      "controlledImportPath": "Assets/StellaGaia/Imported/ControlledCandidates/enemy/10001TuBoShu_Actor.prefab",
+      "sourceCategory": "EnemyArt",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\EnemyArt\\validation.json",
+        "Extracted\\Validation\\CategoryUsability\\EnemyArt\\screenshots\\Assets_assetbundles_actor_monster_10001tuboshu_10001TuBoShu_Actor_prefab.png",
+        "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+        "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json"
+      ],
+      "gap": "Category still has missing dependencies and Animator Controller gaps; only this single prefab is a reuse candidate. Static evidence is checked by Tools\\AssetImport\\Test-ControlledImportCandidateGate.ps1. The actor repair route is now staged by Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1, but Unity builder validation with visible sampled-animation screenshots is still required before this can count as a development-usable enemy actor."
+    },
+    {
+      "id": "combat_effect",
+      "label": "One usable StellaSora combat effect",
+      "requiredForGameplayMainline": true,
+      "status": "CandidateReadyForControlledImport",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "fx_drop_note_red_bullet.prefab",
+      "controlledImportPath": "Assets/StellaGaia/Imported/ControlledCandidates/combat_effect/fx_drop_note_red_bullet.prefab",
+      "sourceCategory": "EffectArt",
+      "evidence": [
+        "Extracted\\Validation\\EffectSliceUsability\\FxDropNoteRedBulletGuidClosure\\validation.json",
+        "Extracted\\Validation\\EffectSliceUsability\\FxDropNoteRedBulletGuidClosure\\screenshots\\Assets_assetbundles_fx_drop_fx_drop_note_red_bullet_prefab.png"
+      ],
+      "gap": "This is a single repaired effect candidate; EffectArt category is not batch-ready. Static evidence is checked by Tools\\AssetImport\\Test-ControlledImportCandidateGate.ps1, but controlled project import proof is still required."
+    },
+    {
+      "id": "room_or_map",
+      "label": "One usable StellaSora room or room-module solution",
+      "requiredForGameplayMainline": true,
+      "status": "BlockedNeedsUnityVisibleValidation",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04",
+      "sourceCategory": "EnvironmentArt",
+      "evidence": [
+        "Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1",
+        "Extracted\\Validation\\EnvironmentModuleReuseGate\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-reuse-gate-summary.json",
+        "Tools\\AssetImport\\ManualTextureMaps\\Environment009ModuleSalvageSet01TextureRebind04.csv",
+        "Extracted\\Repairs\\SemanticMaterialTextures\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\semantic-material-texture-rebind-summary.json",
+        "Extracted\\Validation\\UnityReferenceGraph\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\reference-graph-summary.json",
+        "Extracted\\Validation\\UnityPlaceholderContext\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\placeholder-context-summary.json",
+        "Extracted\\Validation\\UnitySalvageCandidates\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\salvage-candidates-summary.json"
+      ],
+      "gap": "Rebind04 is static-clean but lacks Unity screenshot/fidelity proof because editor licensing blocks validation. One real material dependency, Roguelike_Battle_009_A_04_background01, remains intentionally unbound because its best texture candidates conflict. Complete room samples remain VisibleBroken."
+    },
+    {
+      "id": "combat_music",
+      "label": "One combat music track",
+      "requiredForGameplayMainline": true,
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "assetAcquisitionStatus": "CrossToolVerified",
+      "candidate": "combat_bgm_01",
+      "sourceCategory": "DecodedAudioCollection",
+      "evidence": [
+        "docs\\asset-migration\\full-audio-decode-report.md",
+        "docs\\asset-migration\\bank-media-decode-report.md",
+        "docs\\asset-migration\\minimum-audio-selection.json",
+        "Tools\\AssetImport\\Test-AudioReuseGate.ps1",
+        "Extracted\\Validation\\AudioReuseGate\\MinimumAudioSelection\\audio-reuse-gate-summary.json",
+        "Tools\\AssetImport\\Test-MinimumAudioSemanticHints.ps1",
+        "Extracted\\Validation\\MinimumAudioSemanticHints\\minimum-audio-semantic-hints-summary.json"
+      ],
+      "gap": "A long MusicAudioCandidate WAV has been selected and ffprobe-validated. Semantic hints confirm the numeric media id is indexed by Music_Combat.bnk, but it has not been playback-validated or loop-checked in Unity."
+    },
+    {
+      "id": "combat_sfx",
+      "label": "Three combat SFX clips",
+      "requiredForGameplayMainline": true,
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "assetAcquisitionStatus": "CrossToolVerified",
+      "candidate": "combat_sfx_attack_01;combat_sfx_hit_01;combat_sfx_death_01",
+      "sourceCategory": "DecodedAudioCollection",
+      "evidence": [
+        "docs\\asset-migration\\full-audio-decode-report.md",
+        "docs\\asset-migration\\bank-media-decode-report.md",
+        "docs\\asset-migration\\minimum-audio-selection.json",
+        "Tools\\AssetImport\\Test-AudioReuseGate.ps1",
+        "Extracted\\Validation\\AudioReuseGate\\MinimumAudioSelection\\audio-reuse-gate-summary.json",
+        "Tools\\AssetImport\\Test-MinimumAudioSemanticHints.ps1",
+        "Extracted\\Validation\\MinimumAudioSemanticHints\\minimum-audio-semantic-hints-summary.json"
+      ],
+      "gap": "Three bank-media SFX candidates have been selected and ffprobe-validated from Character_Common.bnk, Impact.bnk, and Monster_10001.bnk. Semantic hints confirm those numeric media ids are indexed by their expected source banks and expose role keyword hints, which is stronger than the previous Music_* numeric candidates. Attack/hit/death semantics still need manual listening or Wwise event mapping, and Unity playback is not validated."
+    },
+    {
+      "id": "reward_item_art",
+      "label": "Reward/drop item visuals",
+      "requiredForGameplayMainline": true,
+      "status": "SelectedNeedsUnityVisibleValidation",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "drop_healthrecover_prefab;drop_vampire_treasure_prefab;reward_health_cross_texture",
+      "sourceCategory": "UiOrItemArt",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\UiOrItemArt\\validation.json",
+        "docs\\asset-migration\\minimum-ui-reward-selection.json",
+        "Tools\\AssetImport\\Test-UiRewardReuseGate.ps1",
+        "Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1",
+        "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json"
+      ],
+      "gap": "Reward/drop candidates are selected and statically readable. The original drop prefabs contain deadbeef placeholder references, while the rebuilt Texture2D route is staged and static-ready. No selected or rebuilt reward visual has a Unity generated-prefab screenshot validation pass."
+    },
+    {
+      "id": "upgrade_card_art",
+      "label": "Upgrade card visuals",
+      "requiredForGameplayMainline": true,
+      "status": "SelectedNeedsUnityVisibleValidation",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "candidate": "fatecard_101_icon;fatecard_101_large_art;fatecard_101_pack_art;vampire_fate_card_select_panel_prefab",
+      "sourceCategory": "UiOrItemArt",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\UiOrItemArt\\validation.json",
+        "docs\\asset-migration\\minimum-ui-reward-selection.json",
+        "Tools\\AssetImport\\Test-UiRewardReuseGate.ps1",
+        "Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1",
+        "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json"
+      ],
+      "gap": "Fate-card textures are selected, statically readable, and staged for the rebuilt Texture2D route, but they still require Unity generated-prefab screenshot validation. The matching VampireFateCardSelectPanel prefab is only a dependency-closure candidate because it has many placeholder and script references."
+    }
+  ],
+  "nextAllowedActions": [
+    "After Unity licensing is fixed, run Tools\\AssetImport\\Test-OriginalAssetReuseGate.ps1 -RunUnity to execute the focused environment, UI/reward, and audio gates together.",
+    "If running sub-gates individually, start with Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1 -RunUnity for Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04.",
+    "Use Tools\\AssetImport\\Test-ControlledImportCandidateGate.ps1 to confirm player/enemy/effect candidate evidence before a controlled project import proof.",
+    "Use Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1 for the player/enemy prototype controller repair route; only run -ApplySourceStaging when controlled actor source staging is intended, and only run -RunUnity after Unity licensing is active.",
+    "If Rebind04 is recognizable, create a controlled import proof for the single player, enemy, effect, and module-room candidates.",
+    "Run Tools\\AssetImport\\Test-AudioReuseGate.ps1 -RunUnity after Unity licensing is fixed, then confirm BGM loop and SFX/voice semantics by listening or Wwise event mapping.",
+    "Run Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1 -RunUnity for the rebuilt reward/card Texture2D route, and run Tools\\AssetImport\\Test-UiRewardReuseGate.ps1 -RunUnity only if the original selected reward/drop/card prefabs remain under consideration.",
+    "Do not implement the Hades-like gameplay mainline until this manifest reports canStartGameplayMainline=true."
+  ]
+}

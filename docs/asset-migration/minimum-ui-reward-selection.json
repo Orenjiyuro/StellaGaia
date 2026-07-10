@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-06-05",
+  "sourceCategory": "UiOrItemArt",
+  "sourceExport": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject",
+  "categoryValidation": "Extracted\\Validation\\CategoryUsability\\UiOrItemArt\\validation.json",
+  "status": "SelectedNeedsUnityVisibleValidation",
+  "canSatisfyVerticalSliceArt": false,
+  "blockingReason": "Reward and upgrade-card candidates are now selected and statically readable, but drop prefabs still contain unresolved placeholder references and no candidate has a Unity visible validation pass after selection. Use Tools\\AssetImport\\Test-UiRewardReuseGate.ps1 -RunUnity for the selected-asset gate after Unity licensing is active.",
+  "requiredRoles": [
+    {
+      "role": "RewardDropPrefab",
+      "minimumCount": 1
+    },
+    {
+      "role": "RewardItemTexture",
+      "minimumCount": 1
+    },
+    {
+      "role": "UpgradeCardIcon",
+      "minimumCount": 1
+    },
+    {
+      "role": "UpgradeCardLargeArt",
+      "minimumCount": 1
+    }
+  ],
+  "selections": [
+    {
+      "id": "drop_healthrecover_prefab",
+      "role": "RewardDropPrefab",
+      "kind": "Prefab",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\actor\\item\\drop_healthrecover\\Drop_HealthRecover.prefab",
+      "status": "RepairCandidateNeedsDependencyClosure",
+      "knownIssues": [
+        "Contains a deadbeef placeholder reference on idleFx.",
+        "Contains MonoBehaviour script references that require Unity import validation."
+      ],
+      "nextValidation": "Run Unity visible validation after dependency closure or confirm an acceptable replacement visual."
+    },
+    {
+      "id": "drop_vampire_treasure_prefab",
+      "role": "RewardDropPrefab",
+      "kind": "Prefab",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\actor\\item\\drop_vampire\\Drop_Vampire_Treasure.prefab",
+      "status": "RepairCandidateNeedsDependencyClosure",
+      "knownIssues": [
+        "Contains deadbeef placeholder references on idleFx and takeEffectFx.",
+        "Contains MonoBehaviour script references that require Unity import validation."
+      ],
+      "nextValidation": "Use as a treasure-drop repair candidate only; do not accept until visible validation passes."
+    },
+    {
+      "id": "reward_health_cross_texture",
+      "role": "RewardItemTexture",
+      "kind": "Texture2D",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\actor\\item\\common\\textures\\fx_medical01_shizi_01.png",
+      "status": "StaticReadableNeedsUnitySpriteValidation",
+      "knownIssues": [
+        "Transparent/white texture needs Unity material or sprite context before visual acceptance."
+      ],
+      "nextValidation": "Import as a sprite/material sample and render against a non-white background."
+    },
+    {
+      "id": "fatecard_101_icon",
+      "role": "UpgradeCardIcon",
+      "kind": "Texture2D",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\icon\\fatecard\\fatecardpack_101.png",
+      "status": "StaticReadableNeedsUnitySpriteValidation",
+      "knownIssues": [],
+      "nextValidation": "Import as a Unity sprite and verify it renders as a non-empty card icon."
+    },
+    {
+      "id": "fatecard_101_large_art",
+      "role": "UpgradeCardLargeArt",
+      "kind": "Texture2D",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\icon\\fatecard\\fatecardpack_101_L.png",
+      "status": "StaticReadableNeedsUnitySpriteValidation",
+      "knownIssues": [],
+      "nextValidation": "Import as a Unity sprite and verify it renders as a non-empty large card image."
+    },
+    {
+      "id": "fatecard_101_pack_art",
+      "role": "UpgradeCardPackArt",
+      "kind": "Texture2D",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\icon\\fatecard\\fatecardpack_101_S.png",
+      "status": "StaticReadableNeedsUnitySpriteValidation",
+      "knownIssues": [],
+      "nextValidation": "Use as optional pack/card-choice art after Unity sprite validation."
+    },
+    {
+      "id": "vampire_fate_card_select_panel_prefab",
+      "role": "UpgradeCardUIPrefab",
+      "kind": "Prefab",
+      "path": "Extracted\\AssetRipper\\ByCategory\\UiOrItemArt\\ExportedProject\\Assets\\assetbundles\\ui\\vampirebattle\\VampireFateCardSelectPanel.prefab",
+      "status": "RepairCandidateNeedsDependencyClosure",
+      "knownIssues": [
+        "Large UI prefab contains many MonoBehaviour references.",
+        "Static inspection found many deadbeef placeholder references; use only as a dependency-closure target."
+      ],
+      "nextValidation": "Do not import into the runtime project until dependency closure and Unity visible UI validation pass."
+    }
+  ]
+}

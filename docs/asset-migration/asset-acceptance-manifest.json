@@ -1,0 +1,213 @@
+{
+  "generatedAt": "2026-06-07",
+  "sourceInstall": "C:\\SoftGame\\YostarGames\\StellaSora_CN",
+  "extractWorkspace": "C:\\SoftWork\\Git\\StellaGaia\\Extracted",
+  "assetAcquisitionManifest": "docs\\asset-migration\\asset-acquisition-manifest.json",
+  "assetAcquisitionGate": "Tools\\AssetImport\\Test-AssetAcquisitionGate.ps1",
+  "assetAcquisitionGateSummary": "Extracted\\Validation\\AssetAcquisitionGate\\asset-acquisition-gate-summary.json",
+  "rootGate": {
+    "status": "NotPassed",
+    "canProceedGameplayMainline": false,
+    "currentOptimism": "CautiouslyPositiveForSingleAssetAndModuleSlice",
+    "blockers": [
+      "EnvironmentArt complete room/map reuse is not development-usable.",
+      "Asset acquisition evidence is ready for Unity import triage, but it cannot grant DevelopmentUsable status.",
+      "Rebind04 environment module slice has clean static references but lacks Unity visible validation.",
+      "Selected reward/drop/card candidates still lack Unity visible validation and prefab dependency closure; a texture-only rebuild route is staged but not rendered.",
+      "Offline manual review still has 8 unreviewed rows: 5 audio listening rows and 3 UI prefab rows.",
+      "Local Unity editor licensing blocks the current visible validation run."
+    ],
+    "evidence": [
+      "Tools\\AssetImport\\Test-OriginalAssetReuseGate.ps1",
+      "Extracted\\Validation\\OriginalAssetReuseGate\\original-asset-reuse-gate-summary.json",
+      "Extracted\\Validation\\OriginalAssetReuseGate\\original-asset-reuse-gate-report.md",
+      "Tools\\AssetImport\\Test-AssetAcquisitionGate.ps1",
+      "docs\\asset-migration\\asset-acquisition-manifest.json",
+      "Extracted\\Validation\\AssetAcquisitionGate\\asset-acquisition-gate-summary.json",
+      "Extracted\\Validation\\AssetAcquisitionGate\\asset-acquisition-gate-report.md",
+      "Tools\\AssetImport\\Test-UnityFocusedValidationReadiness.ps1",
+      "Extracted\\Validation\\UnityFocusedValidationReadiness\\unity-focused-validation-readiness-summary.json",
+      "Extracted\\Validation\\UnityFocusedValidationReadiness\\unity-focused-validation-readiness-report.md",
+      "Tools\\AssetImport\\Test-OfflineManualReviewGate.ps1",
+      "Extracted\\Validation\\OfflineManualReviewGate\\offline-manual-review-gate-summary.json",
+      "Extracted\\Validation\\OfflineManualReviewGate\\offline-manual-review-gate-report.md",
+      "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+      "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json",
+      "Tools\\AssetImport\\New-UiRewardPrototypeRebuildPlan.ps1",
+      "Extracted\\Validation\\UiRewardPrototypeRebuildPlan\\ui-reward-prototype-rebuild-plan-summary.json",
+      "Extracted\\Validation\\UiRewardPrototypeRebuildPlan\\ui-reward-prototype-rebuild-plan.md",
+      "Tools\\AssetImport\\Copy-UiRewardPrototypeSourceTextures.ps1",
+      "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging-apply-summary.json",
+      "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging-summary.json",
+      "Assets\\StellaGaia\\Editor\\UiRewardPrototypeBuilder.cs",
+      "Extracted\\Validation\\UiRewardPrototypeBuildPreflight\\unity-editor-script-compile-preflight-summary.json",
+      "Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1",
+      "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json",
+      "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-report.md"
+    ],
+    "nextRequiredEvidence": [
+      "Aggregate original asset reuse gate summary from Tools\\AssetImport\\Test-OriginalAssetReuseGate.ps1 -RunUnity.",
+      "Asset acquisition gate summary from Tools\\AssetImport\\Test-AssetAcquisitionGate.ps1, proving acquisition readiness without granting DevelopmentUsable status.",
+      "Focused environment gate summary from Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1 -RunUnity.",
+      "Unity visible validation screenshot for Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04.",
+      "Completed offline manual review TSV rows for selected audio listening and UI prefab-visible evidence.",
+      "Unity builder/rendering evidence for the staged rebuilt UI/reward texture route, if original UI/drop prefabs remain high risk.",
+      "Fidelity review showing recognizable original StellaSora environment modules, not only non-empty fallback geometry.",
+      "No blocking console/import errors and no critical missing mesh/material references in the Rebind04 validation result."
+    ]
+  },
+  "inputs": [
+    {
+      "name": "AndroidInstallPayload",
+      "status": "ComparisonInputOnly",
+      "paths": [
+        "Android\\StellaSora.apk",
+        "Android\\DATA\\files\\Persistent_Store\\AssetBundles"
+      ],
+      "summary": "The Android input is useful for platform comparison and cache/bundle discovery. Android\\OBB currently has 0 files, so no OBB payload contributes assets.",
+      "nextAllowedAction": "Use APK and DATA cache only for focused comparison or object-provenance analysis. Do not import Android payloads into Assets/StellaGaia."
+    }
+  ],
+  "categories": [
+    {
+      "category": "EffectArt",
+      "status": "RepairCandidate",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "evidence": [
+        "Extracted\\Repairs\\CategoryMaterials\\EffectArt\\material-repair.json",
+        "Extracted\\Validation\\CategoryUsability\\EffectArt\\validation.json",
+        "Extracted\\Repairs\\EffectSliceMaterials\\FxDropNoteRedBulletGuidClosure\\material-repair.json",
+        "Extracted\\Validation\\EffectSliceUsability\\FxDropNoteRedBulletGuidClosure\\validation.json",
+        "Extracted\\Validation\\EffectSliceUsability\\FxDropNoteRedBulletGuidClosure\\screenshots\\Assets_assetbundles_fx_drop_fx_drop_note_red_bullet_prefab.png"
+      ],
+      "summary": "Material fallback repair removed sampled pink shader output and reduced sample critical issues from 50 to 11. A later texture restoration pass repaired 93 material display-texture bindings. The focused fx_drop_note_red_bullet GUID-closure slice first had one active root renderer material-slot issue; renderer material-slot repair resolved it to fx_drop_note_red.mat, and post-repair validation reports status=Usable, visibleSampleCount=1, criticalIssueCount=0, knownIssueCount=0, missingMaterialSlotCount=0, and magentaPixelRatio=0. Category-level missing dependencies and missing material slots remain.",
+      "nextAllowedAction": "Treat fx_drop_note_red_bullet as a repaired single-asset combat effect candidate for a controlled import proof only. Continue dependency closure and texture/material reconstruction for selected EffectArt samples. Do not batch expand EffectArt."
+    },
+    {
+      "category": "CharacterArt",
+      "status": "RepairCandidate",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "evidence": [
+        "Extracted\\Repairs\\CategoryMaterials\\CharacterArt\\material-repair.json",
+        "Extracted\\Validation\\CategoryUsability\\CharacterArt\\validation.json",
+        "Extracted\\Validation\\CategoryUsability\\CharacterArt\\screenshots\\Assets_assetbundles_actor_character_14401_14401_fx_battle_0_prefab.png",
+        "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+        "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json"
+      ],
+      "summary": "Material fallback repair reduced sampled critical issues from 118 to 31 and broken shader count from 87 to 0. A later texture restoration pass repaired 1,958 material display-texture bindings. The specific prefab Assets/assetbundles/actor/character/14401/14401_fx_battle_0.prefab is visible, textured, and has 0 sampled critical issues, but the category still has missing dependencies, missing material slots, and missing Animator Controller gaps.",
+      "nextAllowedAction": "Treat 14401_fx_battle_0 as a single-asset reuse candidate for the staged prototype controller repair route only. Run Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1 -RunUnity after Unity licensing is active, then inspect sampled-animation screenshots before accepting the actor. Do not batch expand CharacterArt."
+    },
+    {
+      "category": "EnemyArt",
+      "status": "RepairCandidate",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "evidence": [
+        "Extracted\\Repairs\\CategoryMaterials\\EnemyArt\\material-repair.json",
+        "Extracted\\Validation\\CategoryUsability\\EnemyArt\\validation.json",
+        "Extracted\\Validation\\CategoryUsability\\EnemyArt\\screenshots\\Assets_assetbundles_actor_monster_10001tuboshu_10001TuBoShu_Actor_prefab.png",
+        "Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1",
+        "Extracted\\Validation\\ActorPrototypeControllerRebuildGate\\SelectedActors\\actor-prototype-controller-rebuild-gate-summary.json"
+      ],
+      "summary": "Material fallback repair reduced sampled critical issues from 97 to 22 and broken shader count from 75 to 0. A later texture restoration pass repaired 942 material display-texture bindings. The specific prefab Assets/assetbundles/actor/monster/10001tuboshu/10001TuBoShu_Actor.prefab is visible, textured, and has 0 sampled critical issues, but the category still has missing dependencies, missing material slots, and missing Animator Controller gaps.",
+      "nextAllowedAction": "Treat 10001TuBoShu_Actor as a single-asset reuse candidate for the staged prototype controller repair route only. Run Tools\\AssetImport\\Test-ActorPrototypeControllerRebuildGate.ps1 -RunUnity after Unity licensing is active, then inspect sampled-animation screenshots before accepting the actor. Do not batch expand EnemyArt."
+    },
+    {
+      "category": "UiOrItemArt",
+      "status": "SelectedNeedsUnityVisibleValidation",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\UiOrItemArt\\validation.json",
+        "docs\\asset-migration\\minimum-ui-reward-selection.json",
+        "Tools\\AssetImport\\Test-UiRewardReuseGate.ps1",
+        "Tools\\AssetImport\\Test-UiRewardPrefabStaticRiskGate.ps1",
+        "Extracted\\Validation\\UiRewardPrefabStaticRiskGate\\ui-reward-prefab-static-risk-summary.json",
+        "Extracted\\Validation\\UiRewardPrefabStaticRiskGate\\ui-reward-prefab-static-risk-report.md",
+        "Tools\\AssetImport\\New-MinimumUiRewardVisualReviewPack.ps1",
+        "Extracted\\Validation\\MinimumUiRewardVisualReviewPack\\minimum-ui-reward-visual-review-pack-summary.json",
+        "Extracted\\Validation\\MinimumUiRewardVisualReviewPack\\minimum-ui-reward-visual-review.tsv",
+        "Tools\\AssetImport\\New-UiRewardPrototypeRebuildPlan.ps1",
+        "Extracted\\Validation\\UiRewardPrototypeRebuildPlan\\ui-reward-prototype-rebuild-plan-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeRebuildPlan\\ui-reward-prototype-rebuild-plan.md",
+        "Tools\\AssetImport\\Copy-UiRewardPrototypeSourceTextures.ps1",
+        "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging-apply-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeTextureStaging\\ui-reward-prototype-texture-staging.md",
+        "Assets\\StellaGaia\\Editor\\UiRewardPrototypeBuilder.cs",
+        "Assets\\StellaGaia\\Editor\\UiRewardPrototypeBuilder.cs.meta",
+        "Extracted\\Validation\\UiRewardPrototypeBuildPreflight\\unity-editor-script-compile-preflight-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeBuildPreflight\\unity-editor-script-compile-preflight-output.txt",
+        "Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1",
+        "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-summary.json",
+        "Extracted\\Validation\\UiRewardPrototypeBuildGate\\RebuiltUiReward\\ui-reward-prototype-build-gate-report.md",
+        "Extracted\\Validation\\ManualReviewContactSheets\\ui-reward-visual-contact-sheet.png",
+        "docs\\asset-migration\\manual-preview-review-report.md"
+      ],
+      "summary": "Category validation reports imported samples with 3 visible samples and 40 sampled critical issues. Minimum reward/drop/card candidates are now selected and statically readable, including fate-card textures and drop/card UI prefabs. A minimum UI/reward visual review pack now generates 4 checkerboard-backed texture previews and a visual-review TSV for 7 selected candidates. Contact-sheet review confirms the four texture previews are non-empty and visually readable, with the health-cross texture requiring non-white/checkerboard background review. Static selected-prefab risk classification reports 3 prefab candidates, 0 low-risk prefabs, 1 high-risk dependency-closure prefab, and 2 visual-missing drop prefabs: the two drop prefabs have no renderer and depend on missing FX prefab references, while VampireFateCardSelectPanel has 79 deadbeef references across font/material/sprite/Wwise fields. A texture-only prototype rebuild dry run reports 4 accepted Texture2D candidates, 3 required accepted texture roles, 1 optional accepted texture role, canStageSourceTextures=true, and 0 issues. The accepted Texture2D assets are staged under Assets/StellaGaia/Imported/ControlledCandidates/ui_reward/PrototypeRebuild/Textures with 4 target files, 4 target meta files, 0 overwrite risk, and 0 project GUID conflicts. The Unity-side UI reward prototype builder compile preflight passes. The focused rebuilt-route gate reports StaticReadyNeedsUnityPrototypeBuild, sourceTexturesStaged=true, and 0 issues. No selected UI/reward prefab or rebuilt UI route has a Unity visible validation pass.",
+      "nextAllowedAction": "Use the accepted offline texture previews as candidate-screening evidence only. For the vertical slice, execute Tools\\AssetImport\\Test-UiRewardPrototypeBuildGate.ps1 -RunUnity after Unity licensing is active and inspect generated reward/card prefab screenshots. Do not import high-risk UI prefabs into runtime Assets and do not batch expand UiOrItemArt."
+    },
+    {
+      "category": "NpcOrStoryArt",
+      "status": "VisibleBroken",
+      "assetAcquisitionStatus": "ExtractedReadable",
+      "evidence": [
+        "Extracted\\Validation\\CategoryUsability\\NpcOrStoryArt\\validation.json"
+      ],
+      "summary": "Representative samples rendered before material repair, but missing dependencies and sampled controller/material issues are high.",
+      "nextAllowedAction": "Defer until core gameplay vertical slice needs NPC/story assets."
+    },
+    {
+      "category": "EnvironmentArt",
+      "status": "VisibleBroken",
+      "assetAcquisitionStatus": "UnityImportCandidate",
+      "evidence": [
+        "Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1",
+        "Extracted\\Logs\\assetripper-category-EnvironmentRoomSample009WithCommon-result.txt",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoomSample009WithCommon\\validation.json",
+        "Extracted\\Repairs\\RoomSampleMaterials\\EnvironmentRoomSample009WithCommon\\material-repair.json",
+        "Extracted\\DependencyIndex\\assetbundle-cab-index.csv",
+        "Extracted\\Logs\\assetripper-category-EnvironmentRoomSample009CabFocused-result.txt",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009A1GuidClosure\\validation.json",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009A1GuidClosure\\screenshots\\Assets_assetbundles_Levels_Roguelike_Roguelike_Common_designerprefab_roguelike_battle_009_Roguelike_Battle_009_A1_prefab.png",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009Floor01GuidClosure\\validation.json",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009Building01GuidClosure\\validation.json",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009Building01GuidClosure\\screenshots\\Assets_assetbundles_environment_roguelike_2_mesh_Roguelike_Battle_009_A_01_Building01_prefab.png",
+        "Extracted\\Repairs\\RoomSampleMaterials\\EnvironmentRoom009FloorBuildingGuidClosure\\material-repair.json",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009FloorBuildingGuidClosure\\validation.json",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009FloorBuildingGuidClosure\\screenshots\\Assets_assetbundles_environment_roguelike_2_mesh_Roguelike_Battle_009_A_01_Floor01_prefab.png",
+        "Extracted\\Validation\\RoomSampleUsability\\EnvironmentRoom009FloorBuildingGuidClosure\\screenshots\\Assets_assetbundles_environment_roguelike_2_mesh_Roguelike_Battle_009_A_01_Building01_prefab.png",
+        "Tools\\AssetImport\\ManualTextureMaps\\Environment009ModuleSalvageSet01TextureRebind04.csv",
+        "Extracted\\Repairs\\SemanticMaterialTextures\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\semantic-material-texture-rebind-summary.json",
+        "Extracted\\Validation\\UnityReferenceGraph\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\reference-graph-summary.json",
+        "Extracted\\Validation\\UnityPlaceholderContext\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\placeholder-context-summary.json",
+        "Extracted\\Validation\\UnitySalvageCandidates\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\salvage-candidates-summary.json",
+        "Tools\\AssetImport\\New-EnvironmentModuleMaterialReviewPack.ps1",
+        "Extracted\\Validation\\EnvironmentModuleMaterialReviewPack\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-material-review-pack-summary.json",
+        "Extracted\\Validation\\EnvironmentModuleMaterialReviewPack\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-material-review.tsv",
+        "Extracted\\Validation\\ManualReviewContactSheets\\environment-material-contact-sheet.png",
+        "docs\\asset-migration\\manual-preview-review-report.md",
+        "docs\\asset-migration\\category-usability-report.md"
+      ],
+      "summary": "A roguelike room sample can be exported and rendered in Unity, but complete room samples remain broken. CAB indexing resolved all 263 missing CAB ids from 009WithCommon to raw bundle string matches, but CAB-focused expansion increased missing warnings and full repair was too heavy. GUID closure showed Roguelike_Battle_009_A1 still has 1,258 sampled critical issues. Multi-view validation corrected the Floor01 false negative, and a Floor01+Building01 combined slice imported with 2 visible samples, 0 sampled critical issues, 0 known issues, and 0 missing dependency warnings, but it was still grey/fallback-like. Rebind04 is the strongest current module candidate: 12 semantic materials processed, 8 exact texture matches, 3 manually mapped materials, 11 diffuse-bound materials, 25 texture files copied, 36 material texture properties patched, 117/117 YAML refs existing, 0 missing/deadbeef/placeholder refs, 0 generic renderer material slots, and 5/5 static renderable root candidates. A material review pack now generates 25 texture previews for the 11 bound materials and records the one intentionally unbound background material. Contact-sheet review confirms the material previews are non-empty and reviewable. This proves static module repair progress and material-review readiness, not complete room/map reuse or Unity-visible fidelity.",
+      "nextAllowedAction": "Use Extracted\\Validation\\EnvironmentModuleMaterialReviewPack\\Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04\\environment-module-material-review-pack.html and environment-module-material-review.tsv for manual material review. Do not batch import or use as gameplay rooms. After Unity licensing is fixed, run Tools\\AssetImport\\Test-EnvironmentModuleReuseGate.ps1 -RunUnity against Environment009ModuleSalvageSet01SemanticMaterialTextureRebind04. Continue only if screenshots show recognizable original StellaSora environment modules; otherwise reject EnvironmentArt as the basis for the Hades-like room loop and use replacement/original rooms."
+    },
+    {
+      "category": "DecodedAudioCollection",
+      "status": "SelectedNeedsUnityPlaybackValidation",
+      "assetAcquisitionStatus": "CrossToolVerified",
+      "evidence": [
+        "docs\\asset-migration\\full-audio-decode-report.md",
+        "docs\\asset-migration\\bank-media-decode-report.md",
+        "docs\\asset-migration\\minimum-audio-selection.json",
+        "Tools\\AssetImport\\Test-AudioReuseGate.ps1",
+        "Tools\\AssetImport\\New-MinimumAudioAuditionPack.ps1",
+        "Extracted\\Validation\\MinimumAudioAuditionPack\\minimum-audio-audition-pack-summary.json",
+        "Extracted\\Validation\\MinimumAudioAuditionPack\\minimum-audio-listening-review.tsv",
+        "Tools\\AssetImport\\Test-MinimumAudioSemanticHints.ps1",
+        "Extracted\\Validation\\MinimumAudioSemanticHints\\minimum-audio-semantic-hints-summary.json",
+        "Extracted\\Validation\\MinimumAudioSemanticHints\\minimum-audio-semantic-hints-report.md"
+      ],
+      "summary": "6,040 standalone WEM files decoded with 0 failures. A focused bank-media pass decoded 328 embedded DIDX/DATA media files from Impact.bnk, Monster_10001.bnk, and Character_Common.bnk with 0 failures. Minimum SFX candidates now come from combat-relevant banks rather than weak Music_* numeric candidates. A minimum audio audition pack now generates 5 short OGG previews, 5 waveform PNGs, and a listening-review TSV for manual semantic review. Minimum audio semantic hints report 4 numeric media candidates indexed by their expected source banks and 5 role-hint matches; this improves provenance confidence but is not final event semantics. Wwise event mapping, completed listening review, and Unity playback are not resolved.",
+      "nextAllowedAction": "Use Extracted\\Validation\\MinimumAudioAuditionPack\\minimum-audio-audition-pack.html and minimum-audio-listening-review.tsv for manual listening review, then use Tools\\AssetImport\\Test-AudioReuseGate.ps1 -RunUnity for Unity AudioClip decode/playback validation. Do not treat bank-name evidence or preview generation as final attack/hit/death event semantics."
+    }
+  ]
+}
