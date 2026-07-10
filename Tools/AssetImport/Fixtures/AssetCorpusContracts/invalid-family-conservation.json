@@ -1,0 +1,9 @@
+{
+  "family": {
+    "familyId": "family.invalid-conservation",
+    "memberCount": 5,
+    "staticPassedCount": 2,
+    "staticFailedCount": 1,
+    "uncheckedCount": 1
+  }
+}

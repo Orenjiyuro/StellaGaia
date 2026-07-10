@@ -593,6 +593,67 @@ function Test-FixtureVocabularyValue {
     }
 }
 
+function Get-NegativeFixtureSemanticIssues {
+    param(
+        [Parameter(Mandatory)]
+        [object] $Fixture,
+
+        [Parameter(Mandatory)]
+        [string] $Rule
+    )
+
+    $fixtureIssues = [System.Collections.Generic.List[string]]::new()
+
+    switch ($Rule) {
+        'SourceFileConservation' {
+            $sourceFileCount = Get-PropertyByPath -Value $Fixture -Path 'sourceFileCount'
+            $catalogedFileCount = Get-PropertyByPath -Value $Fixture -Path 'catalogedFileCount'
+            $explicitlyExcludedFileCount = Get-PropertyByPath -Value $Fixture -Path 'explicitlyExcludedFileCount'
+            if ($sourceFileCount -ne ($catalogedFileCount + $explicitlyExcludedFileCount)) {
+                $fixtureIssues.Add('Source file conservation failed.')
+            }
+        }
+        'FamilyConservation' {
+            $family = Get-PropertyByPath -Value $Fixture -Path 'family'
+            $familyId = Get-PropertyByPath -Value $family -Path 'familyId'
+            $memberCount = Get-PropertyByPath -Value $family -Path 'memberCount'
+            $staticPassedCount = Get-PropertyByPath -Value $family -Path 'staticPassedCount'
+            $staticFailedCount = Get-PropertyByPath -Value $family -Path 'staticFailedCount'
+            $uncheckedCount = Get-PropertyByPath -Value $family -Path 'uncheckedCount'
+            if ($memberCount -ne ($staticPassedCount + $staticFailedCount + $uncheckedCount)) {
+                $fixtureIssues.Add("Asset family member conservation failed for '$familyId'.")
+            }
+        }
+        'RepairOnceAttribution' {
+            $family = Get-PropertyByPath -Value $Fixture -Path 'family'
+            $familyId = Get-PropertyByPath -Value $family -Path 'familyId'
+            $decision = Get-PropertyByPath -Value $family -Path 'decision'
+            $failureAttribution = Get-PropertyByPath -Value $family -Path 'failureAttribution'
+            $hasFailureAttribution = $null -ne $failureAttribution -and @($failureAttribution).Count -gt 0
+            if ($decision -ceq 'RepairOnce' -and -not $hasFailureAttribution) {
+                $fixtureIssues.Add("RepairOnce requires non-empty failureAttribution for '$familyId'.")
+            }
+        }
+        'StaleFingerprint' {
+            $directChildFingerprint = Get-PropertyByPath -Value $Fixture -Path 'directChildFingerprint'
+            $downstreamInputFingerprint = Get-PropertyByPath -Value $Fixture -Path 'downstreamSummary.inputFingerprint'
+            if ($downstreamInputFingerprint -cne $directChildFingerprint) {
+                $fixtureIssues.Add('Downstream summary input fingerprint is stale.')
+            }
+        }
+        'OriginalProjectRestored' {
+            foreach ($forbiddenPropertyName in @(Get-ForbiddenPropertyNames -Value $Fixture)) {
+                $fixtureIssues.Add("Forbidden original project restoration property found in '$forbiddenPropertyName'.")
+            }
+        }
+        default {
+            throw "Unsupported negative fixture rule '$Rule'."
+        }
+    }
+
+    return $fixtureIssues.ToArray()
+}
+
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 if ([string]::IsNullOrWhiteSpace($ContractRoot)) {
     $ContractRoot = Join-Path $repositoryRoot 'docs\asset-migration\schemas'
@@ -759,6 +820,34 @@ $fixtureContracts = @(
     }
 )
 
+$negativeFixtureContracts = @(
+    [pscustomobject]@{
+        Name = 'invalid-source-file-conservation.json'
+        Rule = 'SourceFileConservation'
+        ExpectedIssue = 'Source file conservation failed.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-family-conservation.json'
+        Rule = 'FamilyConservation'
+        ExpectedIssue = "Asset family member conservation failed for 'family.invalid-conservation'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-repair-once-attribution.json'
+        Rule = 'RepairOnceAttribution'
+        ExpectedIssue = "RepairOnce requires non-empty failureAttribution for 'family.invalid-repair-once'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-stale-fingerprint.json'
+        Rule = 'StaleFingerprint'
+        ExpectedIssue = 'Downstream summary input fingerprint is stale.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-original-project-restored.json'
+        Rule = 'OriginalProjectRestored'
+        ExpectedIssue = "Forbidden original project restoration property found in 'originalUnityProjectRestored'."
+    }
+)
+
 $schemas = @{}
 foreach ($contract in $schemaContracts) {
     $schemaPath = [System.IO.Path]::GetFullPath((Join-Path $ContractRoot $contract.Name))
@@ -908,6 +997,34 @@ if ($null -ne $authoringFixture) {
     }
 }
 
+$negativeFixtures = @{}
+foreach ($contract in $negativeFixtureContracts) {
+    $fixturePath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot $contract.Name))
+    $fixture = Read-JsonContractFile -Path $fixturePath
+    if ($null -eq $fixture) {
+        continue
+    }
+
+    $negativeFixtures[$contract.Name] = $fixture
+    $actualIssues = @(Get-NegativeFixtureSemanticIssues -Fixture $fixture -Rule $contract.Rule)
+    $expectedIssues = @($contract.ExpectedIssue)
+    $issuesMatch = $actualIssues.Count -eq $expectedIssues.Count
+    if ($issuesMatch) {
+        for ($index = 0; $index -lt $expectedIssues.Count; $index++) {
+            if ($actualIssues[$index] -cne $expectedIssues[$index]) {
+                $issuesMatch = $false
+                break
+            }
+        }
+    }
+
+    if (-not $issuesMatch) {
+        $expectedText = $expectedIssues | ConvertTo-Json -Compress
+        $actualText = $actualIssues | ConvertTo-Json -Compress
+        $issues.Add("Negative fixture '$($contract.Name)' did not produce exactly its expected issues. Expected: $expectedText; Actual: $actualText.")
+    }
+}
+
 $stopwatch.Stop()
 $result = [pscustomobject][ordered]@{
     status            = if ($issues.Count -eq 0) { 'Passed' } else { 'Failed' }
@@ -915,6 +1032,7 @@ $result = [pscustomobject][ordered]@{
     issues            = $issues.ToArray()
     schemaCount       = $schemas.Count
     fixtureCount      = $fixtures.Count
+    negativeFixtureCount = $negativeFixtures.Count
     childProcessCount = 0
     durationMs        = $stopwatch.ElapsedMilliseconds
 }
