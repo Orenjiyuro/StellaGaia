@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "ledgerPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json",
+  "summaryPath": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceCount": 1,
+  "fileCount": 1,
+  "fileBytes": 4096,
+  "objectCount": 0
+}
