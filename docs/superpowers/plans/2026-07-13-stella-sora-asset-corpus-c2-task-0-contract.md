@@ -1,5 +1,7 @@
 # StellaSora C2 Task 0 Contract Gate Implementation Plan
 
+> **SUPERSEDED — DO NOT EXECUTE.** This expansive three-slice plan was replaced on 2026-07-13 by `2026-07-13-stella-sora-asset-corpus-c2-minimal-phase-a.md`. It is retained only as history. In particular, do not execute Task 0A/0B/0C, do not freeze the broader AR/HI/SP/FT contract surface, and do not leave a RED harness for a later task.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Freeze AR-S01, AR-S01a, AR-S01b, AR-S01c, AR-S02, and AR-S04a through exact-shape fixture validation, validate the committed C1 intake, and land a fixture-only read-only RED→GREEN harness without standalone C2 private schema files.
