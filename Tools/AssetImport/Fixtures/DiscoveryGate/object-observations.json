@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "rows": [
+    {
+      "observationId": "observation-sha256:4854cc54de709e7419a003802f29f602da1ce4aeaddc3fef1085bbebe57e0180",
+      "toolName": "ToolA",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "10",
+      "classId": 1,
+      "serializedSizeBytes": 100,
+      "objectType": "Sprite",
+      "objectName": "Hero",
+      "dependencyLocators": [],
+      "contentFingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:a7341b5f0406ce9a824900156f5a811710ffd819589dcece01d95976761720d1",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r1.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r1.json"
+      ]
+    },
+    {
+      "observationId": "observation-sha256:7a213fdda2a2eeecce2908215747a70211903ba19f2721984cf05375dfd8d98a",
+      "toolName": "ToolB",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "10",
+      "classId": 1,
+      "serializedSizeBytes": 100,
+      "objectType": "Sprite",
+      "objectName": "Hero",
+      "dependencyLocators": [],
+      "contentFingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:a7341b5f0406ce9a824900156f5a811710ffd819589dcece01d95976761720d1",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r2.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r2.json"
+      ]
+    },
+    {
+      "observationId": "observation-sha256:6d653ff6e6e7b582843a2b8084364f14f32db83c6cbbba67cca6e1b738f63e2e",
+      "toolName": "ToolA",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "20",
+      "classId": 1,
+      "serializedSizeBytes": 100,
+      "objectType": "Sprite",
+      "objectName": "Conflict",
+      "dependencyLocators": [],
+      "contentFingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:0d6bf1110a7fa5f2330cc074dcf371131d19a5a80074d3a1667562f59c4a0282",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r3.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r3.json"
+      ]
+    },
+    {
+      "observationId": "observation-sha256:546997444cbe327e4d9dd073c4dc067721557d559861b76a93262556209e8b77",
+      "toolName": "ToolB",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "20",
+      "classId": 1,
+      "serializedSizeBytes": 100,
+      "objectType": "Mesh",
+      "objectName": "Conflict",
+      "dependencyLocators": [],
+      "contentFingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:0d6bf1110a7fa5f2330cc074dcf371131d19a5a80074d3a1667562f59c4a0282",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r4.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r4.json"
+      ]
+    },
+    {
+      "observationId": null,
+      "toolName": "ToolA",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "30",
+      "classId": -1,
+      "serializedSizeBytes": 100,
+      "objectType": "Sprite",
+      "objectName": "Rejected",
+      "dependencyLocators": [],
+      "contentFingerprint": "3333333333333333333333333333333333333333333333333333333333333333",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:21a469bfa4130d38331a357835437036672cd557e5d087a1e94db54fd7892693",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r5.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r5.json"
+      ]
+    },
+    {
+      "observationId": "observation-sha256:6ceeb8491c944325c2a038a56793b3fe062b41a694201e11b4f20302ea13c7e6",
+      "toolName": "ToolA",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "pathId": "40",
+      "classId": 1,
+      "serializedSizeBytes": 100,
+      "objectType": "Sprite",
+      "objectName": "Excluded",
+      "dependencyLocators": [],
+      "contentFingerprint": "4444444444444444444444444444444444444444444444444444444444444444",
+      "configurationDisposition": "Parsed",
+      "canonicalEvidence": null,
+      "correlationEvidence": {
+        "correlationId": "correlation-sha256:da12cf2912d447fb1db44cc45465001ef05f37dd0bbb7c7e5ce2be90bf92b5fb",
+        "method": "ExactLocator",
+        "evidence": [
+          "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r6.json"
+        ]
+      },
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r6.json"
+      ]
+    }
+  ]
+}

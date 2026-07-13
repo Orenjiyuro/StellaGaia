@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "entries": [
+    {
+      "path": "Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json",
+      "sha256": "50510b54502e2747d3f31c9032a21ffdd2eeb24c7121c8f132b7fa3a3c562820"
+    },
+    {
+      "path": "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json",
+      "sha256": "50616dd29ec968121675658ba8aa1c8ba78d038034ad3824453f64fd5050d63c"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "observationArtifactPath": "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json",
+  "observationArtifactSha256": "50616dd29ec968121675658ba8aa1c8ba78d038034ad3824453f64fd5050d63c",
+  "approvals": [
+    {
+      "approvalId": "exclusion-approval-sha256:01130b91f76fa3ece824051cb5324ead761d8cd73567249beda1b80f930de1fd",
+      "subjectKind": "ObjectObservation",
+      "subjectId": "observation-sha256:6ceeb8491c944325c2a038a56793b3fe062b41a694201e11b4f20302ea13c7e6",
+      "reasonCode": "ApprovedInputExclusion",
+      "reason": "Reserved synthetic exclusion counterexample.",
+      "approvedBy": "C2FixtureReview",
+      "approvedAt": "2026-07-12T00:00:00Z",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r6-exclusion-approval.md"
+      ]
+    }
+  ]
+}
