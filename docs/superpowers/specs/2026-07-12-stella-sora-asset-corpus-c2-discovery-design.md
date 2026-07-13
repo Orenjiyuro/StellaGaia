@@ -1,7 +1,7 @@
 # StellaSora Asset Corpus C2 Discovery Design
 
 **Date:** 2026-07-12
-**Status:** APPROVED for `writing-plans`; Phase A implementation and all Phase B activity remain unauthorized
+**Status:** APPROVED as amended; Task 1 fixture authority is authorized, while Task 2 implementation, Unity, extraction, import, and Phase B remain unauthorized
 **Authority order:** repository `AGENTS.md`, the 2026-07-10 corpus design, C0 contracts, C1 handoff, then this C2 spec
 
 ## Scope And Authorization
@@ -29,7 +29,8 @@ The three registries below are the only authoritative definitions. Later explana
 | AR-I07 | Optional run input | `Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json` | C2 fixture author | SP-03/SP-04 | Omitted means empty set; if present exact AR-S02 shape |
 | AR-I08 | Optional run input | `Tools/AssetImport/Fixtures/DiscoveryGate/file-discovery-observations.json` | C2 fixture author | SP-02 | Omitted means empty set; if present exact AR-S03 shape |
 | AR-I09 | Optional run input | `Tools/AssetImport/Fixtures/DiscoveryGate/file-configuration-observations.json` | C2 fixture author | SP-05 | Omitted means empty set; if present exact AR-S04 shape |
-| AR-I10 | Conditional expected-input manifest | `Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json` | reviewed C2 fixture commit | C2 freshness | Required iff any AR-I07-I09 is present; exact AR-S04a shape; expected manifest bytes come from the same Git HEAD blob |
+| AR-I10 | Conditional expected-input manifest | `Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json` | reviewed C2 fixture commit | C2 freshness | Required iff any AR-I07-I09 or AR-I11 is present; exact AR-S04a shape; expected manifest bytes come from the same Git commit blob |
+| AR-I11 | Conditional exclusion approvals | `Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json` | human-reviewed C2 fixture commit | FT-14/SP-03a | Required iff any raw observation is excluded; exact AR-S04b shape; binds every approval to the exact AR-I07 blob and approved HI-03 subject |
 | AR-P01 | Private intermediate | TEMP only; never committed as output | C2 intake | All validators | Exact AR-S05 shape; deleted in `finally` |
 | AR-O01 | Public output | `Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json` | C2 projection | C3-C6, C0 | Written only on Passed; otherwise suppressed |
 | AR-O02 | Private output | `Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json` | SP-05 | C3-C6, summary | Written only on Passed; otherwise suppressed |
@@ -50,7 +51,7 @@ These SHA-256 values are over exact repository file bytes as of this design comm
 | AR-I05 | `88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444` |
 | AR-I06 | `45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449` |
 
-AR-I07 through AR-I09 have no self-asserted expected SHA. When any is present, AR-I10 is mandatory and its expected bytes are the blob at its exact registry path in the current Git HEAD; an absent/untracked manifest or worktree bytes differing from that blob is FT-03. Each present optional input must be a tracked blob in that same HEAD and must match both its AR-I10 entry and its exact HEAD blob SHA-256. AR-I10 must list every and only the present AR-I07-I09 paths. Thus the committed reviewed manifest is the external freshness authority; a file cannot bless its own just-read bytes.
+AR-I07 through AR-I09 and AR-I11 have no self-asserted expected SHA. When any is present, AR-I10 is mandatory and its expected bytes are read from the exact commit OID frozen at run start; an absent/untracked manifest or worktree bytes differing from that commit blob is FT-03. Each present optional input must be a blob in that same commit and must match both its AR-I10 entry and its exact commit-blob SHA-256. AR-I10 must list every and only the present AR-I07-I09 and AR-I11 paths. The producer must re-resolve HEAD at run end and require the same commit OID; a changed HEAD is FT-03 and suppresses every output. Thus the committed reviewed manifest is the external freshness authority; a file cannot bless its own just-read bytes.
 
 ### Complete shapes
 
@@ -86,7 +87,10 @@ For every artifact, stable artifact identity is its registry ID plus exact porta
 
 **AR-S01c C0 schema/vocabulary inputs:** AR-I04, AR-I05, and AR-I06 are immutable exact-byte artifacts identified by registry path and registered SHA. C2 parses their committed JSON but never reserializes or partially fingerprints them; any byte change is FT-03 and requires explicit registry review. Their semantic nested shapes remain owned by C0 and are consumed in full, not copied into a C2 payload.
 
-**AR-S02 object-observation document:** top level exactly `schemaVersion` (CT-01), `snapshotId` (CT-02), `inputFingerprint` (CT-04), `rows` (list). Each valid row exactly `observationId` (HI-03), `toolName`/`toolVersion`/`sourceId`/`objectType`/`objectName` (CT-02), `containerRelativePath` (CT-05), `pathId`/`classId`/`serializedSizeBytes` (CT-06), `dependencyLocators` (list), `contentFingerprint` (CT-04), nullable `configurationDisposition` (CT-10/CT-14), nullable `canonicalEvidence` (nested object/CT-14), `correlationEvidence` (nested object), `evidence` (CT-07).
+**AR-S02 object-observation document:** top level exactly `schemaVersion` (CT-01), `snapshotId` (CT-02), `inputFingerprint` (CT-04), `rows` (list). Every raw row, including a rejected counterexample, has exactly the same key set: nullable `observationId`, `toolName`, `toolVersion`, `sourceId`, `containerRelativePath`, `pathId`, `classId`, `serializedSizeBytes`, `objectType`, `objectName`, `dependencyLocators`, `contentFingerprint`, nullable `configurationDisposition`, nullable `canonicalEvidence`, `correlationEvidence`, and `evidence`. Missing or extra keys are FT-05; no committed counterexample relies on a missing key.
+
+- A row eligible for acceptance has non-null `observationId` (HI-03), CT-02 `toolName/toolVersion/sourceId/objectType/objectName`, CT-05 `containerRelativePath`, CT-06 `pathId/classId/serializedSizeBytes`, a valid dependency-locator list, CT-04 `contentFingerprint`, CT-10/CT-14 `configurationDisposition`, valid nullable canonical evidence, valid correlation evidence, and CT-07 `evidence`. Its `observationId` must recompute exactly from the remaining accepted fields.
+- A row whose values prevent HI-03 derivation must retain every raw-row key and set `observationId` to null. It is identified for FT-05 by HI-02. A non-null but non-recomputable or mismatched `observationId` is also FT-05. Null is forbidden once every HI-03 input is valid.
 
 - `rawRowId` is never stored in AR-I07. HI-02 is computed only after reading exact artifact bytes when a row cannot produce HI-03.
 - `pathId` is invariant signed-64-bit decimal text; `classId` and sizes are nonnegative integers.
@@ -100,7 +104,11 @@ For every artifact, stable artifact identity is its registry ID plus exact porta
 
 **AR-S04 file-configuration-observation document:** top level exactly CT-01 `schemaVersion`, CT-02 `snapshotId`, CT-04 `inputFingerprint`, list `rows`. Each valid row exactly HI-07 `configurationObservationId`, CT-02 `toolName/toolVersion/sourceId/observation`, CT-05 `relativePath`, CT-04 `contentFingerprint`, CT-10 `configurationDisposition`, nonempty CT-07 `evidence`. `rawRowId` is fallback-only and never stored.
 
-**AR-S04a expected-input manifest (AR-I10):** top level exactly CT-01 `schemaVersion`, CT-02 `snapshotId`, CT-04 `inputFingerprint`, and list `entries`. Snapshot/input identity equals AR-I01. Each entry is exactly CT-05 `path`, CT-04 `sha256`; paths are restricted to AR-I07, AR-I08, and AR-I09 registry paths, are distinct and Ordinal-sorted, and the list is nonempty. Entries equal the complete set of those optional artifacts present in the same Git HEAD. The manifest never lists itself.
+**AR-S04a expected-input manifest (AR-I10):** top level exactly CT-01 `schemaVersion`, CT-02 `snapshotId`, CT-04 `inputFingerprint`, and list `entries`. Snapshot/input identity equals AR-I01. Each entry is exactly CT-05 `path`, CT-04 `sha256`; paths are restricted to AR-I07, AR-I08, AR-I09, and AR-I11 registry paths, are distinct and Ordinal-sorted, and the list is nonempty. Entries equal the complete set of those optional artifacts present in the exact commit OID frozen at run start. The manifest never lists itself.
+
+**AR-S04b exclusion approvals (AR-I11):** top level exactly CT-01 `schemaVersion`, CT-02 `snapshotId`, CT-04 `inputFingerprint`, CT-05 `observationArtifactPath`, CT-04 `observationArtifactSha256`, and list `approvals`. Snapshot/input identity equals AR-I01. `observationArtifactPath` is exactly AR-I07 and `observationArtifactSha256` equals both AR-I07's AR-I10 entry and exact frozen-commit blob SHA. The artifact stable identity is `AR-I11` plus its exact registry path; its content fingerprint is CT-04 SHA-256 over exact AR-I11 bytes and is itself bound by AR-I10 and the same frozen commit.
+
+Each approval row is exactly HI-15 `approvalId`, CT-02 `subjectKind/subjectId/reasonCode/reason/approvedBy`, CT-03 `approvedAt`, and nonempty CT-07 `evidence`. `subjectKind` is exactly `ObjectObservation`; `subjectId` is the non-null, independently recomputed HI-03 of one structurally and semantically valid AR-I07 row; `reasonCode` is exactly `ApprovedInputExclusion`. Approval rows are unique by `subjectId` and Ordinal sorted by `subjectId`. An approval for a missing, rejected, duplicate-approved, or HI-03-mismatched row is FT-02 on AR-I11, never FT-14. Approval evidence is opaque and never opened by C2.
 
 **AR-S05 private workset:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint/discoveryInputFingerprint`, and list fields `resolvedFileResults`, `mergedObjectCandidates`, `fileDiscoveryConflicts`, `observationConflicts`, `configurationCandidates`, `configurationConflicts`, `canonicalGroups`, `canonicalConflicts`, `inputFailures`, `inputExclusions`, `inputSuppressions`, `outputFailures`, `outputExclusions`.
 
@@ -244,7 +252,7 @@ All eight files represented by AR-O01 through AR-O05 are one publication transac
 
 On Passed, the complete generation is published. On ordinary Failed, the staged generation contains only the four AR-O05 components; AR-O01 through AR-O04 consumer paths are removed or quarantined in the same transaction and are each represented once in `outputFailures`. On any downstream file write, validation, replacement, rollback, or lock failure, no new generation is exposed: the publisher restores the prior complete generation when possible, otherwise quarantines every AR-O01 through AR-O05 consumer path and reports FT-12 terminally. A prior generation is historical evidence only and cannot satisfy the current run because its summary fingerprint is stale. On AR-O05 persistence failure, the five logical output-failure rows are emitted only to the terminal because their owning diagnostic artifact could not be persisted. No output exclusion is allowed.
 
-`discoveryInputFingerprint` hashes every actually read artifact among AR-I01 through AR-I10, including AR-I10 whenever optional inputs exist. P0 reads exactly AR-I01 through AR-I06 and omits AR-I07 through AR-I10. `discoveryArtifactFingerprint` hashes exactly the non-summary artifacts actually produced in the current run: on Passed, AR-O01 through AR-O04 plus report, sidecar, and AR-S12; on ordinary Failed, only report, sidecar, and AR-S12. It never reads suppressed or stale AR-O01-O04 bytes and never hashes the summary JSON itself. On AR-O05 atomic failure no summary exists and no discoveryArtifactFingerprint is claimed. Any add/remove/path/content change changes the relevant fingerprint. G5 projection that cannot preserve a mandatory C2 value requires AR-S12 status Required; missing/non-exact request triggers FT-11.
+`discoveryInputFingerprint` hashes every actually read artifact among AR-I01 through AR-I11, including AR-I10 whenever optional inputs exist and AR-I11 whenever exclusions exist. P0 is only the six-entry AR-I01-I06 HI-13b unit vector and omits AR-I07 through AR-I11. `discoveryArtifactFingerprint` hashes exactly the non-summary artifacts actually produced in the current run: on Passed, AR-O01 through AR-O04 plus report, sidecar, and AR-S12; on ordinary Failed, only report, sidecar, and AR-S12. It never reads suppressed or stale AR-O01-O04 bytes and never hashes the summary JSON itself. On AR-O05 atomic failure no summary exists and no discoveryArtifactFingerprint is claimed. Any add/remove/path/content change changes the relevant fingerprint. G5 projection that cannot preserve a mandatory C2 value requires AR-S12 status Required; missing/non-exact request triggers FT-11.
 
 ---
 
@@ -290,6 +298,7 @@ A list/set with decimal item count `C` first emits `fieldName.count:D:C\n`, wher
 | HI-13b input artifact-set fingerprint | no prefix / `C2DiscoveryInputV1` | `entries` distinct set of HI-13a byte records sorted by their decoded portable path, with count |
 | HI-13c output artifact-set fingerprint | no prefix / `C2DiscoveryArtifactV1` | same entry encoding/order/count as HI-13b for the current run's actually produced non-summary artifacts: Passed has AR-O01-O04+report+sidecar+AR-S12; ordinary Failed has report+sidecar+AR-S12 |
 | HI-14 diagnostic bundle fingerprint | no prefix / `C2DiagnosticBundleV1` | `entries` set encoded exactly as HI-13b, containing summary JSON, report, sidecar, and AR-S12 component |
+| HI-15 exclusion approval | `exclusion-approval-sha256:` / `C2ExclusionApprovalV1` | `subjectKind`, `subjectId`, `reasonCode`, `reason`, `approvedBy`, `approvedAt`, `evidence` set |
 
 For HI-13a the literal scalar field names are `path` then `sha256`. For HI-13b/HI-13c the literal set field name is `entries`; nested item labels are `entries[0]`, `entries[1]`, and so on after Ordinal path sorting. The nested HI-13a record includes its `C2ArtifactEntryV1` domain line and final LF inside the item's encoded byte length; the outer item adds its own final LF. These literal names and boundaries produce the registered P0 digest and no alternative labels are allowed. PowerShell `Sort-Object` is forbidden for this ordering because it is culture-sensitive; implementations must use `System.StringComparer.Ordinal` or an equivalent ordinal comparator.
 
@@ -303,13 +312,13 @@ No other identity or nested digest is permitted without adding a registry row.
 | --- | --- | --- | --- | --- |
 | SP-01 C1 files | every AR-I02 file; `(sourceId, normalized relativePath)` | Container, NonContainer | `catalogedFileCount = catalogedContainerCount + nonContainerFileCount`; same for bytes | AR-I02; AR-O01; G5. `DirectMedia`, `Metadata`, `ConfigurationCandidate` are NonContainer; every other kind including `UnknownInput` is Container. |
 | SP-02 file discovery subjects | every SP-01 file | NotAttempted, Parsed, Opaque, Failed, FileDiscoveryConflict | `fileDiscoverySubjectCount = notAttemptedFileCount + parsedFileCount + opaqueFileCount + failedFileCount + fileDiscoveryConflictFileCount`; same equation for bytes. Container-filtered equation replaces `File` with `Container` in every term. | AR-P01; successful status projects to both public extraction fields; conflict follows FT-06. |
-| SP-03a object-observation row subjects | every raw AR-I07 row, identity HI-02 before validation and HI-03 after acceptance | AcceptedObservation, RejectedObservation, ExcludedObservation | `objectObservationRowCount = acceptedObjectObservationRowCount + rejectedObjectObservationRowCount + excludedObjectObservationRowCount` | AR-P01/SP-08. Excluding one row never excludes its correlation group; grouping uses only accepted rows. |
+| SP-03a object-observation row subjects | every exact-key AR-I07 raw row, identity HI-02 until all HI-03 inputs validate and HI-03 thereafter | AcceptedObservation, RejectedObservation, ExcludedObservation | `objectObservationRowCount = acceptedObjectObservationRowCount + rejectedObjectObservationRowCount + excludedObjectObservationRowCount` | AR-P01/SP-08. Rejected rows use HI-02. Excluded rows must first be valid HI-03 rows and then match exactly one valid AR-I11 approval. Excluding one row never excludes its correlation group; grouping uses only accepted rows. |
 | SP-03b correlation-group subjects | every distinct correlation ID formed from accepted SP-03a rows | ResolvedObject, ObservationConflict | `correlationGroupCount = enumeratedObjectCount + observationConflictObjectCount` | AR-P01; only ResolvedObject reaches SP-04. |
 | SP-04 resolved objects | every merged object ID HI-08 | Classified, Unclassified | `enumeratedObjectCount = classifiedObjectCount + unclassifiedObjectCount` | AR-P01 → AR-O01. Public status: corpus `Cataloged`; extraction `ExtractedReadable` for SingleTool or `CrossToolVerified` for Agreed; semantics Unknown iff type Unknown, Known iff known name+all deps resolved+config Parsed/NotConfiguration, else PartiallyKnown; unity `NotTested`; disposition `RetainForLater`. Tool observations and evidence are distinct Ordinal-sorted projections. |
 | SP-05 configuration subjects | every unique HI-09a C1 `ConfigurationCandidate` file plus every SP-04 resolved object whose single resolved configuration disposition is non-null, identified by HI-09b | ResolvedConfiguration, ConfigurationConflict | `configurationDiscoverySubjectCount = configurationCandidateCount + configurationConflictCount`; resolved six-state sum equals candidate count | AR-P01 → AR-O02. SP-03b conflicts never enter this universe. Multiple file observations agree only when both contentFingerprint and configurationDisposition are exact-equal; otherwise ConfigurationConflict. Zero-observation C1 file becomes `DiscoveredOpaque` with empty observation IDs and AR-I02 path evidence. Private null maps public `NotConfiguration` and is outside this universe. |
 | SP-06 canonical subjects | every SP-04 object | Canonicalized, CanonicalConflict | `enumeratedObjectCount = canonicalizedObjectCount + canonicalConflictObjectCount`; `canonicalGroupCount = exactDuplicateGroupCount + platformVariantGroupCount + unresolvedCanonicalGroupCount` | AR-P01 → AR-O03/public object. Null canonical evidence deterministically creates a one-member `Unresolved` group using object ID as canonical ID. ExactDuplicate requires >=2 IDs/same content; ConfirmedVariant requires Pc+Android/distinct content/evidence; overlaps follow FT-09. |
 | SP-07 dispatch subjects | every SP-04 object when gate otherwise Passed | Assigned, RetainedForDiagnosis, ConfigurationOnly | `dispatchEligibleObjectCount = assignedObjectCount + retainedForDiagnosisObjectCount + configurationOnlyObjectCount`; assigned lane sum equals assigned count | AR-O04 → C3-C6. On any failure eligible count is zero and AR-O04 suppressed. |
-| SP-08 input accounting subjects | every actually read AR-I01-I10 artifact/row plus conflict identities and exactly the five contract-check identities in the subregistry below | Accepted, InputFailure, InputExclusion, NotEvaluated | `inputSubjectCount = acceptedInputSubjectCount + inputFailureCount + excludedInputSubjectCount + notEvaluatedInputSubjectCount`; observation subset: `inputObservationCount = acceptedInputObservationCount + rejectedInputObservationCount + excludedInputCount`; `inputFailureCount = rejectedInputObservationCount + contractFailureRecordCount + fileDiscoveryConflictRecordCount + observationConflictRecordCount + configurationConflictRecordCount + canonicalConflictRecordCount`; one direct parent only | AR-P01/AR-O05. `excludedInputSubjectCount=excludedInputCount`; NotEvaluated is allowed only for a contract check under FT-15. Exclusion only valid raw observation with explicit approval; core artifacts/checks/conflicts cannot be excluded. Row-level FT-04/05 is a rejected observation; artifact/check-level FT-01..05/10/11/13 is a contract failure. An unparseable AR-I07/08/09 changes that one artifact subject from Accepted to InputFailure under its registry ID; it never creates a second fallback subject. |
+| SP-08 input accounting subjects | every actually read AR-I01-I11 artifact; every raw observation row from AR-I07/08/09 only; derived conflict identities; and exactly the five contract-check identities in the subregistry below | Accepted, InputFailure, InputExclusion, NotEvaluated | `inputSubjectCount = acceptedInputSubjectCount + inputFailureCount + excludedInputSubjectCount + notEvaluatedInputSubjectCount`; observation subset: `inputObservationCount = acceptedInputObservationCount + rejectedInputObservationCount + excludedInputCount`; `inputFailureCount = rejectedInputObservationCount + contractFailureRecordCount + fileDiscoveryConflictRecordCount + observationConflictRecordCount + configurationConflictRecordCount + canonicalConflictRecordCount`; one direct parent only | AR-P01/AR-O05. AR-I11 is one artifact subject; its nested approval rows are validation material and are **not independent accounting subjects**. `excludedInputSubjectCount=excludedInputCount`; NotEvaluated is allowed only for a contract check under FT-15. Exclusion only valid for a semantically valid HI-03 raw observation with exactly one AR-I11 approval; core artifacts/checks/conflicts/approval rows cannot be excluded. Row-level FT-04/05 is a rejected observation; artifact/check-level FT-01..05/10/11/13 is a contract failure. An unparseable AR-I07/08/09 changes that one artifact subject from Accepted to InputFailure under its registry ID; it never creates a second fallback subject. |
 | SP-09 output subjects | exactly AR-O01..AR-O05 | ProjectedOutput, OutputFailure, OutputExclusion | `outputCandidateCount=5 = projectedOutputCount + outputFailureCount + excludedOutputCount`; excluded output always 0 | Passed 5/0/0; ordinary Failed with AR-O05 diagnostic 1/4/0; FT-12 AR-O05 atomic failure 0/5/0. |
 
 ### SP-02 file-discovery partition subregistry
@@ -359,7 +368,7 @@ Every run contains exactly these five contract-check subjects, independent of ho
 | Subject ID | Accepted predicate | Failure transition |
 | --- | --- | --- |
 | `C2Check:C1Handoff` | AR-I01 has AR-S01 shape; its snapshot/source-ledger/summary identities and safe portable paths resolve exactly to AR-I02/AR-I03 | FT-01 replaces Accepted with one InputFailure |
-| `C2Check:Freshness` | AR-I01-I06 match the Existing-input byte registry; when optional inputs exist, AR-I10 matches its exact current-HEAD blob and every AR-I07-I09 path/SHA matches both AR-I10 and its same-HEAD blob; HI-13b over every read artifact recomputes exactly | FT-03 replaces Accepted with one InputFailure |
+| `C2Check:Freshness` | AR-I01-I06 match the Existing-input byte registry; when optional inputs exist, the run freezes one commit OID, AR-I10 matches its exact blob, every present AR-I07-I09/AR-I11 path/SHA matches both AR-I10 and its same-commit blob, HI-13b over every read artifact recomputes exactly, and end-of-run HEAD equals the frozen OID | FT-03 replaces Accepted with one InputFailure |
 | `C2Check:Conservation` | Every applicable SP equation and its byte analogue holds after all direct subjects have been partitioned | FT-10 replaces Accepted with one InputFailure |
 | `C2Check:PublicProjection` | Public/private projections obey AR-S06 through AR-S12, including the exact Required AR-S12 component for AR-I06 | FT-11 replaces Accepted with one InputFailure |
 | `C2Check:LightweightPolicy` | The run reads fixtures/TEMP only and invokes no extraction, Unity, import, heavy child, or third-party asset operation | FT-13 replaces Accepted with one InputFailure |
@@ -385,7 +394,7 @@ For one direct subject, the first applicable transition in that order owns it ex
 | ID | Stage/failure | Stable subject / reason | Accounting effect | Output vector AR-O01..O05 | Next action |
 | --- | --- | --- | --- | --- | --- |
 | FT-01 | C1 handoff missing/shape/path mismatch | `C2Check:C1Handoff` / `InvalidSchema`, `UnsafePath`, or `IdentityMismatch` | contract failure + issue | F,F,F,F,D | Fix C1 handoff; no C3-C6/Phase B |
-| FT-02 | Ledger/schema/vocabulary invalid | exact registry artifact ID AR-I02, AR-I04, AR-I05, or AR-I06 / `InvalidSchema` | contract failure + issue | F,F,F,F,D | Fix/approve C0 contract change |
+| FT-02 | Ledger/schema/vocabulary/approval invalid | exact registry artifact ID AR-I02, AR-I04, AR-I05, AR-I06, or AR-I11 / `InvalidSchema` | contract failure + issue | F,F,F,F,D | Fix the reviewed contract or approval artifact |
 | FT-03 | Any required input content/hash/fingerprint stale | `C2Check:Freshness` / `StaleFingerprint` | contract failure + issue | F,F,F,F,D | Regenerate approved fixture evidence |
 | FT-04 | Unsafe path or machine-path leakage | offending artifact/row fallback ID / `UnsafePath` | row subject: rejected observation + input failure + issue; artifact subject: contract failure + input failure + issue | F,F,F,F,D | Remove leakage and rerun |
 | FT-05 | Malformed raw observation | HI-02 row ID; if parsing fails before rows exist, exact AR-I07/08/09 registry artifact ID / `InvalidObservation` | row: rejected observation + input failure + issue; whole document: contract failure + input failure + issue | F,F,F,F,D | Correct fixture row/artifact |
@@ -397,7 +406,7 @@ For one direct subject, the first applicable transition in that order owns it ex
 | FT-11 | Required AR-S12 missing, stale, or non-exact | `C2Check:PublicProjection` / `ProjectionInvalid` | contract failure + issue | F,F,F,F,D | Regenerate exact AR-S12; C0/G5 remains blocked |
 | FT-12 | Output staging/write/hash/validation/publish-lock/replacement/rollback/quarantine failure | failing AR-O ID or publication transaction / `ProjectionInvalid` | any failure before a diagnostic can persist creates five logical terminal-reported rows; an ordinary gate failure with a successfully published diagnostic creates four suppressed output rows | F,F,F,F,F and 0/5/0 for transaction failure; F,F,F,F,D only for an ordinary non-FT-12 failure | Repair publisher/output path; no downstream |
 | FT-13 | Lightweight gate attempts extraction/Unity/heavy child | `C2Check:LightweightPolicy` / `HeavyOperationAttempted` | contract failure + issue | F,F,F,F,D | Remove heavy invocation |
-| FT-14 | Approved raw observation exclusion | raw row HI-02 / `ApprovedInputExclusion` | input exclusion, not failure; explicit reason/evidence required | Does not fail alone; remains in SP formulas | Human review; never hide excluded subject |
+| FT-14 | Approved valid observation exclusion | accepted-shape row HI-03 / `ApprovedInputExclusion` | input exclusion, not failure; requires one exact AR-I11 HI-15 approval bound to the current AR-I07 blob | Does not fail alone; remains in SP formulas | Human review; never hide excluded subject |
 | FT-15 | Contract check prerequisite unavailable | exact affected `C2Check:*` ID / `PrerequisiteUnavailable` | one `inputSuppressions` row + NotEvaluated; not a failure or issue | Does not determine vector; the prerequisite failure already does | Resolve the prerequisite's owning failure |
 
 `F` means failed/suppressed and is represented in persisted `outputFailures` when AR-O05 exists, otherwise by FT-12 terminal-only logical rows; `D` means diagnostic-only AR-O05. A failed transition never yields a downstream-valid artifact even if a stale file exists on disk.
@@ -409,7 +418,7 @@ For every persisted accounting row, `owningArray` is literal `inputFailures`, `i
 | FT | owningArray / subjectKind | subjectId | evidence source |
 | --- | --- | --- | --- |
 | FT-01 | inputFailures / C1Handoff | `C2Check:C1Handoff` | AR-I01 |
-| FT-02 | inputFailures / C1Ledger or SchemaDocument | exact registry artifact ID | failing AR-I02/I04/I05/I06 path |
+| FT-02 | inputFailures / C1Ledger, SchemaDocument, or ExclusionApprovalDocument | exact registry artifact ID | failing AR-I02/I04/I05/I06/I11 path |
 | FT-03 | inputFailures / FreshnessCheck | `C2Check:Freshness` | every mismatched registry path |
 | FT-04 row | inputFailures / matching raw observation kind | HI-02 row ID | offending path; counts once as `rejectedInputObservationCount` |
 | FT-04 artifact | inputFailures / PublicProjection | exact artifact ID | offending path; counts once as `contractFailureRecordCount` |
@@ -423,7 +432,7 @@ For every persisted accounting row, `owningArray` is literal `inputFailures`, `i
 | FT-11 | inputFailures / PublicProjection | `C2Check:PublicProjection` | AR-I06 and AR-S12 paths |
 | FT-12 transaction | terminal-only / OutputArtifact | each of AR-O01 through AR-O05 | directly failing TEMP/output/lock path when available; otherwise empty because persistence is unavailable |
 | FT-13 | inputFailures / LightweightPolicy | `C2Check:LightweightPolicy` | invoked script path |
-| FT-14 | inputExclusions / matching raw observation kind | HI-02 ID | approval evidence path |
+| FT-14 | inputExclusions / ObjectObservation | excluded row HI-03 | exact distinct Ordinal-sorted union of AR-I07 path, AR-I11 path, and the matched approval row's `evidence`; no raw observation evidence is added implicitly |
 | FT-15 | inputSuppressions / ContractCheck | exact affected `C2Check:*` ID | available prerequisite evidence, possibly empty; counts once as `notEvaluatedInputSubjectCount` |
 
 `reasonCode` is exactly the reason shown in the parent FT row. When an FT row lists several reasons, choose by fixed predicate order: schema/shape → `InvalidSchema`; path → `UnsafePath`; identity → `IdentityMismatch`. No row may be attributed to two FT transitions for the same direct failure.
@@ -438,26 +447,17 @@ Derived output-failure rows use only `SuppressedByGate`. On any ordinary FT-01..
 
 ### P0 positive seed
 
-P0 reads exactly AR-I01 through AR-I06. AR-I07 through AR-I10 are absent and therefore the optional input set is empty. AR-I02 contains one 4096-byte `UnknownInput`, so registry derivation is:
+P0 is a pure HI-13b unit vector, not a gate run, partition seed, artifact-read claim, or authorization result. Its input is exactly the six registered `(portable path, exact SHA-256)` pairs for AR-I01 through AR-I06. AR-I07 through AR-I11 do not participate. The unit test encodes those six already-known pairs in memory, sorts them with `System.StringComparer.Ordinal`, and must produce:
 
 ```text
-catalogedFileCount=1
-catalogedContainerCount=1
-notAttemptedContainerCount=1
-catalogedBytes=catalogedContainerBytes=notAttemptedContainerBytes=4096
-enumeratedObjectCount=0
-configurationDiscoverySubjectCount=0
-canonicalGroupCount=0
-dispatchEligibleObjectCount=0
-inputSubjectCount=acceptedInputSubjectCount=11
-inputFailureCount=excludedInputSubjectCount=notEvaluatedInputSubjectCount=0
+discoveryInputFingerprint=01de12cfc14c5779aaa6b2827f73ae76a5e750d2d28cc0e856f685eb5bbd4c3d
 ```
 
-The HI-13 encoding of the six real Artifact Registry rows produces P0 `discoveryInputFingerprint=01de12cfc14c5779aaa6b2827f73ae76a5e750d2d28cc0e856f685eb5bbd4c3d`. Task 0 must independently recompute it with an Ordinal comparator before using the seed. This spec intentionally does not invent hashes for not-yet-created AR-O01-O05. After outputs are serialized, Task 0 computes exact output SHA values and `discoveryArtifactFingerprint`, then generates AR-O05. Hardcoded repeated-character output hashes are forbidden.
+P0 asserts only HI-13a/HI-13b byte framing, nesting, ordering, and digest output. It has no file, byte, observation, contract-check, failure, output-vector, or gate-status counters. No implementation may cite P0 as proof that AR-I01-I06 were read, fresh, schema-valid, conserved, projected, or safe. Hardcoded repeated-character output hashes remain forbidden.
 
 ### Mandatory counterexample matrix
 
-**P1 simultaneous-set fixture:** this is the AR-I07 counterexample document at its registered portable path plus AR-I10 containing exactly AR-I07's path and exact current-HEAD SHA-256; both are tracked in the same reviewed fixture commit. Aliases below name rows, while HI IDs are recomputed from their exact fields. Common values are `schemaVersion=1.0.0`, C1 snapshot/fingerprint from AR-I02, `sourceId=pc-install-primary`, `containerRelativePath=SourceCorpus/PcInstall/game-data.bundle`, `toolVersion=1.0.0`, `serializedSizeBytes=100`, empty dependency list, `configurationDisposition=Parsed`, null canonical evidence, ExactLocator correlation, and one evidence path made by concatenating literal `Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/`, the row alias, and literal `.json`.
+**P1 simultaneous-set fixture:** this is the AR-I07 counterexample document, AR-I11 exclusion approval artifact, and AR-I10 manifest. AR-I10 contains exactly AR-I07 and AR-I11 with their exact frozen-commit blob SHA-256 values; all three are tracked in the same reviewed commit. Aliases below name rows, while HI IDs are recomputed from their exact fields. Every row has the complete AR-S02 key set. Common values are `schemaVersion=1.0.0`, C1 snapshot/fingerprint from AR-I02, `sourceId=pc-install-primary`, `containerRelativePath=SourceCorpus/PcInstall/game-data.bundle`, `toolVersion=1.0.0`, `serializedSizeBytes=100`, empty dependency list, `configurationDisposition=Parsed`, null canonical evidence, ExactLocator correlation, and one evidence path made by concatenating literal `Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/`, the row alias, and literal `.json`.
 
 | Alias | toolName | pathId | classId | objectType | objectName | contentFingerprint | Expected raw partition |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -465,8 +465,10 @@ The HI-13 encoding of the six real Artifact Registry rows produces P0 `discovery
 | r2 | ToolB | 10 | 1 | Sprite | Hero | 64 `1` hex digits | Accepted; agrees with r1 |
 | r3 | ToolA | 20 | 1 | Sprite | Conflict | 64 `2` hex digits | Accepted |
 | r4 | ToolB | 20 | 1 | Mesh | Conflict | 64 `2` hex digits | Accepted; material conflict with r3 |
-| r5 | ToolA | 30 | missing | Sprite | Rejected | 64 `3` hex digits | FT-05 Rejected |
+| r5 | ToolA | 30 | -1 | Sprite | Rejected | 64 `3` hex digits | FT-05 Rejected; complete key set and null `observationId`, but CT-06-invalid classId |
 | r6 | ToolA | 40 | 1 | Sprite | Excluded | 64 `4` hex digits | FT-14 Excluded |
+
+Rows r1-r4 and r6 have non-null independently recomputed HI-03 values. Row r5 has every AR-S02 key, `observationId=null`, and uses HI-02 after its negative `classId` prevents HI-03 acceptance. AR-I11 contains exactly one approval for r6: `subjectKind=ObjectObservation`, `subjectId=<r6 HI-03>`, `reasonCode=ApprovedInputExclusion`, `reason=Reserved synthetic exclusion counterexample.`, `approvedBy=C2FixtureReview`, `approvedAt=2026-07-12T00:00:00Z`, and `evidence=[Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r6-exclusion-approval.md]`. Its `approvalId` is the exact HI-15 digest of those fields. The resulting FT-14 accounting evidence is exactly the Ordinal-sorted set of the AR-I07 path, AR-I11 path, and that approval evidence path.
 
 The P1 file set also includes `fUnknown` (the AR-I02 UnknownInput row, 4096 bytes) and a synthetic `fConfig` row with the same source/snapshot, `relativePath=Config/table.json`, `containerKind=ConfigurationCandidate`, `sizeBytes=8`, SHA-256 of 64 `5` digits, both extraction fields NotAttempted, empty evidence, and standard C1 status. The two accepted claims r1/r2 form one target and agree on Parsed. Their canonical evidence is null.
 
@@ -481,7 +483,7 @@ SP-04: objects={oResolved}; Classified={oResolved}; Unclassified={}; 1=1+0
 SP-05: targets={fConfig,oResolved}; Candidates={fConfig:DiscoveredOpaque,oResolved:Parsed}; Conflicts={}; 2=2+0; 2=1+1+0+0+0+0
 SP-06: subjects={oResolved}; Canonicalized={oResolved}; Conflicts={}; groups={oResolved:Unresolved}; 1=1+0; 1=0+0+1
 SP-07: gate Failed, eligible={}; Assigned/Retained/ConfigurationOnly={}; 0=0+0+0
-SP-08: base subjects=8 read artifacts (AR-I01-I07+AR-I10)+6 raw rows+5 contract checks; derived conflict subject={gConflict}; total=20; Accepted=17; Failure={r5,gConflict}; Excluded={r6}; NotEvaluated={}; 20=17+2+1+0; observations 6=4+1+1; failures 2=1+0+0+1+0+0
+SP-08: base subjects=9 read artifacts (AR-I01-I07+AR-I10+AR-I11)+6 raw rows+5 contract checks; derived conflict subject={gConflict}; total=21; Accepted=18; Failure={r5,gConflict}; Excluded={r6}; NotEvaluated={}; 21=18+2+1+0; observations 6=4+1+1; failures 2=1+0+0+1+0+0
 SP-09: ordinary Failed; Projected={AR-O05}; Failure={AR-O01,AR-O02,AR-O03,AR-O04}; Exclusion={}; 5=1+4+0
 ```
 
@@ -508,14 +510,17 @@ Keyword scans are not acceptance evidence. Design review must instantiate the se
 
 ## Planned Implementation Decomposition
 
-After this spec is approved, `writing-plans` must produce one Task at a time and cite Artifact, Subject, and Failure IDs in every step:
+After this spec is approved, one implementation plan **may contain two or more sequential Tasks** when it must freeze their dependency, file boundaries, verification, and stop checkpoints together. Plan containment is not execution authorization: only one Task may be authorized and executed per review round unless the user explicitly grants continuous multi-Task execution. Every Task remains 20–30 minutes, every Step 2–5 minutes, and every Step cites the Artifact, Subject, and Failure IDs it exercises.
 
-1. Freeze registry fixtures and a read-only RED harness.
-2. Implement AR-I01-I10 intake, HI encoding, and SP-01/SP-02.
-3. Implement SP-03/SP-04 object resolution and public projection.
-4. Implement SP-05 configuration discovery.
-5. Implement SP-06 canonical grouping.
-6. Implement SP-07 dispatch, AR-O01-O05, acquisition evidence integration, and G5 contract-change handoff.
-7. Write the C2 Phase B runbook without executing it.
+The authoritative sequence is:
+
+1. Freeze AR-I07, AR-I10, and AR-I11 fixture authority in one reviewed commit; no harness or implementation.
+2. Implement AR-I01–I11 intake/freshness, HI-13, O1/O2, and the frozen Git adapter; no SP-01/SP-02.
+3. Implement SP-01/SP-02 in a separately approved fixture-only Task.
+4. Implement SP-03/SP-04 object resolution and public projection.
+5. Implement SP-05 configuration discovery.
+6. Implement SP-06 canonical grouping.
+7. Implement SP-07 dispatch, AR-O01-O05, acquisition evidence integration, and G5 contract-change handoff.
+8. Write the C2 Phase B runbook without executing it.
 
 Until all three central registries and fixed counterexamples pass independent review, status remains `BLOCKED` and no implementation plan or code may begin.
