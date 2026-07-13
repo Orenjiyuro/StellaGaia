@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "observations": [
+    {
+      "assetObjectId": "synthetic-object-001",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "classId": 28,
+      "objectType": "Texture2D",
+      "objectName": "SyntheticTexture",
+      "serializedSizeBytes": 128,
+      "dependencyObjectIds": [],
+      "toolName": "synthetic-observer",
+      "observation": "Synthetic texture observation",
+      "canonicalAssetId": "synthetic-canonical-001",
+      "platformVariant": "Pc",
+      "configurationDisposition": "NotConfiguration",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/minimal-object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "synthetic-object-002",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "classId": 114,
+      "objectType": "MonoBehaviour",
+      "objectName": "SyntheticConfiguration",
+      "serializedSizeBytes": 64,
+      "dependencyObjectIds": [
+        "synthetic-object-001"
+      ],
+      "toolName": "synthetic-observer",
+      "observation": "Synthetic configuration observation",
+      "canonicalAssetId": "synthetic-canonical-002",
+      "platformVariant": "Pc",
+      "configurationDisposition": "Parsed",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/minimal-object-observations.json"
+      ]
+    }
+  ]
+}

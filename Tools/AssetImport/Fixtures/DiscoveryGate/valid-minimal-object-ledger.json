@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "toolVersions": [
+    {
+      "toolName": "contract-fixture",
+      "version": "1.0.0"
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "capturedAt": "2026-07-10T12:00:00+08:00",
+      "rootFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "files": [
+    {
+      "snapshotId": "snapshot-pc-install-001",
+      "sourceId": "pc-install-primary",
+      "sourceKind": "PcInstall",
+      "relativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "sizeBytes": 4096,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "capturedAt": "2026-07-10T12:00:00+08:00",
+      "containerKind": "UnknownInput",
+      "parseStatus": "NotAttempted",
+      "disposition": "RetainForLater",
+      "evidence": [],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "NotAttempted",
+        "semantics": "Unknown",
+        "unity": "NotTested",
+        "disposition": "RetainForLater"
+      }
+    }
+  ],
+  "objects": [
+    {
+      "assetObjectId": "synthetic-object-001",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "classId": 28,
+      "objectType": "Texture2D",
+      "objectName": "SyntheticTexture",
+      "serializedSizeBytes": 128,
+      "dependencyObjectIds": [],
+      "toolObservations": [
+        {
+          "toolName": "synthetic-observer",
+          "observation": "Synthetic texture observation"
+        }
+      ],
+      "canonicalAssetId": "synthetic-canonical-001",
+      "platformVariant": "Pc",
+      "configurationDisposition": "NotConfiguration",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/minimal-object-observations.json"
+      ],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "ExtractedReadable",
+        "semantics": "PartiallyKnown",
+        "unity": "NotTested",
+        "disposition": "RetainForLater"
+      }
+    },
+    {
+      "assetObjectId": "synthetic-object-002",
+      "sourceId": "pc-install-primary",
+      "containerRelativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "classId": 114,
+      "objectType": "MonoBehaviour",
+      "objectName": "SyntheticConfiguration",
+      "serializedSizeBytes": 64,
+      "dependencyObjectIds": [
+        "synthetic-object-001"
+      ],
+      "toolObservations": [
+        {
+          "toolName": "synthetic-observer",
+          "observation": "Synthetic configuration observation"
+        }
+      ],
+      "canonicalAssetId": "synthetic-canonical-002",
+      "platformVariant": "Pc",
+      "configurationDisposition": "Parsed",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/minimal-object-observations.json"
+      ],
+      "status": {
+        "corpus": "Cataloged",
+        "extraction": "ExtractedReadable",
+        "semantics": "PartiallyKnown",
+        "unity": "NotTested",
+        "disposition": "RetainForLater"
+      }
+    }
+  ]
+}
