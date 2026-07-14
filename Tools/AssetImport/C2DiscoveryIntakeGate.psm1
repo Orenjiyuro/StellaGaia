@@ -364,6 +364,34 @@ function Get-C2RawRowId {
     "raw-row-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
 }
 
+function Get-C2ExactCorrelationId {
+    param($Row)
+    $text="C2CorrelationExactLocatorV1`n"+(ConvertTo-C2ScalarLine sourceId $Row.sourceId)+(ConvertTo-C2ScalarLine containerRelativePath $Row.containerRelativePath)+(ConvertTo-C2ScalarLine pathId ([string]$Row.pathId))
+    "correlation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Test-C2OrdinalPortableSet {
+    param($Values,[bool]$NonEmpty=$false)
+    try{$items=@($Values);if($NonEmpty -and $items.Count -eq 0){return $false};$prior=$null;for($i=0;$i-lt$items.Count;$i++){if($items[$i] -isnot [string] -or -not(Test-C2PortablePath $items[$i]) -or ($i -gt 0 -and $script:Ordinal.Compare($prior,$items[$i]) -ge 0)){return $false};$prior=$items[$i]};return $true}catch{return $false}
+}
+
+function Test-C2ObjectObservationRow {
+    param($Row)
+    try{
+        if($null -eq $Row -or (@($Row.PSObject.Properties.Name)-join ',') -cne 'observationId,toolName,toolVersion,sourceId,containerRelativePath,pathId,classId,serializedSizeBytes,objectType,objectName,dependencyLocators,contentFingerprint,configurationDisposition,canonicalEvidence,correlationEvidence,evidence'){return $false}
+        foreach($name in @('toolName','toolVersion','sourceId','objectType','objectName')){if($Row.$name -isnot [string] -or [string]::IsNullOrEmpty($Row.$name)){return $false}}
+        $parsedPathId=[long]0;$parsedClass=[long]0;$parsedSize=[long]0
+        if(-not(Test-C2PortablePath $Row.containerRelativePath) -or -not[long]::TryParse([string]$Row.pathId,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$parsedPathId) -or [string]$parsedPathId -cne [string]$Row.pathId -or -not[long]::TryParse([string]$Row.classId,[ref]$parsedClass) -or $parsedClass -lt 0 -or -not[long]::TryParse([string]$Row.serializedSizeBytes,[ref]$parsedSize) -or $parsedSize -lt 0 -or $Row.contentFingerprint -cnotmatch '^[0-9a-f]{64}$'){return $false}
+        if($null -ne $Row.configurationDisposition -and $Row.configurationDisposition -cnotin @('Parsed','DiscoveredOpaque','Encrypted','RequiresRuntimeType','LikelyServerDependent','NotConfiguration')){return $false}
+        if(-not(Test-C2OrdinalPortableSet $Row.evidence $true)){return $false}
+        $dependencyIds=[Collections.Generic.List[string]]::new();foreach($dependency in @($Row.dependencyLocators)){if((@($dependency.PSObject.Properties.Name)-join ',') -cne 'sourceId,containerRelativePath,pathId,classId' -or [string]::IsNullOrEmpty($dependency.sourceId) -or -not(Test-C2PortablePath $dependency.containerRelativePath)){return $false};$dp=[long]0;$dc=[long]0;if(-not[long]::TryParse([string]$dependency.pathId,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$dp) -or [string]$dp -cne [string]$dependency.pathId -or -not[long]::TryParse([string]$dependency.classId,[ref]$dc) -or $dc-lt 0){return $false};$oidText="C2ObjectIdentityV1`n"+(ConvertTo-C2ScalarLine sourceId $dependency.sourceId)+(ConvertTo-C2ScalarLine containerRelativePath $dependency.containerRelativePath)+(ConvertTo-C2ScalarLine pathId ([string]$dependency.pathId))+(ConvertTo-C2ScalarLine classId ([string]$dependency.classId));$dependencyIds.Add("sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($oidText))")};for($i=1;$i-lt$dependencyIds.Count;$i++){if($script:Ordinal.Compare($dependencyIds[$i-1],$dependencyIds[$i])-ge 0){return $false}}
+        if($null -ne $Row.canonicalEvidence){if((@($Row.canonicalEvidence.PSObject.Properties.Name)-join ',') -cne 'memberPlatform,proposedMatchStatus,proposedEquivalenceFingerprint,evidence' -or $Row.canonicalEvidence.memberPlatform -cnotin @('Pc','Android') -or [string]::IsNullOrEmpty($Row.canonicalEvidence.proposedMatchStatus) -or -not(Test-C2OrdinalPortableSet $Row.canonicalEvidence.evidence $true)){return $false};if($null -ne $Row.canonicalEvidence.proposedEquivalenceFingerprint -and $Row.canonicalEvidence.proposedEquivalenceFingerprint -cnotmatch '^[0-9a-f]{64}$'){return $false}}
+        if($null -eq $Row.correlationEvidence -or (@($Row.correlationEvidence.PSObject.Properties.Name)-join ',') -cne 'correlationId,method,evidence' -or -not(Test-C2OrdinalPortableSet $Row.correlationEvidence.evidence $true)){return $false}
+        if($Row.correlationEvidence.method -ceq 'ExactLocator'){if($Row.correlationEvidence.correlationId -cne (Get-C2ExactCorrelationId $Row)){return $false}}elseif($Row.correlationEvidence.method -cne 'ToolMapping'){return $false}else{if($dependencyIds.Count -eq 0){return $false};$mapped="C2CorrelationToolMappingV1`n"+(Add-C2SetFrame locatorIds $dependencyIds);if($Row.correlationEvidence.correlationId -cne "correlation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($mapped))"){return $false}}
+        return $Row.observationId -is [string] -and $Row.observationId -ceq (Get-C2ObservationId $Row)
+    }catch{return $false}
+}
+
 function Get-C2FileDiscoveryConflictId {
     param([string]$SourceId,[string]$RelativePath,[string[]]$ObservationIds,[string[]]$Outcomes)
     $text="C2FileDiscoveryConflictV1`n"+(ConvertTo-C2ScalarLine sourceId $SourceId)+(ConvertTo-C2ScalarLine relativePath $RelativePath)+(Add-C2SetFrame observationIds $ObservationIds)+(Add-C2SetFrame outcomes $Outcomes)
@@ -431,6 +459,35 @@ function Get-C2ApprovalId {
     param($Approval)
     $text="C2ExclusionApprovalV1`n"+(ConvertTo-C2ScalarLine subjectKind $Approval.subjectKind)+(ConvertTo-C2ScalarLine subjectId $Approval.subjectId)+(ConvertTo-C2ScalarLine reasonCode $Approval.reasonCode)+(ConvertTo-C2ScalarLine reason $Approval.reason)+(ConvertTo-C2ScalarLine approvedBy $Approval.approvedBy)+(ConvertTo-C2ScalarLine approvedAt $Approval.approvedAt)+(Add-C2SetFrame evidence @($Approval.evidence))
     "exclusion-approval-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Invoke-C2ObjectObservationPartitions {
+    [CmdletBinding()]param([Parameter(Mandatory)][psobject]$InputFact)
+    $subjects=[Collections.Generic.List[object]]::new();$failures=[Collections.Generic.List[object]]::new();$exclusions=[Collections.Generic.List[object]]::new()
+    $artifact=$InputFact.objectObservationArtifact;$approvalArtifact=$InputFact.exclusionApprovalArtifact
+    if($artifact.documentReadStatus -cne 'Parsed' -or $null -eq $artifact.document -or $null -eq $artifact.document.rows){
+        $failures.Add((New-C2AccountingRow inputFailures ObservationDocument AR-I07 InvalidObservation 'FT-05:AR-I07' @($script:Registry[6].path)))
+    }else{
+        $approvalValid=$approvalArtifact.documentReadStatus -ceq 'Parsed' -and $null -ne $approvalArtifact.document -and $approvalArtifact.document.observationArtifactPath -ceq $artifact.artifactPath -and $approvalArtifact.document.observationArtifactSha256 -ceq $artifact.artifactSha256
+        $approvals=if($approvalValid){@($approvalArtifact.document.approvals)}else{@()}
+        if($approvalValid){foreach($approval in $approvals){if((@($approval.PSObject.Properties.Name)-join ',') -cne 'approvalId,subjectKind,subjectId,reasonCode,reason,approvedBy,approvedAt,evidence' -or $approval.approvalId -cne (Get-C2ApprovalId $approval) -or $approval.subjectKind -cne 'ObjectObservation' -or $approval.reasonCode -cne 'ApprovedInputExclusion' -or @($approval.evidence).Count -eq 0){$approvalValid=$false;break}}}
+        if(-not $approvalValid){$failures.Add((New-C2AccountingRow inputFailures ExclusionApprovalDocument AR-I11 InvalidSchema 'FT-02:AR-I11' @($script:Registry[10].path)));$approvals=@()}
+        $rows=@($artifact.document.rows)
+        for($i=0;$i -lt $rows.Count;$i++){
+            $row=$rows[$i];$rawId=Get-C2RawRowId $artifact.artifactPath $artifact.artifactSha256 $i;$names=@($row.PSObject.Properties.Name)-join ','
+            $portable=$false;try{$portable=(Test-C2PortablePath ([string]$row.containerRelativePath))}catch{}
+            $valid=Test-C2ObjectObservationRow $row
+            if(-not $valid){$owner=if(-not $portable){'FT-04'}else{'FT-05'};$reason=if($owner -ceq 'FT-04'){'UnsafePath'}else{'InvalidObservation'};$failures.Add((New-C2AccountingRow inputFailures ObjectObservation $rawId $reason "${owner}:$rawId" @($artifact.artifactPath)));$subjects.Add([pscustomobject][ordered]@{rowIndex=$i;subjectId=$rawId;observationId=$null;partition='RejectedObservation';evidence=[string[]]@($artifact.artifactPath)});continue}
+            $matches=@($approvals|Where-Object subjectId -ceq $row.observationId)
+            if($matches.Count -gt 1){$failures.Add((New-C2AccountingRow inputFailures ExclusionApprovalDocument AR-I11 InvalidSchema 'FT-02:AR-I11' @($script:Registry[10].path)));$matches=@()}
+            if($matches.Count -eq 1){$evidence=Get-C2OrdinalUnique @(@($row.evidence)+@($matches[0].evidence));$exclusions.Add((New-C2AccountingRow inputExclusions ObjectObservation $row.observationId ApprovedInputExclusion "FT-14:$($row.observationId)" $evidence));$partition='ExcludedObservation'}else{$evidence=Get-C2OrdinalUnique @($row.evidence);$partition='AcceptedObservation'}
+            $subjects.Add([pscustomobject][ordered]@{rowIndex=$i;subjectId=$row.observationId;observationId=$row.observationId;partition=$partition;evidence=[string[]]$evidence})
+        }
+        if($approvalValid){$validIds=@($subjects|Where-Object{$null-ne$_.observationId}|ForEach-Object observationId);foreach($approval in $approvals){if($approval.subjectId -cnotin $validIds){if(-not @($failures|Where-Object attribution -eq 'FT-02:AR-I11')){$failures.Add((New-C2AccountingRow inputFailures ExclusionApprovalDocument AR-I11 InvalidSchema 'FT-02:AR-I11' @($script:Registry[10].path)))}}}}
+    }
+    $accepted=@($subjects|Where-Object partition -eq AcceptedObservation).Count;$rejected=@($subjects|Where-Object partition -eq RejectedObservation).Count;$excluded=@($subjects|Where-Object partition -eq ExcludedObservation).Count;$failed=$failures.Count -gt 0
+    $coverage=[pscustomobject][ordered]@{objectObservationRowCount=$subjects.Count;acceptedObjectObservationRowCount=$accepted;rejectedObjectObservationRowCount=$rejected;excludedObjectObservationRowCount=$excluded;correlationGroupCount=0;enumeratedObjectCount=0;observationConflictObjectCount=0;classifiedObjectCount=0;unclassifiedObjectCount=0;observationConflictRecordCount=0;inputFailureCount=$failures.Count;excludedInputCount=$exclusions.Count;issueCount=$failures.Count}
+    [pscustomobject][ordered]@{schemaVersion=$InputFact.schemaVersion;snapshotId=$InputFact.snapshotId;inputFingerprint=$InputFact.inputFingerprint;discoveryInputFingerprint=if($failed){$null}else{$InputFact.discoveryInputFingerprint};observationSubjects=[object[]]$subjects;mergedObjects=@();observationConflicts=@();publicObjectCores=@();inputFailures=[object[]]$failures;inputExclusions=[object[]]$exclusions;coverage=$coverage;gateStatus=if($failed){'Failed'}else{'Passed'};outputsSuppressed=$failed}
 }
 
 function Test-C2SchemaNode {
@@ -538,8 +595,8 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     )
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
     if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
-    $context=[ordered]@{facts=$null;handoff=$null;sp12=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
-    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$partitioner=${function:Invoke-C2FileDiscoveryPartitions};$fixtureMutation=$FixtureMutator
+    $context=[ordered]@{facts=$null;handoff=$null;sp12=$null;sp03=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
+    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$partitioner=${function:Invoke-C2FileDiscoveryPartitions};$objectPartitioner=${function:Invoke-C2ObjectObservationPartitions};$fixtureMutation=$FixtureMutator
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
     $validation={param($bundle)
         try{
@@ -564,6 +621,8 @@ function Invoke-C2DiscoveryIntakeGateInternal {
             $partitionInput=[pscustomobject][ordered]@{snapshotId=$documents['AR-I01'].snapshotId;inputFingerprint=$documents['AR-I01'].inputFingerprint;discoveryInputFingerprint=$null;c1Files=@($documents['AR-I02'].files);objectObservationArtifact=[pscustomobject][ordered]@{artifactPath=$registry[6].path;artifactSha256=$hashes['AR-I07'];acceptedRows=@($acceptedRows)};fileDiscoveryArtifact=[pscustomobject][ordered]@{artifactPath=$registry[7].path;artifactSha256=$hashes['AR-I08'];documentReadStatus='Parsed';document=$documents['AR-I08']}}
             $context.sp12=@($partitioner.Invoke($partitionInput))[0]
             if($context.sp12.gateStatus -ne 'Passed'){$first=@($context.sp12.inputFailures)[0];return [pscustomobject]@{status='Failed';owner=($first.attribution.Split(':')[0]);reason=$first.reasonCode;subjectId=$first.subjectId;message='SP-01/SP-02 failed'}}
+            $sp03Input=[pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId=$documents['AR-I01'].snapshotId;inputFingerprint=$documents['AR-I01'].inputFingerprint;discoveryInputFingerprint=$null;sourceKinds=@($documents['AR-I02'].sources|ForEach-Object{[pscustomobject][ordered]@{sourceId=$_.sourceId;sourceKind=$_.sourceKind}});objectObservationArtifact=[pscustomobject][ordered]@{artifactPath=$registry[6].path;artifactSha256=$hashes['AR-I07'];documentReadStatus='Parsed';document=$documents['AR-I07']};exclusionApprovalArtifact=[pscustomobject][ordered]@{artifactPath=$registry[10].path;artifactSha256=$hashes['AR-I11'];documentReadStatus='Parsed';document=$documents['AR-I11']}}
+            $context.sp03=@($objectPartitioner.Invoke($sp03Input))[0]
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
         }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
     }.GetNewClosure()
@@ -584,6 +643,19 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     $result.O2.realAssetReadCount=@($context.events|Where-Object kind -eq RealAssetRead).Count
     $result.O2.createdExtractedCount=[int](-not $context.extractedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted')))
     $result.O2.createdImportedCount=[int](-not $context.importedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported')))
+    if($null -ne $context.sp03){
+        $result.O1.inputFailures=[object[]]@($context.sp03.inputFailures);$result.O1.inputExclusions=[object[]]@($context.sp03.inputExclusions)
+        $result.O2.inputSubjectCount += [int]$context.sp03.coverage.objectObservationRowCount
+        $result.O2.acceptedInputSubjectCount += [int]$context.sp03.coverage.acceptedObjectObservationRowCount
+        $result.O2.inputFailureCount += [int]$context.sp03.coverage.inputFailureCount
+        $result.O2.excludedInputSubjectCount += [int]$context.sp03.coverage.excludedInputCount
+        $result.O2.issueCount += [int]$context.sp03.coverage.issueCount
+        $result.O2|Add-Member -NotePropertyName objectObservationRowCount -NotePropertyValue ([int]$context.sp03.coverage.objectObservationRowCount)
+        $result.O2|Add-Member -NotePropertyName acceptedObjectObservationRowCount -NotePropertyValue ([int]$context.sp03.coverage.acceptedObjectObservationRowCount)
+        $result.O2|Add-Member -NotePropertyName rejectedObjectObservationRowCount -NotePropertyValue ([int]$context.sp03.coverage.rejectedObjectObservationRowCount)
+        $result.O2|Add-Member -NotePropertyName excludedObjectObservationRowCount -NotePropertyValue ([int]$context.sp03.coverage.excludedObjectObservationRowCount)
+        if($context.sp03.gateStatus -ceq 'Failed'){$result.O2.status='Failed';$result.O2.discoveryInputFingerprint=$null;$result.O1.discoveryInputFingerprint=$null;$result.O1.decision.failureAttribution=$context.sp03.inputFailures[0].attribution;$result.O1.decision.nextAllowedAction='Correct fixture observation';$result.O1|Add-Member -NotePropertyName objectObservationSubjects -NotePropertyValue ([object[]]$context.sp03.observationSubjects)}
+    }
     return $result
 }
 
