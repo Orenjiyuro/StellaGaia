@@ -142,6 +142,9 @@ function Invoke-C2PureDiscoveryIntake {
     if($ArtifactFacts.Count -ne 11){
         if($null -eq $directOwner){$directOwner='FT-02'}
         $artifactPrerequisiteFailed=$true
+        if($ArtifactFacts.Count -gt $script:Registry.Count -and -not @($failures|Where-Object{$_.subjectId -ceq 'AR-I10'}).Count){
+            $failures.Add((New-C2AccountingRow inputFailures RegistryShape 'AR-I10' UnexpectedRegistrySlot 'FT-02:AR-I10' @("expectedCount=11","actualCount=$($ArtifactFacts.Count)")))
+        }
     }
     $handoffNames=@('snapshotId','ledgerPath','summaryPath')
     $handoffOk=((@($HandoffFact.PSObject.Properties.Name) -join ',') -ceq ($handoffNames -join ',')) -and ($HandoffFact.snapshotId -ceq 'snapshot-pc-install-001') -and ($HandoffFact.ledgerPath -ceq $script:Registry[1].path) -and ($HandoffFact.summaryPath -ceq $script:Registry[2].path)
@@ -149,9 +152,11 @@ function Invoke-C2PureDiscoveryIntake {
         if($null -eq $directOwner){$directOwner='FT-01'}
         $failures.Add((New-C2AccountingRow inputFailures C1Handoff 'C2Check:C1Handoff' IdentityMismatch 'FT-01:C2Check:C1Handoff' @($script:Registry[0].path)))
     }
-    $headStable=if($StartCommitOid -and $EndCommitOid){$StartCommitOid -ceq $EndCommitOid}else{$null}
-    $oidValid=($null -eq $StartCommitOid -or $StartCommitOid -cmatch '^[0-9a-f]{40}$') -and ($null -eq $EndCommitOid -or $EndCommitOid -cmatch '^[0-9a-f]{40}$')
-    if(-not $oidValid -or $headStable -eq $false){$freshnessEvidence.Add('GitAdapter:EndHead')}
+    $startOidValid=$null -ne $StartCommitOid -and $StartCommitOid -cmatch '^[0-9a-f]{40}$'
+    $endOidValid=$null -ne $EndCommitOid -and $EndCommitOid -cmatch '^[0-9a-f]{40}$'
+    $headStable=if($startOidValid -and $endOidValid){$StartCommitOid -ceq $EndCommitOid}else{$null}
+    if(-not $startOidValid){$freshnessEvidence.Add('GitAdapter:StartCommitOid')}
+    if(-not $endOidValid -or $headStable -eq $false){$freshnessEvidence.Add('GitAdapter:EndHead')}
     if($freshnessEvidence.Count -gt 0){
         if($null -eq $directOwner){$directOwner='FT-03'}
         $failures.Add((New-C2AccountingRow inputFailures FreshnessCheck 'C2Check:Freshness' StaleFingerprint 'FT-03:C2Check:Freshness' ([string[]]$freshnessEvidence)))
@@ -352,6 +357,49 @@ function Get-C2ApprovalId {
     "exclusion-approval-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
 }
 
+function Test-C2SchemaNode {
+    param([AllowNull()]$Node,[psobject]$Definitions)
+    $pending=[Collections.Generic.Stack[object]]::new();$pending.Push($Node)
+    while($pending.Count -gt 0){
+        $current=$pending.Pop()
+        if($null -eq $current -or $current -isnot [pscustomobject]){return $false}
+        $names=@($current.PSObject.Properties.Name)
+        if(@($names|Where-Object{$_ -in @('type','$ref','enum','const','oneOf','anyOf','allOf')}).Count -eq 0){return $false}
+        if($names -contains 'type'){
+            $allowedTypes=@('array','boolean','integer','null','number','object','string');$declaredTypes=@($current.type)
+            if($declaredTypes.Count -eq 0){return $false}
+            foreach($declaredType in $declaredTypes){if($declaredType -isnot [string] -or $allowedTypes -cnotcontains $declaredType){return $false}}
+        }
+        if($names -contains 'enum' -and @($current.enum).Count -eq 0){return $false}
+        if($names -contains 'additionalProperties' -and $current.additionalProperties -isnot [bool]){return $false}
+        if($names -contains 'pattern'){try{$null=[regex]::new([string]$current.pattern)}catch{return $false}}
+        if($names -contains '$ref'){
+            $reference=[string]$current.'$ref';$definitionName=if($reference.Length -gt 8){$reference.Substring(8)}else{''}
+            if($reference -cnotmatch '^#/\$defs/[^/]+$' -or @($Definitions.PSObject.Properties.Name) -cnotcontains $definitionName){return $false}
+        }
+        if($names -contains 'required'){
+            $required=@($current.required);$seen=[Collections.Generic.HashSet[string]]::new($script:Ordinal)
+            if($required.Count -eq 0 -or $null -eq $current.properties -or $current.properties -isnot [pscustomobject]){return $false}
+            foreach($requiredName in $required){if($requiredName -isnot [string] -or -not $seen.Add($requiredName) -or @($current.properties.PSObject.Properties.Name) -cnotcontains $requiredName){return $false}}
+        }
+        if($names -contains 'properties'){
+            if($null -eq $current.properties -or $current.properties -isnot [pscustomobject]){return $false}
+            foreach($property in $current.properties.PSObject.Properties){$pending.Push($property.Value)}
+        }
+        if($names -contains 'items'){$pending.Push($current.items)}
+        foreach($keyword in @('oneOf','anyOf','allOf')){if($names -contains $keyword){$options=@($current.$keyword);if($options.Count -eq 0){return $false};foreach($option in $options){$pending.Push($option)}}}
+    }
+    return $true
+}
+
+function Test-C2SchemaDocument {
+    param($Schema)
+    if($Schema.type -cne 'object' -or $Schema.additionalProperties -ne $false -or $null -eq $Schema.properties -or $Schema.properties -isnot [pscustomobject] -or $null -eq $Schema.'$defs' -or $Schema.'$defs' -isnot [pscustomobject] -or @($Schema.'$defs'.PSObject.Properties).Count -eq 0 -or [string]$Schema.'$schema' -cnotmatch '^https://json-schema.org/' -or [string]$Schema.'$id' -cnotmatch '^https://'){return $false}
+    if(-not(Test-C2SchemaNode $Schema $Schema.'$defs')){return $false}
+    foreach($definition in $Schema.'$defs'.PSObject.Properties){if(-not(Test-C2SchemaNode $definition.Value $Schema.'$defs')){return $false}}
+    return $true
+}
+
 function Test-C2FixtureContracts {
     param($Documents,$Hashes)
     $top=[ordered]@{
@@ -366,7 +414,7 @@ function Test-C2FixtureContracts {
         'AR-I11'='schemaVersion,snapshotId,inputFingerprint,observationArtifactPath,observationArtifactSha256,approvals'
     }
     foreach($id in $top.Keys){if((@($Documents[$id].PSObject.Properties.Name)-join ',') -cne $top[$id]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id top-level shape"}}}
-    foreach($id in @('AR-I04','AR-I06')){$schema=$Documents[$id];if($schema.type -cne 'object' -or $schema.additionalProperties -ne $false -or $null -eq $schema.properties -or $schema.properties -isnot [pscustomobject] -or $null -eq $schema.'$defs' -or $schema.'$defs' -isnot [pscustomobject] -or @($schema.required).Count -eq 0 -or [string]$schema.'$schema' -cnotmatch '^https://json-schema.org/' -or [string]$schema.'$id' -cnotmatch '^https://'){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id schema document semantics"}}}
+    foreach($id in @('AR-I04','AR-I06')){if(-not(Test-C2SchemaDocument $Documents[$id])){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id schema document semantics"}}}
     try{$ledgerJson=$Documents['AR-I02']|ConvertTo-Json -Depth 100 -Compress;$ledgerSchema=$Documents['AR-I04']|ConvertTo-Json -Depth 100 -Compress;if(-not($ledgerJson|Test-Json -Schema $ledgerSchema -ErrorAction Stop)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message='ledger schema'}}}catch{return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message="ledger schema: $($_.Exception.Message)"}}
     $expectedVocabulary=[ordered]@{corpus='Cataloged,Missing,StaleInput';extraction='NotAttempted,ExtractedReadable,CrossToolVerified,Opaque,Failed';semantics='Known,PartiallyKnown,Unknown';configurationDisposition='Parsed,DiscoveredOpaque,Encrypted,RequiresRuntimeType,LikelyServerDependent,NotConfiguration';unity='NotTested,StaticQualified,RepresentativeValidated,Rejected,UnityExecutionUnavailable';disposition='NeedsDiagnosis,UseOriginalAsset,RepairOnce,PrototypeReplacement,RetainForLater,DiagnosticOnly,Stop';familyStaticOutcome='StaticQualified,StaticRejected,NeedsDiagnosis';sourceKind='PcInstall,PcPatchOrCache,AndroidApk,AndroidDataOrCache'}
     foreach($name in $expectedVocabulary.Keys){if((@($Documents['AR-I05'].$name)-join ',') -cne $expectedVocabulary[$name]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I05';message="vocabulary $name"}}}
@@ -452,7 +500,7 @@ function Invoke-C2DiscoveryIntakeGate {
 }
 
 function Test-C2InjectedGateVector {
-    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
+    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','RootSchemaRequiredInvalid','RootSchemaPropertyInvalid','RootSchemaDefInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
     $transport=$null;$mutation=$null;$encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
     if($Vector -eq 'Call1StartFailure'){$transport={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()}
     elseif($Vector -eq 'Call3InvalidOutput'){$transport={param($number,$arguments,$raw)$text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0};[pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}}.GetNewClosure()}
@@ -461,6 +509,9 @@ function Test-C2InjectedGateVector {
             'LedgerNestedInvalid' {{param($bundle)$bundle.documents['AR-I02'].files=$null}}
             'VocabularyInvalid' {{param($bundle)$bundle.documents['AR-I05'].corpus=@('DefinitelyUnsupported')}}
             'RootSchemaInvalid' {{param($bundle)$bundle.documents['AR-I06'].properties=$null}}
+            'RootSchemaRequiredInvalid' {{param($bundle)$bundle.documents['AR-I06'].required=@('DefinitelyMissing')}}
+            'RootSchemaPropertyInvalid' {{param($bundle)$first=@($bundle.documents['AR-I06'].properties.PSObject.Properties)[0];$first.Value=$null}}
+            'RootSchemaDefInvalid' {{param($bundle)$first=@($bundle.documents['AR-I06'].'$defs'.PSObject.Properties)[0];$first.Value=$null}}
             'ManifestShapeInvalid' {{param($bundle)$bundle.documents['AR-I10'].PSObject.Properties.Remove('entries')}}
             'ObservationHI03Invalid' {{param($bundle)$bundle.documents['AR-I07'].rows[5].observationId='observation-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}
             'ApprovalHI15Invalid' {{param($bundle)$bundle.documents['AR-I11'].approvals[0].approvalId='exclusion-approval-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}

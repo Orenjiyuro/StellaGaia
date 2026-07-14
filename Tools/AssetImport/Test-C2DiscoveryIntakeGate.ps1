@@ -149,6 +149,9 @@ if ($Case -ceq 'ValidatorMutations') {
         [pscustomobject]@{name='ledgerNestedSchema';subject='AR-I02';result=(Invoke-PrivateVector LedgerNestedInvalid)},
         [pscustomobject]@{name='vocabularyContent';subject='AR-I05';result=(Invoke-PrivateVector VocabularyInvalid)},
         [pscustomobject]@{name='rootSchemaSemantics';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaInvalid)},
+        [pscustomobject]@{name='rootSchemaRequiredBinding';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaRequiredInvalid)},
+        [pscustomobject]@{name='rootSchemaPropertyDefinition';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaPropertyInvalid)},
+        [pscustomobject]@{name='rootSchemaDefsDefinition';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaDefInvalid)},
         [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Invoke-PrivateVector ManifestShapeInvalid)},
         [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Invoke-PrivateVector ObservationHI03Invalid)},
         [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Invoke-PrivateVector ApprovalHI15Invalid)}
@@ -165,6 +168,9 @@ if ($Case -ceq 'ValidatorMutations') {
     "ledgerNestedSchemaMutation=Passed"
     "vocabularyContentMutation=Passed"
     "rootSchemaSemanticsMutation=Passed"
+    "rootSchemaRequiredBindingMutation=Passed"
+    "rootSchemaPropertyDefinitionMutation=Passed"
+    "rootSchemaDefsDefinitionMutation=Passed"
     "manifestShapeMutation=Passed"
     "observationHI03Mutation=Passed"
     "approvalHI15Mutation=Passed"
@@ -256,6 +262,27 @@ $ft02=Invoke-C2PureDiscoveryIntake $badShape $handoff $oid $oid
 Assert-Equal $ft02.O1.inputFailures[0].attribution 'FT-02:AR-I10' 'FT-02 owner'
 Assert-Equal $ft02.O1.discoveryInputFingerprint $null 'FT-02 fingerprint suppression'
 
+$extraFacts=@(Copy-MemoryValue $facts)+@([pscustomobject][ordered]@{artifactId='AR-I12';path='unexpected/extra.json';requirement='ConditionalInput';presence='Present';worktreeSha256=('f'*64);commitBlobSha256=$null;manifestSha256=$null})
+$extraResult=Invoke-C2PureDiscoveryIntake $extraFacts $handoff $oid $oid
+Assert-Equal $extraResult.O2.status Failed 'extra registry slot status'
+Assert-Equal $extraResult.O2.inputFailureCount 1 'extra registry slot failure count'
+Assert-Equal $extraResult.O1.inputFailures[0].attribution 'FT-02:AR-I10' 'extra registry slot owner'
+Assert-Equal $extraResult.O1.contractChecks[2].status NotEvaluated 'extra registry slot freshness suppression'
+Assert-Equal $extraResult.O1.discoveryInputFingerprint $null 'extra registry slot fingerprint suppression'
+
+$duplicateFacts=Copy-MemoryValue $facts;$duplicateFacts[1]=$duplicateFacts[0]
+$duplicateResult=Invoke-C2PureDiscoveryIntake $duplicateFacts $handoff $oid $oid
+Assert-Equal $duplicateResult.O2.status Failed 'duplicate registry slot status'
+Assert-Equal $duplicateResult.O1.inputFailures[0].attribution 'FT-02:AR-I02' 'duplicate registry slot owner'
+Assert-Equal $duplicateResult.O1.discoveryInputFingerprint $null 'duplicate registry slot fingerprint suppression'
+
+$wrongOrderFacts=Copy-MemoryValue $facts;$swap=$wrongOrderFacts[0];$wrongOrderFacts[0]=$wrongOrderFacts[1];$wrongOrderFacts[1]=$swap
+$wrongOrderResult=Invoke-C2PureDiscoveryIntake $wrongOrderFacts $handoff $oid $oid
+Assert-Equal $wrongOrderResult.O2.status Failed 'wrong-order registry status'
+Assert-Equal $wrongOrderResult.O2.inputFailureCount 2 'wrong-order registry failure count'
+Assert-Equal (($wrongOrderResult.O1.inputFailures.attribution)-join ',') 'FT-02:AR-I01,FT-02:AR-I02' 'wrong-order registry owners'
+Assert-Equal $wrongOrderResult.O1.discoveryInputFingerprint $null 'wrong-order registry fingerprint suppression'
+
 $badPath=Copy-MemoryValue $facts; $badPath[6].path='../object-observations.json'
 $ft04=Invoke-C2PureDiscoveryIntake $badPath $handoff $oid $oid
 Assert-Equal $ft04.O1.inputFailures[0].attribution 'FT-04:AR-I07' 'FT-04 owner'
@@ -266,6 +293,22 @@ Assert-Equal $ft15.O2.issueCount 0 'FT-15 issue count'
 Assert-Equal $ft15.O2.inputFailureCount 0 'FT-15 failure count'
 Assert-Equal $ft15.O1.contractChecks[2].status NotEvaluated 'FT-15 freshness status'
 Assert-Equal $ft15.O1.inputSuppressions.Count 3 'FT-15 suppression count'
+
+foreach($oidVector in @(
+    [pscustomobject]@{name='both missing';start=$null;end=$null;head=$null},
+    [pscustomobject]@{name='start missing';start=$null;end=$oid;head=$null},
+    [pscustomobject]@{name='end missing';start=$oid;end=$null;head=$null},
+    [pscustomobject]@{name='start invalid';start='not-an-oid';end=$oid;head=$null},
+    [pscustomobject]@{name='end invalid';start=$oid;end='not-an-oid';head=$null}
+)){
+    $oidResult=Invoke-C2PureDiscoveryIntake $facts $handoff $oidVector.start $oidVector.end
+    Assert-Equal $oidResult.O2.status Failed "$($oidVector.name) OID status"
+    Assert-Equal $oidResult.O2.issueCount 1 "$($oidVector.name) OID failure count"
+    Assert-Equal $oidResult.O2.headStable $oidVector.head "$($oidVector.name) headStable"
+    Assert-Equal $oidResult.O1.inputFailures[0].attribution 'FT-03:C2Check:Freshness' "$($oidVector.name) OID owner"
+    Assert-Equal $oidResult.O1.contractChecks[2].status Failed "$($oidVector.name) freshness status"
+    Assert-Equal $oidResult.O1.discoveryInputFingerprint $null "$($oidVector.name) fingerprint suppression"
+}
 
 $requiredAbsent=Copy-MemoryValue $facts; $requiredAbsent[0].presence='Absent';$requiredAbsent[0].worktreeSha256=$null
 $requiredAbsentResult=Invoke-C2PureDiscoveryIntake $requiredAbsent $handoff $oid $oid
@@ -337,6 +380,10 @@ if($moduleViolations.Count -or $harnessViolations.Count){throw "AST violations: 
 "ft02=Passed"
 "ft04=Passed"
 "ft15=Passed"
+"registryExtraSlot=Passed"
+"registryDuplicateSlot=Passed"
+"registryWrongOrder=Passed"
+"missingAndInvalidOidMatrix=Passed"
 "requiredAbsent=Passed"
 "freshnessOwnership=Passed"
 "manifestFreshnessSuppression=Passed"
