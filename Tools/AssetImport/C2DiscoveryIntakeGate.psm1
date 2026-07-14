@@ -312,6 +312,64 @@ function New-C2FailedIntakeResult {
     [pscustomobject][ordered]@{O1=$o1;O2=$o2}
 }
 
+function Add-C2SetFrame {
+    param([string]$Name,[object[]]$Values)
+    $items=[Collections.Generic.List[string]]::new();foreach($v in $Values){if(-not $items.Contains([string]$v)){$items.Add([string]$v)}};$items.Sort($script:Ordinal)
+    $count=[string]$items.Count;$text="${Name}.count:$($script:Utf8.GetByteCount($count)):$count`n";for($i=0;$i -lt $items.Count;$i++){$text+=ConvertTo-C2ScalarLine "${Name}[$i]" $items[$i]};$text
+}
+
+function Add-C2NullableFrame {
+    param([string]$Name,$Value)
+    if($null -eq $Value){return "${Name}.null:1:1`n"}
+    "${Name}.null:1:0`n$(ConvertTo-C2ScalarLine $Name ([string]$Value))"
+}
+
+function Get-C2ObservationId {
+    param($Row)
+    $dependencyIds=@($Row.dependencyLocators|ForEach-Object{$_.locatorId})
+    $canonicalDigest=if($null -eq $Row.canonicalEvidence){$null}else{[string]$Row.canonicalEvidence.digest}
+    $text="C2ObjectObservationV1`n"+(ConvertTo-C2ScalarLine toolName $Row.toolName)+(ConvertTo-C2ScalarLine toolVersion $Row.toolVersion)+(ConvertTo-C2ScalarLine sourceId $Row.sourceId)+(ConvertTo-C2ScalarLine containerRelativePath $Row.containerRelativePath)+(ConvertTo-C2ScalarLine pathId ([string]$Row.pathId))+(ConvertTo-C2ScalarLine classId ([string]$Row.classId))+(ConvertTo-C2ScalarLine serializedSizeBytes ([string]$Row.serializedSizeBytes))+(ConvertTo-C2ScalarLine objectType $Row.objectType)+(ConvertTo-C2ScalarLine objectName $Row.objectName)+(Add-C2SetFrame dependencyLocatorIds $dependencyIds)+(ConvertTo-C2ScalarLine contentFingerprint $Row.contentFingerprint)+(Add-C2NullableFrame configurationDisposition $Row.configurationDisposition)+(Add-C2NullableFrame canonicalEvidenceDigest $canonicalDigest)+(ConvertTo-C2ScalarLine correlationId $Row.correlationEvidence.correlationId)+(Add-C2SetFrame evidence @($Row.evidence))
+    "observation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Get-C2ApprovalId {
+    param($Approval)
+    $text="C2ExclusionApprovalV1`n"+(ConvertTo-C2ScalarLine subjectKind $Approval.subjectKind)+(ConvertTo-C2ScalarLine subjectId $Approval.subjectId)+(ConvertTo-C2ScalarLine reasonCode $Approval.reasonCode)+(ConvertTo-C2ScalarLine reason $Approval.reason)+(ConvertTo-C2ScalarLine approvedBy $Approval.approvedBy)+(ConvertTo-C2ScalarLine approvedAt $Approval.approvedAt)+(Add-C2SetFrame evidence @($Approval.evidence))
+    "exclusion-approval-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Test-C2FixtureContracts {
+    param($Documents,$Hashes)
+    $top=[ordered]@{
+        'AR-I01'='schemaVersion,ledgerPath,summaryPath,snapshotId,inputFingerprint,sourceCount,fileCount,fileBytes,objectCount'
+        'AR-I02'='schemaVersion,snapshotId,generatedAt,inputFingerprint,toolVersions,sources,files,objects'
+        'AR-I03'='schemaVersion,generatedAt,snapshotId,inputFingerprint,ledgerInputFingerprint,ledgerPath,toolVersions,operationIdentity,directChildSummaries,directChildReports,failureAttribution,nextAllowedAction,sourceCount,sourceFileCount,catalogedFileCount,explicitlyExcludedFileCount,sourceBytes,catalogedBytes,explicitlyExcludedBytes,sources,exclusions'
+        'AR-I04'='$schema,$id,title,type,required,additionalProperties,properties,$defs'
+        'AR-I05'='schemaVersion,generatedAt,corpus,extraction,semantics,configurationDisposition,unity,disposition,familyStaticOutcome,sourceKind'
+        'AR-I06'='$schema,$id,title,type,required,additionalProperties,properties,$defs'
+        'AR-I07'='schemaVersion,snapshotId,inputFingerprint,rows'
+        'AR-I10'='schemaVersion,snapshotId,inputFingerprint,entries'
+        'AR-I11'='schemaVersion,snapshotId,inputFingerprint,observationArtifactPath,observationArtifactSha256,approvals'
+    }
+    foreach($id in $top.Keys){if((@($Documents[$id].PSObject.Properties.Name)-join ',') -cne $top[$id]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id top-level shape"}}}
+    $snapshot=$Documents['AR-I01'].snapshotId;$fingerprint=$Documents['AR-I01'].inputFingerprint
+    if($snapshot -cne 'snapshot-pc-install-001' -or $Documents['AR-I01'].ledgerPath -cne $script:Registry[1].path -or $Documents['AR-I01'].summaryPath -cne $script:Registry[2].path){return [pscustomobject]@{status='Failed';owner='FT-01';reason='IdentityMismatch';subjectId='C2Check:C1Handoff';message='handoff identity'}}
+    foreach($id in @('AR-I02','AR-I03','AR-I07','AR-I10','AR-I11')){if($Documents[$id].snapshotId -cne $snapshot){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message='snapshot mismatch'}}}
+    if($Documents['AR-I02'].inputFingerprint -cne $fingerprint -or $Documents['AR-I03'].inputFingerprint -cne $fingerprint -or $Documents['AR-I07'].inputFingerprint -cne $fingerprint -or $Documents['AR-I10'].inputFingerprint -cne $fingerprint -or $Documents['AR-I11'].inputFingerprint -cne $fingerprint){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I10';message='input fingerprint mismatch'}}
+    $rowKeys='observationId,toolName,toolVersion,sourceId,containerRelativePath,pathId,classId,serializedSizeBytes,objectType,objectName,dependencyLocators,contentFingerprint,configurationDisposition,canonicalEvidence,correlationEvidence,evidence';$rows=@($Documents['AR-I07'].rows)
+    if($rows.Count -ne 6){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message='row count'}}
+    for($i=0;$i -lt 6;$i++){
+        if((@($rows[$i].PSObject.Properties.Name)-join ',') -cne $rowKeys){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message='row shape'}}
+        if($i -eq 4){if($null -ne $rows[$i].observationId -or [int]$rows[$i].classId -ge 0){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message='r5 counterexample'}}}
+        elseif($rows[$i].observationId -cne (Get-C2ObservationId $rows[$i])){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message="HI-03 row $i"}}
+    }
+    $entries=@($Documents['AR-I10'].entries);if($entries.Count -ne 2 -or (@($entries[0].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or (@($entries[1].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or $entries[0].path -cne $script:Registry[10].path -or $entries[0].sha256 -cne $Hashes['AR-I11'] -or $entries[1].path -cne $script:Registry[6].path -or $entries[1].sha256 -cne $Hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I10';message='manifest shape/binding'}}
+    if($Documents['AR-I11'].observationArtifactPath -cne $script:Registry[6].path -or $Documents['AR-I11'].observationArtifactSha256 -cne $Hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='approval artifact binding'}}
+    $approvals=@($Documents['AR-I11'].approvals);if($approvals.Count -ne 1){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='approval count'}};$approval=$approvals[0]
+    if((@($approval.PSObject.Properties.Name)-join ',') -cne 'approvalId,subjectKind,subjectId,reasonCode,reason,approvedBy,approvedAt,evidence' -or $approval.subjectId -cne $rows[5].observationId -or $approval.approvalId -cne (Get-C2ApprovalId $approval)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='HI-15/subject binding'}}
+    [pscustomobject]@{status='Passed';owner=$null;reason=$null;subjectId=$null;message=$null}
+}
+
 function Invoke-C2DiscoveryIntakeGate {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$RepositoryRoot,[AllowNull()][scriptblock]$GitTransport)
@@ -326,7 +384,7 @@ function Invoke-C2DiscoveryIntakeGate {
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
     if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
     $context=[ordered]@{facts=$null;handoff=$null;artifactReadCount=0;realAssetReadCount=0;extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
-    $registry=$script:Registry;$utf8=$script:Utf8
+    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts}
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
     $validation={param($bundle)
         try{
@@ -340,10 +398,9 @@ function Invoke-C2DiscoveryIntakeGate {
             for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='required hash mismatch'}}}
             $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c4=@($traceRows|Where-Object callNumber -eq 4)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0]
             if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c4.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
-            $handoffText=$utf8.GetString($bytes['AR-I01']);$handoffDoc=$handoffText|ConvertFrom-Json -Depth 100;$manifestDoc=$utf8.GetString($bytes['AR-I10'])|ConvertFrom-Json -Depth 100;$approvalDoc=$utf8.GetString($bytes['AR-I11'])|ConvertFrom-Json -Depth 100
-            if($handoffText -cnotmatch [regex]::Escape($registry[1].path) -or $handoffText -cnotmatch [regex]::Escape($registry[2].path) -or [string]$handoffDoc.snapshotId -cne 'snapshot-pc-install-001'){return [pscustomobject]@{status='Failed';owner='FT-01';reason='IdentityMismatch';message='handoff invalid'}}
-            $entries=@($manifestDoc.entries);if($entries.Count -ne 2 -or $entries[0].path -cne $registry[10].path -or $entries[0].sha256 -cne $hashes['AR-I11'] -or $entries[1].path -cne $registry[6].path -or $entries[1].sha256 -cne $hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message='manifest invalid'}}
-            if([string]$approvalDoc.observationArtifactSha256 -cne $hashes['AR-I07'] -or @($approvalDoc.approvals).Count -ne 1){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message='approval invalid'}}
+            $documents=[ordered]@{};foreach($id in $bytes.Keys){$documents[$id]=$utf8.GetString($bytes[$id])|ConvertFrom-Json -Depth 100 -DateKind String}
+            $contractResult=@($fixtureValidator.Invoke($documents,$hashes))[0]
+            if($contractResult.status -ne 'Passed'){return $contractResult}
             $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null};identityValid=$true;freshnessValid=$true}}
             $context.handoff=[pscustomobject][ordered]@{snapshotId='snapshot-pc-install-001';ledgerPath=$registry[1].path;summaryPath=$registry[2].path}
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
