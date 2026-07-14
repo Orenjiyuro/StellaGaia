@@ -96,7 +96,7 @@ For every artifact, stable artifact identity is its registry ID plus exact porta
 - `pathId` is invariant signed-64-bit decimal text; `classId` and sizes are nonnegative integers.
 - dependency locators exactly contain `sourceId`, `containerRelativePath`, `pathId`, `classId`, are unique and Ordinal-sorted by derived object ID.
 - `configurationDisposition` is null or one AR-I05 value.
-- `canonicalEvidence` is null or exactly `memberPlatform` (CT-09), `proposedMatchStatus` (CT-11), nullable `proposedEquivalenceFingerprint` (CT-04/CT-14; null only for Unresolved), `evidence` (nonempty CT-07); its digest follows HI-04.
+- `canonicalEvidence` is null or exactly `memberPlatform` (CT-09), `proposedMatchStatus` (CT-11), nullable `proposedEquivalenceFingerprint` (CT-04/CT-14; null only for Unresolved), nullable `proposedCanonicalAssetId`, Ordinal `memberObjectIds` set, and nonempty CT-07 `evidence`. Unresolved requires null proposed canonical ID and an empty member set. ExactDuplicate/ConfirmedVariant require a non-null proposed canonical ID, at least two member IDs including the row's derived HI-08, and that proposed ID must recompute as HI-10a from the exact proposal. Its digest follows the amended HI-04. These fields are raw proposal provenance; they are not copied into `resolvedValues`.
 - `correlationEvidence` is exactly `correlationId` (HI-05), `method` (`ExactLocator` or `ToolMapping`), `evidence` (nonempty CT-07).
 - evidence arrays are portable, distinct, Ordinal-sorted.
 
@@ -110,10 +110,11 @@ For every artifact, stable artifact identity is its registry ID plus exact porta
 
 Each approval row is exactly HI-15 `approvalId`, CT-02 `subjectKind/subjectId/reasonCode/reason/approvedBy`, CT-03 `approvedAt`, and nonempty CT-07 `evidence`. `subjectKind` is exactly `ObjectObservation`; `subjectId` is the non-null, independently recomputed HI-03 of one structurally and semantically valid AR-I07 row; `reasonCode` is exactly `ApprovedInputExclusion`. Approval rows are unique by `subjectId` and Ordinal sorted by `subjectId`. An approval for a missing, rejected, duplicate-approved, or HI-03-mismatched row is FT-02 on AR-I11, never FT-14. Approval evidence is opaque and never opened by C2.
 
-**AR-S05 private workset:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint/discoveryInputFingerprint`, and list fields `resolvedFileResults`, `mergedObjectCandidates`, `fileDiscoveryConflicts`, `observationConflicts`, `configurationCandidates`, `configurationConflicts`, `canonicalGroups`, `canonicalConflicts`, `inputFailures`, `inputExclusions`, `inputSuppressions`, `outputFailures`, `outputExclusions`.
+**AR-S05 private workset:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint/discoveryInputFingerprint`, and list fields `resolvedFileResults`, `mergedObjectCandidates`, `canonicalProposalProvenance`, `fileDiscoveryConflicts`, `observationConflicts`, `configurationCandidates`, `configurationConflicts`, `canonicalGroups`, `canonicalConflicts`, `inputFailures`, `inputExclusions`, `inputSuppressions`, `outputFailures`, `outputExclusions`.
 
 - resolved file row: exactly CT-02 `sourceId`, CT-05 `relativePath`, public extraction enum `parseStatus`, Ordinal HI-ID set `observationIds`, CT-07 `evidence`.
 - merged object row: exactly HI `assetObjectId/correlationId`, Ordinal HI-ID set `observationIds`, CT-11 `resolutionStatus`, object `resolvedValues`, CT-07 `evidence`. `resolvedValues` exactly CT-02 `sourceId/objectType/objectName`, CT-05 `containerRelativePath`, CT-06 `pathId/classId/serializedSizeBytes`, Ordinal HI-ID set `dependencyObjectIds`, CT-04 `contentFingerprint`, nullable CT-10 `configurationDisposition`, CT-09 `memberPlatform`.
+- canonical proposal provenance row: exactly HI `proposalId/observationId/canonicalEvidenceId`, nullable HI `proposedCanonicalAssetId`, Ordinal HI-ID set `memberObjectIds`, and CT-07 `evidence`. It is derived only from one accepted non-null canonical-evidence AR-I07 row, sorts by proposal ID, is fingerprinted private validation material, and is not an additional SP-08 subject. HI-10d binds the observation and complete HI-04 evidence; duplicate proposal IDs or one observation producing multiple rows are FT-05, while valid proposals that overlap or target missing members remain SP-06/FT-09 material.
 - file conflict row: exactly HI `fileDiscoveryConflictId`, CT-02 `sourceId`, CT-05 `relativePath`, Ordinal HI-ID set `observationIds`, Ordinal set `outcomes` from AR-S03 vocabulary, CT-07 `evidence`.
 - object conflict row: exactly HI `observationConflictId/correlationId`, Ordinal HI-ID sets `observationIds/derivedAssetObjectIds`, Ordinal CT-02 set `conflictingFields`, CT-11 `failureClass`, CT-07 `evidence`.
 - configuration candidate: exactly HI `configurationCandidateId`, CT-11 `targetKind`, CT-02 `sourceId`, CT-05 `containerRelativePath`, nullable HI `assetObjectId`, CT-10 `configurationDisposition`, Ordinal HI-ID set `observationIds`, CT-07 `evidence`. File target has null asset ID; object target is non-null.
@@ -278,7 +279,7 @@ A list/set with decimal item count `C` first emits `fieldName.count:D:C\n`, wher
 | --- | --- | --- |
 | HI-02 raw row fallback | `raw-row-sha256:` / `C2RawRowV1` | `artifactPath`, `artifactSha256`, `rowIndex`. It applies only after a rows array and row index exist. If document parsing fails before rows exist, the corresponding AR-I07/08/09 registry artifact ID remains the sole SP-08 subject and becomes the accounting subject ID. |
 | HI-03 object observation | `observation-sha256:` / `C2ObjectObservationV1` | `toolName`, `toolVersion`, `sourceId`, `containerRelativePath`, `pathId`, `classId`, `serializedSizeBytes`, `objectType`, `objectName`, `dependencyLocatorIds` set, `contentFingerprint`, nullable `configurationDisposition`, nullable `canonicalEvidenceDigest`, `correlationId`, `evidence` set |
-| HI-04 canonical evidence | `canonical-evidence-sha256:` / `C2CanonicalEvidenceV1` | `memberPlatform`, `matchStatus`, nullable `equivalenceFingerprint`, `evidence` set |
+| HI-04 canonical evidence | `canonical-evidence-sha256:` / `C2CanonicalEvidenceV2` | `memberPlatform`, `matchStatus`, nullable `equivalenceFingerprint`, nullable `proposedCanonicalAssetId`, `memberObjectIds` set, `evidence` set |
 | HI-05a locator | `locator-sha256:` / `C2ToolLocatorV1` | `toolName`, `toolVersion`, `sourceId`, `containerRelativePath`, `pathId`, `classId` |
 | HI-05b exact correlation | `correlation-sha256:` / `C2CorrelationExactLocatorV1` | `sourceId`, `containerRelativePath`, `pathId` |
 | HI-05c mapped correlation | `correlation-sha256:` / `C2CorrelationToolMappingV1` | `locatorIds` set, Ordinal unique/sorted/count encoded |
@@ -291,6 +292,7 @@ A list/set with decimal item count `C` first emits `fieldName.count:D:C\n`, wher
 | HI-10a confirmed canonical group | `canonical-sha256:` / `C2CanonicalGroupV1` | `matchStatus`, `platformScope`, `equivalenceFingerprint`, `memberObjectIds` set; Unresolved instead uses its sole object ID directly |
 | HI-10b variant equivalence | no prefix / `C2VariantEquivalenceV1` | `contentFingerprints` distinct Ordinal-sorted set with count |
 | HI-10c canonical conflict | `canonical-conflict-sha256:` / `C2CanonicalConflictV1` | `proposedCanonicalAssetIds`, `memberObjectIds`, `observationIds`, `conflictingFields`; each distinct Ordinal-sorted set separately named/count encoded |
+| HI-10d canonical proposal provenance | `canonical-proposal-sha256:` / `C2CanonicalProposalV1` | `observationId`, `canonicalEvidenceId`, nullable `proposedCanonicalAssetId`, `memberObjectIds` set |
 | HI-11a file discovery conflict | `file-discovery-conflict-sha256:` / `C2FileDiscoveryConflictV1` | `sourceId`, `relativePath`, `observationIds` set, `outcomes` set |
 | HI-11b object observation conflict | `observation-conflict-sha256:` / `C2ObservationConflictV1` | `correlationId`, `observationIds`, `derivedAssetObjectIds`, `conflictingFields` sets, `failureClass` |
 | HI-12 accounting | `accounting-sha256:` / `C2AccountingRecordV1` | `owningArray`, `subjectKind`, `subjectId`, `reasonCode`, `attribution`, `evidence` set |
@@ -349,6 +351,42 @@ Only `observationIds`, tool-observation rows, and evidence paths are unioned. Wi
 - For each accepted observation sorted by toolName/toolVersion/observationId, public `toolObservations` row is exactly `toolName` and `observation`. The observation text concatenates `version=`, exact version, `;observationId=`, exact ID, `;resolution=`, and merged resolution status, with no whitespace.
 - Public evidence is the distinct Ordinal-sorted union of observation, correlation, dependency, configuration, and canonical evidence. Empty evidence fails FT-11.
 - Canonical ID comes only from SP-06. Public `platformVariant` equals the resolved CT-09 member platform exactly, never group platform scope. Corpus is `Cataloged`; extraction is `ExtractedReadable` for SingleTool or `CrossToolVerified` for Agreed; Unity is `NotTested`; disposition is `RetainForLater`.
+
+### SP-06 canonical-proposal provenance subregistry
+
+SP-06 consumes only the complete SP-04 resolved-object set and `canonicalProposalProvenance`; it never reads an unregistered field from `resolvedValues`. A proposal is eligible only when its observation is accepted, its HI-03 and HI-04 recompute, its derived object is a member, its proposed canonical ID equals HI-10a, and every member exists in SP-04. All eligible proposals naming the same canonical ID must have exact-equal member set/status/scope/equivalence fingerprint. Each member may occur in one eligible proposed group only.
+
+Null canonical evidence creates no provenance row and deterministically yields one-member Unresolved. Non-null Unresolved evidence is invalid because Unresolved requires no proposal. ExactDuplicate requires at least two members, identical content fingerprints, and `PcOnly`, `AndroidOnly`, or `CrossPlatformIdentical` scope derived from members. ConfirmedVariant requires Pc+Android, at least two distinct content fingerprints, `CrossPlatformVariant`, nonempty evidence, and equivalence fingerprint equal to HI-10b. Any missing member, overlap, duplicate proposal, invalid scope/content/platform combination, or mismatched equivalence follows FT-09; all affected objects become CanonicalConflict and never also Canonicalized.
+
+The frozen pure vectors use object IDs `sha256:` plus 64 `a`, `b`, `c`, and `d` digits, observation IDs `observation-sha256:` plus 64 `e` and `f` digits, and direct evidence `Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/canonical-e.json` / `canonical-f.json`:
+
+- ExactDuplicate A: members a/b, Pc/Pc, content 64 `1` each, equivalence 64 `1`, scope PcOnly → `canonical-sha256:843086f47eb4de699ad9d586f4692993fb1bbe0f68b1487b32aa1cd5b7eeff3c`.
+- ExactDuplicate B overlap counterproposal: members b/c with the same other values → `canonical-sha256:0942c13e4665a597883b01a50826348ce4443e1cbe3c676d74c24ab81c3a4ad3`.
+- ConfirmedVariant: members c/d, Pc/Android, content 64 `2` / 64 `3`; HI-10b is `1bbf97948d5f9111ae0e5000a7420a367632e52f434c9cdf15ecae33dfa5bbe1`, scope CrossPlatformVariant → `canonical-sha256:0daa9f57bb5628818d732ec67ff39f74839a47a4a668c0465bd6f4f0a7e0dc85`.
+
+Complete positive provenance rows are:
+
+| vector/member observation | memberPlatform | HI-04 | HI-10d proposalId |
+|---|---|---|---|
+| ExactDuplicate/e | Pc | `canonical-evidence-sha256:db79daf694e7124465b9ab59f11e5c83099708887ccbb8165d4082d96f72b635` | `canonical-proposal-sha256:47ea77dfb0edfd6e2f8fc9240ccfe912f6bbcdc9e2a9a35ee300b9a9f3000616` |
+| ExactDuplicate/f | Pc | `canonical-evidence-sha256:84d251cfa1e7737a37cfba8044aa0a9b5b6ae445d006486f6085e27bdaf1b6d3` | `canonical-proposal-sha256:739435c01238c780173575c4621835c0f5e5cb64518f6893df3ff8bfa1a80398` |
+| ConfirmedVariant/e | Pc | `canonical-evidence-sha256:8f15fd3e611ba21a1edcd7dbde908459200c3b6cdde21010da9f2b41bbe507e2` | `canonical-proposal-sha256:d95b1377f3d6231d7f33e80f5363a2e47a45a2a1701265f09eaed9ad5517e026` |
+| ConfirmedVariant/f | Android | `canonical-evidence-sha256:144a9217b5fdd1b299e9ad4adb69296ba8ac7eb001eb837bf4dc8c9dc2418fcc` | `canonical-proposal-sha256:087f02858ad3e39be743702c53319fb19b3e667ee512caa8c4aed2bb6e30524f` |
+
+Each row uses its vector's exact proposed canonical ID/member set/equivalence fingerprint, the table observation ID, and its matching single evidence path. The provenance row repeats those exact member/proposed IDs and evidence; no implementation-generated expected value is permitted.
+
+The exact HI-10c vectors are:
+
+| vector | proposed IDs | members | observations | conflictingFields | canonicalConflictId | FT-09 recordId |
+|---|---|---|---|---|---|---|
+| overlap A/B | A,B | a,b,c | e,f | `memberObjectIds` | `canonical-conflict-sha256:6d27bbe91cbcdcf600269fa6e7f9f8566c47bb072bb389948352908de8b5df84` | `accounting-sha256:b96c96d4eb5a03e06798d939a37b102dac4a578495f2c4fb1275078e6ef58a77` |
+| missing b | A | a,b | e | `missingMemberObjectIds` | `canonical-conflict-sha256:e5400ea65d3f16dc87297f7ac3b9fb440ad06316c48972306f64574967556639` | `accounting-sha256:f066e105f9ca53965b6c49e13664eb494c1c38ecadaa91d1c38b39324d836135` |
+| duplicate A | A | a,b | e,f | `duplicateProposal` | `canonical-conflict-sha256:7ce01841465383e2c3dbf21c44ebd9960a401ca539434e14a918cd5802350aa5` | `accounting-sha256:418a8fdf7220103591ce64d5718130e0069e61569415f40f1e7b6c2916cf2ee9` |
+| variant same platform | ConfirmedVariant | c,d | e,f | `memberPlatform` | `canonical-conflict-sha256:b45a6162ea16bda2d7c717d451de5c565296b9ce16edb676930a9b4e16b9b694` | `accounting-sha256:a2f3cf79107d4422fd7f75bddcad234e5d079a03f8a52f99ea970736ae7bc103` |
+| variant same content | ConfirmedVariant | c,d | e,f | `contentFingerprint` | `canonical-conflict-sha256:bffc1ab94aa94f182dbae0e02c4a6eb1edd3e2cdce821390df9ab315131c6a12` | `accounting-sha256:0ca4f829ad7b7e71132e055f329c1f6351b2fb934d09cce992a6de1f73928c89` |
+| variant bad HI-10b | ConfirmedVariant | c,d | e,f | `equivalenceFingerprint` | `canonical-conflict-sha256:36e974feaf687441fdcd12bede62c5461ad3ce2b3cf843a40858279c5a2f1cbe` | `accounting-sha256:7c5158ff25a6da20c94656196b201a0a07044865c4e3b33ccfa8612a452c33b7` |
+
+Each vector produces one AR-S10 row with `owningArray=inputFailures`, `subjectKind=CanonicalConflict`, the table ID, `reasonCode=ConflictDetected`, `attribution=FT-09:<ID>`, and the distinct Ordinal direct-evidence union. Its `recordId` is HI-12 and must be frozen literally by the plan/harness before implementation; changing any table set must change both IDs.
 
 ### SP-07 dispatch partition subregistry
 
