@@ -213,8 +213,8 @@ function Invoke-C2GitChild {
 }
 
 function Invoke-C2GitProtocol {
-    param([string]$RepositoryRoot,[AllowNull()][scriptblock]$Transport,[AllowNull()][string]$GitExecutable)
-    $trace=[Collections.Generic.List[object]]::new();$start=$null;$end=$null;$owner=$null;$reason=$null
+    param([string]$RepositoryRoot,[AllowNull()][scriptblock]$Transport,[AllowNull()][string]$GitExecutable,[AllowNull()][scriptblock]$BeforeFinalHead)
+    $trace=[Collections.Generic.List[object]]::new();$start=$null;$end=$null;$owner=$null;$reason=$null;$validation=$null
     $paths=@($script:Registry[6].path,$script:Registry[7].path,$script:Registry[8].path,$script:Registry[9].path,$script:Registry[10].path)
     function Invoke-ProtocolCall([int]$Number,[string[]]$Arguments,[bool]$Raw){
         if($null -ne $Transport){$response=@($Transport.Invoke($Number,$Arguments,$Raw))[0]}
@@ -241,6 +241,10 @@ function Invoke-C2GitProtocol {
             if(-not $valid){$owner='FT-03';$reason='StaleFingerprint';break}
         }
     }
+    if($null -eq $owner -and $null -ne $BeforeFinalHead){
+        try{$validation=@($BeforeFinalHead.Invoke([pscustomobject]@{trace=[object[]]$trace}))[0]}catch{$validation=[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message=$_.Exception.Message}}
+        if($validation.status -cne 'Passed'){$owner=$validation.owner;$reason=$validation.reason}
+    }
     if($null -ne $start -and $owner -ne 'FT-13'){
         $c6=Invoke-ProtocolCall 6 @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') $false
         if($c6.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted'}
@@ -248,7 +252,7 @@ function Invoke-C2GitProtocol {
         else{$owner='FT-03';$reason='StaleFingerprint'}
     }
     $stable=if($null -ne $start -and $null -ne $end){$start -ceq $end}else{$null}
-    [pscustomobject][ordered]@{status=if($null -eq $owner){'Passed'}else{'Failed'};owner=$owner;reason=$reason;failureAttribution=if($owner){"${owner}:C2Check:$(if($owner -eq 'FT-13'){'LightweightPolicy'}else{'Freshness'})"}else{$null};startCommitOid=$start;endCommitOid=$end;headStable=$stable;discoveryInputFingerprint=$null;gitInspectionProcessCount=$trace.Count;heavyProcessCount=0;commandTrace=[object[]]$trace}
+    [pscustomobject][ordered]@{status=if($null -eq $owner){'Passed'}else{'Failed'};owner=$owner;reason=$reason;failureAttribution=if($owner){"${owner}:C2Check:$(if($owner -eq 'FT-13'){'LightweightPolicy'}else{'Freshness'})"}else{$null};startCommitOid=$start;endCommitOid=$end;headStable=$stable;discoveryInputFingerprint=$null;gitInspectionProcessCount=$trace.Count;heavyProcessCount=0;commandTrace=[object[]]$trace;validation=$validation}
 }
 
 function Invoke-C2GitFreshnessAdapter {
@@ -295,50 +299,39 @@ function Invoke-C2DiscoveryIntakeGate {
         '88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444',
         '45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449'
     )
-    $gitCommand=Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
-    $gitExecutable=$gitCommand.Source
+    $gitExecutable=(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source
     if(-not [IO.Path]::IsPathFullyQualified($gitExecutable)){throw 'FT-13: git executable is not absolute.'}
-    $trace=[Collections.Generic.List[object]]::new()
-    $c1=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 1 $false;$null=$trace.Add($c1)
-    $startText=$script:Utf8.GetString($c1.stdoutBytes)
-    if($c1.exitCode -ne 0 -or $c1.stderr.Length -ne 0 -or $startText -cnotmatch "^[0-9a-f]{40}`n$"){throw 'FT-03: invalid start HEAD result.'}
-    $startOid=$startText.Substring(0,40)
-    $c2=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($script:Registry[6].path)") 2 $true;$null=$trace.Add($c2)
-    $c3=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$startOid,'--',$script:Registry[7].path,$script:Registry[8].path) 3 $false;$null=$trace.Add($c3)
-    $c4=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($script:Registry[9].path)") 4 $true;$null=$trace.Add($c4)
-    $c5=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($script:Registry[10].path)") 5 $true;$null=$trace.Add($c5)
-    foreach($call in @($c2,$c4,$c5)){if($call.exitCode -ne 0 -or $call.stderr.Length -ne 0){throw "FT-03: invalid blob result at call $($call.callNumber)."}}
-    if($c3.exitCode -ne 0 -or $c3.stderr.Length -ne 0 -or $c3.stdoutBytes.Length -ne 0){throw 'FT-03: optional absence result invalid.'}
-    $bytes=[ordered]@{}
-    foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$script:Registry[$index].artifactId]=Read-C2AuditedArtifactBytes $RepositoryRoot $script:Registry[$index].path}
-    $hashes=[ordered]@{}
-    foreach($key in $bytes.Keys){$hashes[$key]=Get-C2Sha256 $bytes[$key]}
-    for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){throw "FT-03: required artifact hash mismatch AR-I{0:d2}." -f ($i+1)}}
-    if($hashes['AR-I07'] -cne (Get-C2Sha256 $c2.stdoutBytes) -or $hashes['AR-I10'] -cne (Get-C2Sha256 $c4.stdoutBytes) -or $hashes['AR-I11'] -cne (Get-C2Sha256 $c5.stdoutBytes)){throw 'FT-03: worktree/commit blob mismatch.'}
-    $handoffText=$script:Utf8.GetString($bytes['AR-I01']);$manifestText=$script:Utf8.GetString($bytes['AR-I10']);$approvalText=$script:Utf8.GetString($bytes['AR-I11'])
-    try{$handoffDoc=$handoffText|ConvertFrom-Json -Depth 100;$manifestDoc=$manifestText|ConvertFrom-Json -Depth 100;$approvalDoc=$approvalText|ConvertFrom-Json -Depth 100}catch{throw 'FT-02: JSON shape invalid.'}
-    if($handoffText -cnotmatch [regex]::Escape($script:Registry[1].path) -or $handoffText -cnotmatch [regex]::Escape($script:Registry[2].path)){throw 'FT-01: handoff paths invalid.'}
-    $snapshotId=[string]$handoffDoc.snapshotId
-    if($snapshotId -cne 'snapshot-pc-install-001'){throw 'FT-01: handoff snapshot identity invalid.'}
-    $manifestEntries=@($manifestDoc.entries)
-    if($manifestEntries.Count -ne 2){throw 'FT-02: AR-I10 entry count invalid.'}
-    $expectedManifestPaths=@($script:Registry[10].path,$script:Registry[6].path)
-    $expectedManifestHashes=@($hashes['AR-I11'],$hashes['AR-I07'])
-    for($i=0;$i -lt 2;$i++){
-        if($manifestEntries[$i].path -cne $expectedManifestPaths[$i] -or $manifestEntries[$i].sha256 -cne $expectedManifestHashes[$i]){throw 'FT-02: AR-I10 binding invalid.'}
-    }
-    if([string]$approvalDoc.observationArtifactSha256 -cne $hashes['AR-I07'] -or @($approvalDoc.approvals).Count -ne 1){throw 'FT-02: AR-I11 binding invalid.'}
-    $facts=for($i=0;$i -lt 11;$i++){
-        $present=$i -notin @(7,8);$id=$script:Registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null}
-        [pscustomobject][ordered]@{artifactId=$id;path=$script:Registry[$i].path;requirement=$script:Registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null};identityValid=$true;freshnessValid=$true}
-    }
-    $handoff=[pscustomobject][ordered]@{snapshotId=$snapshotId;ledgerPath=$script:Registry[1].path;summaryPath=$script:Registry[2].path}
-    $c6=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 6 $false;$null=$trace.Add($c6)
-    $endText=$script:Utf8.GetString($c6.stdoutBytes)
-    if($c6.exitCode -ne 0 -or $c6.stderr.Length -ne 0 -or $endText -cnotmatch "^[0-9a-f]{40}`n$"){throw 'FT-03: invalid end HEAD result.'}
-    $endOid=$endText.Substring(0,40)
-    $result=Invoke-C2PureDiscoveryIntake $facts $handoff $startOid $endOid
-    $result.O2.gitInspectionProcessCount=$trace.Count
+    $context=[ordered]@{facts=$null;handoff=$null;artifactReadCount=0;realAssetReadCount=0;extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
+    $registry=$script:Registry;$utf8=$script:Utf8
+    $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
+    $validation={param($bundle)
+        try{
+            $traceRows=@($bundle.trace)
+            foreach($absentIndex in @(7,8)){
+                $candidate=[IO.Path]::Combine($RepositoryRoot,$registry[$absentIndex].path.Replace('/',[IO.Path]::DirectorySeparatorChar))
+                if([IO.File]::Exists($candidate)){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message="unexpected worktree presence: $($registry[$absentIndex].artifactId)"}}
+            }
+            $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$context.artifactReadCount++}
+            $hashes=[ordered]@{};foreach($key in $bytes.Keys){$hashes[$key]=@($hashBytes.Invoke([byte[]]$bytes[$key]))[0]}
+            for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='required hash mismatch'}}}
+            $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c4=@($traceRows|Where-Object callNumber -eq 4)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0]
+            if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c4.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
+            $handoffText=$utf8.GetString($bytes['AR-I01']);$handoffDoc=$handoffText|ConvertFrom-Json -Depth 100;$manifestDoc=$utf8.GetString($bytes['AR-I10'])|ConvertFrom-Json -Depth 100;$approvalDoc=$utf8.GetString($bytes['AR-I11'])|ConvertFrom-Json -Depth 100
+            if($handoffText -cnotmatch [regex]::Escape($registry[1].path) -or $handoffText -cnotmatch [regex]::Escape($registry[2].path) -or [string]$handoffDoc.snapshotId -cne 'snapshot-pc-install-001'){return [pscustomobject]@{status='Failed';owner='FT-01';reason='IdentityMismatch';message='handoff invalid'}}
+            $entries=@($manifestDoc.entries);if($entries.Count -ne 2 -or $entries[0].path -cne $registry[10].path -or $entries[0].sha256 -cne $hashes['AR-I11'] -or $entries[1].path -cne $registry[6].path -or $entries[1].sha256 -cne $hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message='manifest invalid'}}
+            if([string]$approvalDoc.observationArtifactSha256 -cne $hashes['AR-I07'] -or @($approvalDoc.approvals).Count -ne 1){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message='approval invalid'}}
+            $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null};identityValid=$true;freshnessValid=$true}}
+            $context.handoff=[pscustomobject][ordered]@{snapshotId='snapshot-pc-install-001';ledgerPath=$registry[1].path;summaryPath=$registry[2].path}
+            [pscustomobject]@{status='Passed';owner=$null;reason=$null}
+        }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
+    }.GetNewClosure()
+    $protocol=Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $null -GitExecutable $gitExecutable -BeforeFinalHead $validation
+    if($protocol.status -ne 'Passed'){throw "$($protocol.owner): $($protocol.reason); $($protocol.validation.message); start=$($protocol.startCommitOid); end=$($protocol.endCommitOid); calls=$($protocol.gitInspectionProcessCount)"}
+    $result=Invoke-C2PureDiscoveryIntake $context.facts $context.handoff $protocol.startCommitOid $protocol.endCommitOid
+    $result.O2.gitInspectionProcessCount=$protocol.gitInspectionProcessCount
+    $result.O2.realAssetReadCount=$context.realAssetReadCount
+    $result.O2.createdExtractedCount=[int](-not $context.extractedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted')))
+    $result.O2.createdImportedCount=[int](-not $context.importedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported')))
     return $result
 }
 
