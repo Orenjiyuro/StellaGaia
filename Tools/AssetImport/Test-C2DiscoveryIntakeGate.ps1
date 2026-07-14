@@ -117,10 +117,12 @@ if ($Case -ceq 'Integration') {
 
 if ($Case -ceq 'FailureState') {
     $oid='1111111111111111111111111111111111111111'
-    $call1Result=Test-C2InjectedGateVector -RepositoryRoot 'C:\repo' -Vector Call1StartFailure
+    $failureRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $call1Result=$loadedModule.Invoke({param($root)Test-C2InjectedGateVector -RepositoryRoot $root -Vector Call1StartFailure},@($failureRoot))[0]
     if($call1Result.O2.status -cne 'Failed' -or $call1Result.O2.gitInspectionProcessCount -ne 0 -or $null -ne $call1Result.O2.startCommitOid -or $null -ne $call1Result.O2.endCommitOid -or $null -ne $call1Result.O2.headStable){throw 'Call1 Failed O1/O2 vector invalid.'}
     if($call1Result.O1.inputFailures[0].attribution -cne 'FT-03:C2Check:Freshness' -or $null -ne $call1Result.O2.discoveryInputFingerprint){throw 'Call1 failure ownership invalid.'}
-    $call3Result=Test-C2InjectedGateVector -RepositoryRoot 'C:\repo' -Vector Call3InvalidOutput
+    if($call1Result.O2.failedRegistrySlotCount -ne 9 -or $call1Result.O2.absentOptionalArtifactCount -ne 2 -or @($call1Result.O1.artifactStates|Where-Object presence -eq Present).Count -ne 9 -or @($call1Result.O1.artifactStates|Where-Object readStatus -eq NotRead).Count -ne 11){throw 'Call1 artifact state derivation invalid.'}
+    $call3Result=$loadedModule.Invoke({param($root)Test-C2InjectedGateVector -RepositoryRoot $root -Vector Call3InvalidOutput},@($failureRoot))[0]
     if($call3Result.O2.status -cne 'Failed' -or $call3Result.O2.gitInspectionProcessCount -ne 4 -or $call3Result.O2.startCommitOid -cne $oid -or $call3Result.O2.endCommitOid -cne $oid -or -not $call3Result.O2.headStable){throw 'Intermediate Failed O1/O2 vector invalid.'}
     if($call3Result.O1.inputFailures.Count -ne 1 -or $call3Result.O2.issueCount -ne 1 -or $null -ne $call3Result.O2.discoveryInputFingerprint){throw 'Intermediate failure accounting invalid.'}
     foreach($r in @($call1Result,$call3Result)){
@@ -131,6 +133,8 @@ if ($Case -ceq 'FailureState') {
     "call1FailureStatus=$($call1Result.O2.status)"
     "call1GitInspectionProcessCount=$($call1Result.O2.gitInspectionProcessCount)"
     "call1HeadStable=$($call1Result.O2.headStable)"
+    "call1PresentSlotCount=$(@($call1Result.O1.artifactStates|Where-Object presence -eq Present).Count)"
+    "call1FailedRegistrySlotCount=$($call1Result.O2.failedRegistrySlotCount)"
     "intermediateFailureStatus=$($call3Result.O2.status)"
     "intermediateGitInspectionProcessCount=$($call3Result.O2.gitInspectionProcessCount)"
     "intermediateFinalHeadRevalidated=$($call3Result.O2.headStable)"
@@ -140,25 +144,31 @@ if ($Case -ceq 'FailureState') {
 
 if ($Case -ceq 'ValidatorMutations') {
     $repositoryRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    function Invoke-PrivateVector {param([string]$Vector)$loadedModule.Invoke({param($root,$name)Test-C2InjectedGateVector -RepositoryRoot $root -Vector $name},@($repositoryRoot,$Vector))[0]}
     $vectors=@(
-        [pscustomobject]@{name='ledgerNestedSchema';subject='AR-I02';result=(Test-C2InjectedGateVector $repositoryRoot LedgerNestedInvalid)},
-        [pscustomobject]@{name='vocabularyContent';subject='AR-I05';result=(Test-C2InjectedGateVector $repositoryRoot VocabularyInvalid)},
-        [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Test-C2InjectedGateVector $repositoryRoot ManifestShapeInvalid)},
-        [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Test-C2InjectedGateVector $repositoryRoot ObservationHI03Invalid)},
-        [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Test-C2InjectedGateVector $repositoryRoot ApprovalHI15Invalid)}
+        [pscustomobject]@{name='ledgerNestedSchema';subject='AR-I02';result=(Invoke-PrivateVector LedgerNestedInvalid)},
+        [pscustomobject]@{name='vocabularyContent';subject='AR-I05';result=(Invoke-PrivateVector VocabularyInvalid)},
+        [pscustomobject]@{name='rootSchemaSemantics';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaInvalid)},
+        [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Invoke-PrivateVector ManifestShapeInvalid)},
+        [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Invoke-PrivateVector ObservationHI03Invalid)},
+        [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Invoke-PrivateVector ApprovalHI15Invalid)}
     )
     foreach($vector in $vectors){
         $r=$vector.result
         if($r.O2.status -cne 'Failed' -or $r.O2.issueCount -ne 1 -or $r.O2.gitInspectionProcessCount -ne 6 -or -not $r.O2.headStable -or $null -ne $r.O2.discoveryInputFingerprint){throw "$($vector.name) failure vector invalid"}
         if($r.O1.inputFailures[0].attribution -cne "FT-02:$($vector.subject)" -or $r.O1.contractChecks[2].status -cne 'NotEvaluated'){throw "$($vector.name) ownership/suppression invalid"}
+        if($r.O2.readArtifactCount -ne 9 -or $r.O2.acceptedArtifactCount -ne 8 -or $r.O2.failedArtifactCount -ne 1 -or $r.O2.failedRegistrySlotCount -ne 1 -or $r.O1.snapshotId -cne 'snapshot-pc-install-001'){throw "$($vector.name) actual artifact accounting invalid"}
+        $failedArtifact=@($r.O1.artifactStates|Where-Object readStatus -eq Failed)
+        if($failedArtifact.Count -ne 1 -or $failedArtifact[0].artifactId -cne $vector.subject -or $failedArtifact[0].worktreeSha256 -cnotmatch '^[0-9a-f]{64}$'){throw "$($vector.name) failed artifact state invalid"}
     }
     "status=Passed"
     "ledgerNestedSchemaMutation=Passed"
     "vocabularyContentMutation=Passed"
+    "rootSchemaSemanticsMutation=Passed"
     "manifestShapeMutation=Passed"
     "observationHI03Mutation=Passed"
     "approvalHI15Mutation=Passed"
-    "mutationFinalHeadRevalidationCount=5"
+    "mutationFinalHeadRevalidationCount=6"
     return
 }
 
@@ -206,7 +216,6 @@ $facts = for ($i=0; $i -lt 11; $i++) {
         worktreeSha256=if($present){$shaValues[$i]}else{$null}
         commitBlobSha256=if($i -in @(6,9,10)){$shaValues[$i]}else{$null}
         manifestSha256=if($i -in @(6,10)){$shaValues[$i]}else{$null}
-        identityValid=$true; freshnessValid=$true
     }
 }
 $handoff = [pscustomobject][ordered]@{ snapshotId='snapshot-pc-install-001'; ledgerPath=$paths[1]; summaryPath=$paths[2] }
@@ -266,7 +275,7 @@ Assert-Equal $requiredAbsentResult.O1.inputFailures[0].attribution 'FT-03:C2Chec
 Assert-Equal $requiredAbsentResult.O2.registeredArtifactCount ($requiredAbsentResult.O2.readArtifactCount+$requiredAbsentResult.O2.absentOptionalArtifactCount+$requiredAbsentResult.O2.failedRegistrySlotCount) 'required absence NP-01'
 Assert-Equal $requiredAbsentResult.O2.inputSubjectCount ($requiredAbsentResult.O2.acceptedInputSubjectCount+$requiredAbsentResult.O2.inputFailureCount+$requiredAbsentResult.O2.excludedInputSubjectCount+$requiredAbsentResult.O2.notEvaluatedInputSubjectCount) 'required absence NP-04'
 
-$freshnessFalse=Copy-MemoryValue $facts;$freshnessFalse[0].freshnessValid=$false
+$freshnessFalse=Copy-MemoryValue $facts;$freshnessFalse[0].worktreeSha256='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 $freshnessFalseResult=Invoke-C2PureDiscoveryIntake $freshnessFalse $handoff $oid $oid
 Assert-Equal $freshnessFalseResult.O1.inputFailures[0].attribution 'FT-03:C2Check:Freshness' 'freshness fact owner'
 Assert-Equal $freshnessFalseResult.O1.contractChecks[2].attribution 'FT-03:C2Check:Freshness' 'freshness check attribution'
@@ -276,8 +285,9 @@ $manifestShapeResult=Invoke-C2PureDiscoveryIntake $manifestShape $handoff $oid $
 Assert-Equal $manifestShapeResult.O1.contractChecks[2].status NotEvaluated 'manifest FT-15 freshness status'
 Assert-Equal $manifestShapeResult.O1.contractChecks[2].attribution 'FT-15:C2Check:Freshness' 'manifest FT-15 attribution'
 
-$twoFailures=Copy-MemoryValue $facts;$twoFailures[3].identityValid=$false;$twoFailures[4].identityValid=$false
-$twoFailureResult=Invoke-C2PureDiscoveryIntake $twoFailures $handoff $oid $oid
+$twoFailures=Copy-MemoryValue $facts
+$twoFindings=@([pscustomobject]@{artifactId='AR-I04';transition='FT-02';reason='InvalidSchema';evidence=@($paths[3])},[pscustomobject]@{artifactId='AR-I05';transition='FT-02';reason='InvalidSchema';evidence=@($paths[4])})
+$twoFailureResult=Invoke-C2PureDiscoveryIntake $twoFailures $handoff $oid $oid -ValidationFindings $twoFindings
 Assert-Equal $twoFailureResult.O1.inputFailures.Count 2 'independent failure accounting count'
 Assert-Equal $twoFailureResult.O2.issueCount 2 'independent issue count'
 
@@ -299,6 +309,7 @@ function Get-AstViolations {
                 'Invoke-C2GitChild'='^(\[Diagnostics\.Process\]::new\(\)|\$process\.Start\(\)|\[IO\.MemoryStream\]::new\(\)|\$process\.StandardOutput\.BaseStream\.CopyToAsync\(\$memory\)|\$process\.StandardError\.ReadToEndAsync\(\)|\$process\.WaitForExit\(\)|\$process\.Dispose\(\))$'
                 'Invoke-C2GitFreshnessAdapter'='^\[IO\.Path\]::IsPathFullyQualified\(\$gitExecutable\)$'
                 'Read-C2AuditedArtifactBytes'='^\[IO\.Path\]::(GetFullPath|Combine)\(.+\)$|^\[IO\.File\]::ReadAllBytes\(\$full\)$'
+                'New-C2FailedIntakeResult'='^\[IO\.(Path|File)\]::(Combine|Exists)\(.+\)$'
                 'Invoke-C2DiscoveryIntakeGateInternal'='^\[IO\.(Path|Directory|File)\]::(IsPathFullyQualified|Combine|Exists|ReadAllBytes)\(.+\)$'
             }
             if($null -eq $parent -or -not $allowedByFunction.ContainsKey($parent.Name) -or $text -cnotmatch $allowedByFunction[$parent.Name]){$violations.Add("api:$text")}

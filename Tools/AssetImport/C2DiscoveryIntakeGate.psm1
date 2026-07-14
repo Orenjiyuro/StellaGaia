@@ -15,6 +15,7 @@ $script:Registry = @(
     [pscustomobject]@{ artifactId='AR-I10'; path='Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json'; requirement='ConditionalAuthority' }
     [pscustomobject]@{ artifactId='AR-I11'; path='Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json'; requirement='ConditionalApproval' }
 )
+$script:RequiredHashes=@('548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac','acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462','c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1','b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c','88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444','45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449')
 
 function ConvertTo-C2ScalarLine {
     param([string]$Name, [string]$Value)
@@ -93,14 +94,15 @@ function Invoke-C2PureDiscoveryIntake {
         [Parameter(Mandatory)][psobject]$HandoffFact,
         [AllowNull()][string]$StartCommitOid,
         [AllowNull()][string]$EndCommitOid,
-        [bool]$FreshnessPrerequisiteAvailable = $true
+        [bool]$FreshnessPrerequisiteAvailable = $true,
+        [object[]]$ValidationFindings = @()
     )
     $failures=[Collections.Generic.List[object]]::new()
     $states=[Collections.Generic.List[object]]::new()
     $directOwner=$null
     $freshnessEvidence=[Collections.Generic.List[string]]::new()
     $artifactPrerequisiteFailed=$false
-    $expectedFactNames=@('artifactId','path','requirement','presence','worktreeSha256','commitBlobSha256','manifestSha256','identityValid','freshnessValid')
+    $expectedFactNames=@('artifactId','path','requirement','presence','worktreeSha256','commitBlobSha256','manifestSha256')
     for($i=0;$i -lt $script:Registry.Count;$i++){
         $reg=$script:Registry[$i]; $fact=if($i -lt $ArtifactFacts.Count){$ArtifactFacts[$i]}else{$null}
         $shapeOk=($null -ne $fact) -and ((@($fact.PSObject.Properties.Name) -join ',') -ceq ($expectedFactNames -join ','))
@@ -108,9 +110,14 @@ function Invoke-C2PureDiscoveryIntake {
         $safe=$shapeOk -and (Test-C2PortablePath ([string]$fact.path))
         $presence=if($shapeOk -and $fact.presence -ceq 'Absent'){'Absent'}else{'Present'}
         $requiredAbsent=$shapeOk -and $reg.requirement -ceq 'Required' -and $presence -ceq 'Absent'
-        $identityFailure=-not $shapeOk -or -not $identityOk -or ($shapeOk -and -not [bool]$fact.identityValid)
+        $finding=@($ValidationFindings|Where-Object artifactId -eq $reg.artifactId|Select-Object -First 1)
+        $identityFailure=-not $shapeOk -or -not $identityOk -or $finding.Count -gt 0
         $pathFailure=$shapeOk -and -not $safe
-        $freshnessFailure=$requiredAbsent -or ($shapeOk -and $identityOk -and $safe -and [bool]$fact.identityValid -and -not [bool]$fact.freshnessValid)
+        $shaOk=$shapeOk -and ($presence -eq 'Absent' -or $fact.worktreeSha256 -cmatch '^[0-9a-f]{64}$')
+        if($i -lt 6){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $script:RequiredHashes[$i]}
+        elseif($i -in @(6,10)){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $fact.commitBlobSha256 -and $fact.worktreeSha256 -ceq $fact.manifestSha256}
+        elseif($i -eq 9){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $fact.commitBlobSha256}
+        $freshnessFailure=$requiredAbsent -or ($shapeOk -and $identityOk -and $safe -and $finding.Count -eq 0 -and -not $shaOk)
         $failed=$identityFailure -or $pathFailure -or $freshnessFailure
         if($pathFailure){
             if($null -eq $directOwner){$directOwner='FT-04'}
@@ -118,7 +125,8 @@ function Invoke-C2PureDiscoveryIntake {
             $artifactPrerequisiteFailed=$true
         }elseif($identityFailure){
             if($null -eq $directOwner){$directOwner='FT-02'}
-            $failures.Add((New-C2AccountingRow inputFailures SchemaDocument $reg.artifactId InvalidSchema "FT-02:$($reg.artifactId)" @($reg.path)))
+            $owner=if($finding.Count){$finding[0].transition}else{'FT-02'};$why=if($finding.Count){$finding[0].reason}else{'InvalidSchema'}
+            $failures.Add((New-C2AccountingRow inputFailures SchemaDocument $reg.artifactId $why "${owner}:$($reg.artifactId)" @($reg.path)))
             $artifactPrerequisiteFailed=$true
         }elseif($freshnessFailure){
             if(-not $freshnessEvidence.Contains($reg.path)){$freshnessEvidence.Add($reg.path)}
@@ -294,11 +302,11 @@ function Read-C2AuditedArtifactBytes {
 }
 
 function New-C2FailedIntakeResult {
-    param([string]$Owner,[string]$Reason,[AllowNull()]$StartOid,[AllowNull()]$EndOid,$HeadStable,[int]$GitCount,[int]$HeavyCount,[string]$SubjectId='C2Check:Freshness')
+    param([string]$Owner,[string]$Reason,[AllowNull()]$StartOid,[AllowNull()]$EndOid,$HeadStable,[int]$GitCount,[int]$HeavyCount,[string]$SubjectId='C2Check:Freshness',[AllowNull()][string]$RepositoryRoot)
     $subjectKind=if($Owner -eq 'FT-13'){'LightweightPolicy'}elseif($Owner -eq 'FT-01'){'C1Handoff'}elseif($Owner -eq 'FT-02'){'SchemaDocument'}else{'FreshnessCheck'}
     if($Owner -eq 'FT-13'){$SubjectId='C2Check:LightweightPolicy'}elseif($Owner -eq 'FT-01'){$SubjectId='C2Check:C1Handoff'}
     $failure=New-C2AccountingRow inputFailures $subjectKind $SubjectId $Reason "${Owner}:$SubjectId" @()
-    $states=foreach($reg in $script:Registry){[pscustomobject][ordered]@{artifactId=$reg.artifactId;path=$reg.path;requirement=$reg.requirement;presence='Absent';readStatus='Failed';worktreeSha256=$null;commitBlobSha256=$null;manifestSha256=$null;identityStatus='NotApplicable';freshnessStatus='Failed';evidence=@($reg.path)}}
+    $states=foreach($reg in $script:Registry){$present=$false;if($RepositoryRoot){$present=[IO.File]::Exists([IO.Path]::Combine($RepositoryRoot,$reg.path.Replace('/',[IO.Path]::DirectorySeparatorChar)))};[pscustomobject][ordered]@{artifactId=$reg.artifactId;path=$reg.path;requirement=$reg.requirement;presence=if($present){'Present'}else{'Absent'};readStatus='NotRead';worktreeSha256=$null;commitBlobSha256=$null;manifestSha256=$null;identityStatus='NotApplicable';freshnessStatus='Failed';evidence=@($reg.path)}}
     $lightStatus=if($Owner -eq 'FT-13'){'Failed'}else{'Accepted'};$handoffStatus=if($Owner -eq 'FT-01'){'Failed'}else{'Accepted'}
     $freshStatus=if($Owner -in @('FT-13','FT-01','FT-02')){'NotEvaluated'}elseif($Owner -eq 'FT-03'){'Failed'}else{'NotEvaluated'}
     $checks=@(
@@ -313,7 +321,8 @@ function New-C2FailedIntakeResult {
     $acceptedChecks=@($checks|Where-Object status -eq Accepted).Count;$failedChecks=@($checks|Where-Object status -eq Failed).Count;$notEvaluated=@($checks|Where-Object status -eq NotEvaluated).Count
     $next=if($Owner -eq 'FT-13'){'Remove unsafe operation'}elseif($Owner -eq 'FT-01'){'Fix C1 handoff fixture'}elseif($Owner -eq 'FT-02'){'Fix reviewed registry shape'}else{'Restore reviewed frozen-commit bytes and stable HEAD'}
     $o1=[pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId=$null;startCommitOid=$StartOid;endCommitOid=$EndOid;headStable=$HeadStable;discoveryInputFingerprint=$null;artifactStates=[object[]]$states;contractChecks=[object[]]$checks;inputFailures=@($failure);inputExclusions=@();inputSuppressions=[object[]]$suppressions;decision=[pscustomobject][ordered]@{failureAttribution=$failure.attribution;nextAllowedAction=$next}}
-    $o2=[pscustomobject][ordered]@{status='Failed';issueCount=1;registeredArtifactCount=11;readArtifactCount=0;requiredArtifactCount=6;presentOptionalArtifactCount=0;absentOptionalArtifactCount=0;failedRegistrySlotCount=11;acceptedArtifactCount=0;failedArtifactCount=0;contractCheckCount=5;acceptedCheckCount=$acceptedChecks;failedCheckCount=$failedChecks;notEvaluatedCheckCount=$notEvaluated;inputSubjectCount=5;acceptedInputSubjectCount=$acceptedChecks;inputFailureCount=1;excludedInputSubjectCount=0;notEvaluatedInputSubjectCount=$notEvaluated;gitInspectionProcessCount=$GitCount;heavyProcessCount=$HeavyCount;realAssetReadCount=0;createdExtractedCount=0;createdImportedCount=0;startCommitOid=$StartOid;endCommitOid=$EndOid;headStable=$HeadStable;discoveryInputFingerprint=$null;nextAllowedAction=$next}
+    $presentSlots=@($states|Where-Object presence -eq Present).Count;$absentOptional=@($states|Where-Object{$_.requirement -ne 'Required' -and $_.presence -eq 'Absent'}).Count
+    $o2=[pscustomobject][ordered]@{status='Failed';issueCount=1;registeredArtifactCount=11;readArtifactCount=0;requiredArtifactCount=6;presentOptionalArtifactCount=@($states|Where-Object{$_.requirement -ne 'Required' -and $_.presence -eq 'Present'}).Count;absentOptionalArtifactCount=$absentOptional;failedRegistrySlotCount=$presentSlots;acceptedArtifactCount=0;failedArtifactCount=0;contractCheckCount=5;acceptedCheckCount=$acceptedChecks;failedCheckCount=$failedChecks;notEvaluatedCheckCount=$notEvaluated;inputSubjectCount=5;acceptedInputSubjectCount=$acceptedChecks;inputFailureCount=1;excludedInputSubjectCount=0;notEvaluatedInputSubjectCount=$notEvaluated;gitInspectionProcessCount=$GitCount;heavyProcessCount=$HeavyCount;realAssetReadCount=0;createdExtractedCount=0;createdImportedCount=0;startCommitOid=$StartOid;endCommitOid=$EndOid;headStable=$HeadStable;discoveryInputFingerprint=$null;nextAllowedAction=$next}
     [pscustomobject][ordered]@{O1=$o1;O2=$o2}
 }
 
@@ -357,6 +366,7 @@ function Test-C2FixtureContracts {
         'AR-I11'='schemaVersion,snapshotId,inputFingerprint,observationArtifactPath,observationArtifactSha256,approvals'
     }
     foreach($id in $top.Keys){if((@($Documents[$id].PSObject.Properties.Name)-join ',') -cne $top[$id]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id top-level shape"}}}
+    foreach($id in @('AR-I04','AR-I06')){$schema=$Documents[$id];if($schema.type -cne 'object' -or $schema.additionalProperties -ne $false -or $null -eq $schema.properties -or $schema.properties -isnot [pscustomobject] -or $null -eq $schema.'$defs' -or $schema.'$defs' -isnot [pscustomobject] -or @($schema.required).Count -eq 0 -or [string]$schema.'$schema' -cnotmatch '^https://json-schema.org/' -or [string]$schema.'$id' -cnotmatch '^https://'){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id schema document semantics"}}}
     try{$ledgerJson=$Documents['AR-I02']|ConvertTo-Json -Depth 100 -Compress;$ledgerSchema=$Documents['AR-I04']|ConvertTo-Json -Depth 100 -Compress;if(-not($ledgerJson|Test-Json -Schema $ledgerSchema -ErrorAction Stop)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message='ledger schema'}}}catch{return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message="ledger schema: $($_.Exception.Message)"}}
     $expectedVocabulary=[ordered]@{corpus='Cataloged,Missing,StaleInput';extraction='NotAttempted,ExtractedReadable,CrossToolVerified,Opaque,Failed';semantics='Known,PartiallyKnown,Unknown';configurationDisposition='Parsed,DiscoveredOpaque,Encrypted,RequiresRuntimeType,LikelyServerDependent,NotConfiguration';unity='NotTested,StaticQualified,RepresentativeValidated,Rejected,UnityExecutionUnavailable';disposition='NeedsDiagnosis,UseOriginalAsset,RepairOnce,PrototypeReplacement,RetainForLater,DiagnosticOnly,Stop';familyStaticOutcome='StaticQualified,StaticRejected,NeedsDiagnosis';sourceKind='PcInstall,PcPatchOrCache,AndroidApk,AndroidDataOrCache'}
     foreach($name in $expectedVocabulary.Keys){if((@($Documents['AR-I05'].$name)-join ',') -cne $expectedVocabulary[$name]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I05';message="vocabulary $name"}}}
@@ -404,6 +414,8 @@ function Invoke-C2DiscoveryIntakeGateInternal {
             }
             $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$null=$context.events.Add([pscustomobject]@{kind='RegisteredArtifactRead';path=$registry[$index].path})}
             $hashes=[ordered]@{};foreach($key in $bytes.Keys){$hashes[$key]=@($hashBytes.Invoke([byte[]]$bytes[$key]))[0]}
+            $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null}}}
+            $context.handoff=[pscustomobject][ordered]@{snapshotId='snapshot-pc-install-001';ledgerPath=$registry[1].path;summaryPath=$registry[2].path}
             for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='required hash mismatch'}}}
             $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c4=@($traceRows|Where-Object callNumber -eq 4)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0]
             if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c4.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
@@ -411,15 +423,20 @@ function Invoke-C2DiscoveryIntakeGateInternal {
             if($null -ne $fixtureMutation){$null=$fixtureMutation.Invoke([pscustomobject]@{documents=$documents})}
             $contractResult=@($fixtureValidator.Invoke($documents,$hashes))[0]
             if($contractResult.status -ne 'Passed'){return $contractResult}
-            $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null};identityValid=$true;freshnessValid=$true}}
-            $context.handoff=[pscustomobject][ordered]@{snapshotId='snapshot-pc-install-001';ledgerPath=$registry[1].path;summaryPath=$registry[2].path}
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
         }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
     }.GetNewClosure()
     $protocol=Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $GitTransport -GitExecutable $gitExecutable -BeforeFinalHead $validation
     if($protocol.status -ne 'Passed'){
         $subject=if($null -ne $protocol.validation -and $protocol.validation.PSObject.Properties['subjectId'] -and $protocol.validation.subjectId){$protocol.validation.subjectId}elseif($protocol.owner -eq 'FT-02'){'AR-I10'}else{'C2Check:Freshness'}
-        return New-C2FailedIntakeResult $protocol.owner $protocol.reason $protocol.startCommitOid $protocol.endCommitOid $protocol.headStable $protocol.gitInspectionProcessCount $protocol.heavyProcessCount $subject
+        if($null -ne $context.facts){
+            $findings=@();if($subject -match '^AR-I\d\d$'){$findings=@([pscustomobject][ordered]@{artifactId=$subject;transition=$protocol.owner;reason=$protocol.reason;evidence=@($script:Registry|Where-Object artifactId -eq $subject|ForEach-Object path)})}
+            $failedResult=Invoke-C2PureDiscoveryIntake $context.facts $context.handoff $protocol.startCommitOid $protocol.endCommitOid -ValidationFindings $findings
+            $failedResult.O2.gitInspectionProcessCount=$protocol.gitInspectionProcessCount
+            $failedResult.O2.realAssetReadCount=@($context.events|Where-Object kind -eq RealAssetRead).Count
+            return $failedResult
+        }
+        return New-C2FailedIntakeResult $protocol.owner $protocol.reason $protocol.startCommitOid $protocol.endCommitOid $protocol.headStable $protocol.gitInspectionProcessCount $protocol.heavyProcessCount $subject $RepositoryRoot
     }
     $result=Invoke-C2PureDiscoveryIntake $context.facts $context.handoff $protocol.startCommitOid $protocol.endCommitOid
     $result.O2.gitInspectionProcessCount=$protocol.gitInspectionProcessCount
@@ -435,7 +452,7 @@ function Invoke-C2DiscoveryIntakeGate {
 }
 
 function Test-C2InjectedGateVector {
-    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
+    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
     $transport=$null;$mutation=$null;$encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
     if($Vector -eq 'Call1StartFailure'){$transport={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()}
     elseif($Vector -eq 'Call3InvalidOutput'){$transport={param($number,$arguments,$raw)$text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0};[pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}}.GetNewClosure()}
@@ -443,6 +460,7 @@ function Test-C2InjectedGateVector {
         $mutation=switch($Vector){
             'LedgerNestedInvalid' {{param($bundle)$bundle.documents['AR-I02'].files=$null}}
             'VocabularyInvalid' {{param($bundle)$bundle.documents['AR-I05'].corpus=@('DefinitelyUnsupported')}}
+            'RootSchemaInvalid' {{param($bundle)$bundle.documents['AR-I06'].properties=$null}}
             'ManifestShapeInvalid' {{param($bundle)$bundle.documents['AR-I10'].PSObject.Properties.Remove('entries')}}
             'ObservationHI03Invalid' {{param($bundle)$bundle.documents['AR-I07'].rows[5].observationId='observation-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}
             'ApprovalHI15Invalid' {{param($bundle)$bundle.documents['AR-I11'].approvals[0].approvalId='exclusion-approval-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}
@@ -451,4 +469,4 @@ function Test-C2InjectedGateVector {
     Invoke-C2DiscoveryIntakeGateInternal -RepositoryRoot $RepositoryRoot -GitTransport $transport -FixtureMutator $mutation
 }
 
-Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake,Invoke-C2GitFreshnessAdapter,Test-C2GitAdapterLifecycle,Invoke-C2DiscoveryIntakeGate,Test-C2InjectedGateVector
+Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake,Invoke-C2GitFreshnessAdapter,Test-C2GitAdapterLifecycle,Invoke-C2DiscoveryIntakeGate
