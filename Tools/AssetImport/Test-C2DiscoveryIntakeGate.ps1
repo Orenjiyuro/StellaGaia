@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration','FailureState')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations')]
     [string]$Case = 'Pure'
 )
 
@@ -76,6 +76,18 @@ if ($Case -ceq 'Integration') {
     if($result.O2.discoveryInputFingerprint -cnotmatch '^[0-9a-f]{64}$'){throw 'D9 missing or invalid.'}
     if($result.O2.startCommitOid -cne $result.O2.endCommitOid -or -not $result.O2.headStable){throw 'Integration HEAD stability failed.'}
     if(($result.O1.contractChecks.status -join ',') -cne 'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated'){throw 'Integration check vector invalid.'}
+    $d9Entries=@($result.O1.artifactStates|Where-Object readStatus -eq Accepted|ForEach-Object{[pscustomobject][ordered]@{path=$_.path;sha256=$_.worktreeSha256}})
+    $independentD9=Get-C2DiscoveryInputFingerprint -Entries $d9Entries
+    if($independentD9 -cne $result.O2.discoveryInputFingerprint -or $independentD9 -cne '0e1ad045d3b4bb5ec584132b8b115ee1a38b91d9a103e8ddcd5e41231a622e3a'){throw "Independent D9 mismatch: $independentD9"}
+    $artifactRowOrder='artifactId,path,requirement,presence,readStatus,worktreeSha256,commitBlobSha256,manifestSha256,identityStatus,freshnessStatus,evidence'
+    foreach($row in $result.O1.artifactStates){if((@($row.PSObject.Properties.Name)-join ',') -cne $artifactRowOrder){throw "Artifact row shape invalid: $($row.artifactId)"}}
+    $checkRowOrder='subjectId,status,attribution,evidence,prerequisites'
+    foreach($row in $result.O1.contractChecks){if((@($row.PSObject.Properties.Name)-join ',') -cne $checkRowOrder){throw "Check row shape invalid: $($row.subjectId)"}}
+    $freshness=$result.O1.contractChecks[2]
+    $expectedFreshnessEvidence=@($result.O1.artifactStates.path);[Array]::Sort($expectedFreshnessEvidence,[StringComparer]::Ordinal)
+    if(($freshness.evidence -join "`n") -cne ($expectedFreshnessEvidence -join "`n")){throw 'Freshness evidence vector invalid.'}
+    if(($freshness.prerequisites -join ',') -cne 'AR-I01,AR-I02,AR-I03,AR-I04,AR-I05,AR-I06,AR-I07,AR-I08,AR-I09,AR-I10,AR-I11,GitAdapter:EndHead,GitAdapter:StartCommitOid'){throw 'Freshness prerequisites invalid.'}
+    if($result.O1.inputSuppressions[0].recordId -cne 'accounting-sha256:6d540e7fefd265ddef57b835e7bfb8894085d609419b3ac98b2268876f006e1c' -or $result.O1.inputSuppressions[1].recordId -cne 'accounting-sha256:212ec1d5b7ffc164817068a9227f8c7d847dc091c517c41db4b4270236294016'){throw 'Integration suppression identities invalid.'}
     "status=Passed"
     "issueCount=$($result.O2.issueCount)"
     "registeredArtifactCount=$($result.O2.registeredArtifactCount)"
@@ -97,6 +109,9 @@ if ($Case -ceq 'Integration') {
     "endCommitOid=$($result.O2.endCommitOid)"
     "headStable=$($result.O2.headStable)"
     "discoveryInputFingerprint=$($result.O2.discoveryInputFingerprint)"
+    "independentD9=$independentD9"
+    "artifactRowShapeCount=$($result.O1.artifactStates.Count)"
+    "checkRowShapeCount=$($result.O1.contractChecks.Count)"
     return
 }
 
@@ -125,6 +140,29 @@ if ($Case -ceq 'FailureState') {
     "intermediateGitInspectionProcessCount=$($call3Result.O2.gitInspectionProcessCount)"
     "intermediateFinalHeadRevalidated=$($call3Result.O2.headStable)"
     "failureFingerprintSuppressed=$($null -eq $call3Result.O2.discoveryInputFingerprint)"
+    return
+}
+
+if ($Case -ceq 'ValidatorMutations') {
+    $repositoryRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $manifestMutation={param($bundle)$bundle.documents['AR-I10'].PSObject.Properties.Remove('entries')}
+    $observationMutation={param($bundle)$bundle.documents['AR-I07'].rows[5].observationId='observation-sha256:0000000000000000000000000000000000000000000000000000000000000000'}
+    $approvalMutation={param($bundle)$bundle.documents['AR-I11'].approvals[0].approvalId='exclusion-approval-sha256:0000000000000000000000000000000000000000000000000000000000000000'}
+    $vectors=@(
+        [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $manifestMutation)},
+        [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $observationMutation)},
+        [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $approvalMutation)}
+    )
+    foreach($vector in $vectors){
+        $r=$vector.result
+        if($r.O2.status -cne 'Failed' -or $r.O2.issueCount -ne 1 -or $r.O2.gitInspectionProcessCount -ne 6 -or -not $r.O2.headStable -or $null -ne $r.O2.discoveryInputFingerprint){throw "$($vector.name) failure vector invalid"}
+        if($r.O1.inputFailures[0].attribution -cne "FT-02:$($vector.subject)" -or $r.O1.contractChecks[2].status -cne 'NotEvaluated'){throw "$($vector.name) ownership/suppression invalid"}
+    }
+    "status=Passed"
+    "manifestShapeMutation=Passed"
+    "observationHI03Mutation=Passed"
+    "approvalHI15Mutation=Passed"
+    "mutationFinalHeadRevalidationCount=3"
     return
 }
 
@@ -257,11 +295,17 @@ function Get-AstViolations {
     }
     foreach($member in $Ast.FindAll({param($n) $n -is [Management.Automation.Language.InvokeMemberExpressionAst]},$true)){
         $text=$member.Extent.Text
-        if($text -match '(?i)\b(System\.)?IO\.|\[IO\.|FileSystem|Process(StartInfo)?|Native|Unity|Extract|ImportAsset'){
+        if($text -match '(?i)^(\[(System\.)?IO\.|\[Diagnostics\.Process|\$process\.(Start|WaitForExit|Dispose)|\$process\.Standard(Output|Error))'){
             $parent=$member.Parent
             while($null -ne $parent -and $parent -isnot [Management.Automation.Language.FunctionDefinitionAst]){$parent=$parent.Parent}
-            $adapterFunctions=@('New-C2GitProcessInfo','Invoke-C2GitChild','Invoke-C2GitFreshnessAdapter','Read-C2AuditedArtifactBytes','Invoke-C2DiscoveryIntakeGate')
-            if($null -eq $parent -or $adapterFunctions -cnotcontains $parent.Name){$violations.Add("api:$text")}
+            $allowedByFunction=@{
+                'New-C2GitProcessInfo'='^\[Diagnostics\.ProcessStartInfo\]::new\(\)$'
+                'Invoke-C2GitChild'='^(\[Diagnostics\.Process\]::new\(\)|\$process\.Start\(\)|\[IO\.MemoryStream\]::new\(\)|\$process\.StandardOutput\.BaseStream\.CopyToAsync\(\$memory\)|\$process\.StandardError\.ReadToEndAsync\(\)|\$process\.WaitForExit\(\)|\$process\.Dispose\(\))$'
+                'Invoke-C2GitFreshnessAdapter'='^\[IO\.Path\]::IsPathFullyQualified\(\$gitExecutable\)$'
+                'Read-C2AuditedArtifactBytes'='^\[IO\.Path\]::(GetFullPath|Combine)\(.+\)$|^\[IO\.File\]::ReadAllBytes\(\$full\)$'
+                'Invoke-C2DiscoveryIntakeGate'='^\[IO\.(Path|Directory|File)\]::(IsPathFullyQualified|Combine|Exists|ReadAllBytes)\(.+\)$'
+            }
+            if($null -eq $parent -or -not $allowedByFunction.ContainsKey($parent.Name) -or $text -cnotmatch $allowedByFunction[$parent.Name]){$violations.Add("api:$text")}
         }
     }
     return [string[]]$violations

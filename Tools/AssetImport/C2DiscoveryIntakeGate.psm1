@@ -81,6 +81,11 @@ function New-C2Check {
     [pscustomobject][ordered]@{ subjectId=$Id; status=$Status; attribution=$Attribution; evidence=$Evidence; prerequisites=$Prerequisites }
 }
 
+function Get-C2OrdinalUnique {
+    param([object[]]$Values)
+    $items=[Collections.Generic.List[string]]::new();foreach($value in $Values){if(-not $items.Contains([string]$value)){$items.Add([string]$value)}};$items.Sort($script:Ordinal);[string[]]$items
+}
+
 function Invoke-C2PureDiscoveryIntake {
     [CmdletBinding()]
     param(
@@ -148,7 +153,7 @@ function Invoke-C2PureDiscoveryIntake {
     $checks.Add((New-C2Check 'C2Check:C1Handoff' $(if($handoffOk){'Accepted'}else{'Failed'}) $(if($handoffOk){'Accepted:C2Check:C1Handoff'}else{'FT-01:C2Check:C1Handoff'}) @($script:Registry[1].path,$script:Registry[0].path,$script:Registry[2].path) @('AR-I01','AR-I02','AR-I03')))
     $freshAccepted=$handoffOk -and $FreshnessPrerequisiteAvailable -and -not $artifactPrerequisiteFailed -and $freshnessEvidence.Count -eq 0
     $freshStatus=if($freshAccepted){'Accepted'}elseif(-not $handoffOk -or -not $FreshnessPrerequisiteAvailable -or $artifactPrerequisiteFailed){'NotEvaluated'}else{'Failed'}
-    $checks.Add((New-C2Check 'C2Check:Freshness' $freshStatus $(if($freshStatus -ceq 'Accepted'){'Accepted:C2Check:Freshness'}elseif($freshStatus -ceq 'NotEvaluated'){'FT-15:C2Check:Freshness'}else{'FT-03:C2Check:Freshness'}) @($script:Registry.path) @('AR-I01','AR-I02','AR-I03','AR-I04','AR-I05','AR-I06','AR-I07','AR-I08','AR-I09','AR-I10','AR-I11','GitAdapter:EndHead','GitAdapter:StartCommitOid')))
+    $checks.Add((New-C2Check 'C2Check:Freshness' $freshStatus $(if($freshStatus -ceq 'Accepted'){'Accepted:C2Check:Freshness'}elseif($freshStatus -ceq 'NotEvaluated'){'FT-15:C2Check:Freshness'}else{'FT-03:C2Check:Freshness'}) (Get-C2OrdinalUnique @($script:Registry.path)) @('AR-I01','AR-I02','AR-I03','AR-I04','AR-I05','AR-I06','AR-I07','AR-I08','AR-I09','AR-I10','AR-I11','GitAdapter:EndHead','GitAdapter:StartCommitOid')))
     $checks.Add((New-C2Check 'C2Check:Conservation' NotEvaluated 'FT-15:C2Check:Conservation' @() @('Stage:C2Partitions')))
     $checks.Add((New-C2Check 'C2Check:PublicProjection' NotEvaluated 'FT-15:C2Check:PublicProjection' @($script:Registry[5].path) @('AR-O01','AR-O02','AR-O03','AR-O04','AR-O05')))
     $suppressions=[Collections.Generic.List[object]]::new()
@@ -372,7 +377,7 @@ function Test-C2FixtureContracts {
 
 function Invoke-C2DiscoveryIntakeGate {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$RepositoryRoot,[AllowNull()][scriptblock]$GitTransport)
+    param([Parameter(Mandatory)][string]$RepositoryRoot,[AllowNull()][scriptblock]$GitTransport,[AllowNull()][scriptblock]$FixtureMutator)
     $requiredHashes=@(
         '548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac',
         'acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462',
@@ -383,22 +388,24 @@ function Invoke-C2DiscoveryIntakeGate {
     )
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
     if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
-    $context=[ordered]@{facts=$null;handoff=$null;artifactReadCount=0;realAssetReadCount=0;extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
-    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts}
+    $context=[ordered]@{facts=$null;handoff=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
+    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$fixtureMutation=$FixtureMutator
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
     $validation={param($bundle)
         try{
             $traceRows=@($bundle.trace)
             foreach($absentIndex in @(7,8)){
                 $candidate=[IO.Path]::Combine($RepositoryRoot,$registry[$absentIndex].path.Replace('/',[IO.Path]::DirectorySeparatorChar))
+                $null=$context.events.Add([pscustomobject]@{kind='RegisteredPathProbe';path=$registry[$absentIndex].path})
                 if([IO.File]::Exists($candidate)){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message="unexpected worktree presence: $($registry[$absentIndex].artifactId)"}}
             }
-            $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$context.artifactReadCount++}
+            $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$null=$context.events.Add([pscustomobject]@{kind='RegisteredArtifactRead';path=$registry[$index].path})}
             $hashes=[ordered]@{};foreach($key in $bytes.Keys){$hashes[$key]=@($hashBytes.Invoke([byte[]]$bytes[$key]))[0]}
             for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='required hash mismatch'}}}
             $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c4=@($traceRows|Where-Object callNumber -eq 4)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0]
             if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c4.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
             $documents=[ordered]@{};foreach($id in $bytes.Keys){$documents[$id]=$utf8.GetString($bytes[$id])|ConvertFrom-Json -Depth 100 -DateKind String}
+            if($null -ne $fixtureMutation){$null=$fixtureMutation.Invoke([pscustomobject]@{documents=$documents})}
             $contractResult=@($fixtureValidator.Invoke($documents,$hashes))[0]
             if($contractResult.status -ne 'Passed'){return $contractResult}
             $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null};identityValid=$true;freshnessValid=$true}}
@@ -408,12 +415,12 @@ function Invoke-C2DiscoveryIntakeGate {
     }.GetNewClosure()
     $protocol=Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $GitTransport -GitExecutable $gitExecutable -BeforeFinalHead $validation
     if($protocol.status -ne 'Passed'){
-        $subject=if($protocol.owner -eq 'FT-02' -and $protocol.validation.message -match 'approval'){'AR-I11'}elseif($protocol.owner -eq 'FT-02'){'AR-I10'}else{'C2Check:Freshness'}
+        $subject=if($null -ne $protocol.validation -and $protocol.validation.PSObject.Properties['subjectId'] -and $protocol.validation.subjectId){$protocol.validation.subjectId}elseif($protocol.owner -eq 'FT-02'){'AR-I10'}else{'C2Check:Freshness'}
         return New-C2FailedIntakeResult $protocol.owner $protocol.reason $protocol.startCommitOid $protocol.endCommitOid $protocol.headStable $protocol.gitInspectionProcessCount $protocol.heavyProcessCount $subject
     }
     $result=Invoke-C2PureDiscoveryIntake $context.facts $context.handoff $protocol.startCommitOid $protocol.endCommitOid
     $result.O2.gitInspectionProcessCount=$protocol.gitInspectionProcessCount
-    $result.O2.realAssetReadCount=$context.realAssetReadCount
+    $result.O2.realAssetReadCount=@($context.events|Where-Object kind -eq RealAssetRead).Count
     $result.O2.createdExtractedCount=[int](-not $context.extractedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted')))
     $result.O2.createdImportedCount=[int](-not $context.importedBefore -and [IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported')))
     return $result
