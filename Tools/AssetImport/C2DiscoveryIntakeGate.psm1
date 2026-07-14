@@ -209,53 +209,68 @@ function Invoke-C2GitChild {
     $errorTask=$process.StandardError.ReadToEndAsync()
     $process.WaitForExit();$null=$copyTask.GetAwaiter().GetResult();$stderr=$errorTask.GetAwaiter().GetResult()
     $bytes=$memory.ToArray();$exitCode=$process.ExitCode;$process.Dispose();$memory.Dispose()
-    [pscustomobject][ordered]@{callNumber=$CallNumber;arguments=$Arguments;exitCode=$exitCode;stdoutBytes=$bytes;stderr=$stderr;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$RawBlobCapture;stdoutByteCount=$bytes.Length}
+    [pscustomobject][ordered]@{callNumber=$CallNumber;started=$true;prelaunchRejected=$false;arguments=$Arguments;exitCode=$exitCode;stdoutBytes=$bytes;stderr=$stderr;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$RawBlobCapture;stdoutByteCount=$bytes.Length}
+}
+
+function Invoke-C2GitProtocol {
+    param([string]$RepositoryRoot,[AllowNull()][scriptblock]$Transport,[AllowNull()][string]$GitExecutable)
+    $trace=[Collections.Generic.List[object]]::new();$start=$null;$end=$null;$owner=$null;$reason=$null
+    $paths=@($script:Registry[6].path,$script:Registry[7].path,$script:Registry[8].path,$script:Registry[9].path,$script:Registry[10].path)
+    function Invoke-ProtocolCall([int]$Number,[string[]]$Arguments,[bool]$Raw){
+        if($null -ne $Transport){$response=@($Transport.Invoke($Number,$Arguments,$Raw))[0]}
+        else{try{$response=Invoke-C2GitChild $GitExecutable $Arguments $Number $Raw}catch{$response=[pscustomobject]@{callNumber=$Number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr=$_.Exception.Message}}}
+        if($response.started){$null=$trace.Add($response)}
+        return $response
+    }
+    $c1=Invoke-ProtocolCall 1 @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') $false
+    if($c1.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted'}
+    elseif(-not $c1.started -or $c1.exitCode -ne 0 -or $c1.stderr.Length -ne 0 -or $script:Utf8.GetString($c1.stdoutBytes) -cnotmatch "^[0-9a-f]{40}`n$"){$owner='FT-03';$reason='StaleFingerprint'}
+    else{$start=$script:Utf8.GetString($c1.stdoutBytes).Substring(0,40)}
+    $calls=@()
+    if($null -eq $owner){
+        $calls=@(
+            @(2,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[0])"),$true),
+            @(3,@('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$start,'--',$paths[1],$paths[2]),$false),
+            @(4,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[3])"),$true),
+            @(5,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[4])"),$true)
+        )
+        foreach($spec in $calls){
+            $c=Invoke-ProtocolCall $spec[0] $spec[1] $spec[2]
+            $valid=$c.started -and $c.exitCode -eq 0 -and $c.stderr.Length -eq 0 -and ($spec[0] -ne 3 -or $c.stdoutBytes.Length -eq 0)
+            if($c.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted';break}
+            if(-not $valid){$owner='FT-03';$reason='StaleFingerprint';break}
+        }
+    }
+    if($null -ne $start -and $owner -ne 'FT-13'){
+        $c6=Invoke-ProtocolCall 6 @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') $false
+        if($c6.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted'}
+        elseif($c6.started -and $c6.exitCode -eq 0 -and $c6.stderr.Length -eq 0 -and $script:Utf8.GetString($c6.stdoutBytes) -cmatch "^[0-9a-f]{40}`n$"){$end=$script:Utf8.GetString($c6.stdoutBytes).Substring(0,40);if($start -cne $end){$owner='FT-03';$reason='StaleFingerprint'}}
+        else{$owner='FT-03';$reason='StaleFingerprint'}
+    }
+    $stable=if($null -ne $start -and $null -ne $end){$start -ceq $end}else{$null}
+    [pscustomobject][ordered]@{status=if($null -eq $owner){'Passed'}else{'Failed'};owner=$owner;reason=$reason;failureAttribution=if($owner){"${owner}:C2Check:$(if($owner -eq 'FT-13'){'LightweightPolicy'}else{'Freshness'})"}else{$null};startCommitOid=$start;endCommitOid=$end;headStable=$stable;discoveryInputFingerprint=$null;gitInspectionProcessCount=$trace.Count;heavyProcessCount=0;commandTrace=[object[]]$trace}
 }
 
 function Invoke-C2GitFreshnessAdapter {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
-    $gitCommand=Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
-    $gitExecutable=$gitCommand.Source
+    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $gitExecutable=(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source
     if(-not [IO.Path]::IsPathFullyQualified($gitExecutable)){throw 'FT-13: git executable is not absolute.'}
-    $trace=[Collections.Generic.List[object]]::new();$oidPattern="^[0-9a-f]{40}`n$"
-    $paths=@(
-        'Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json',
-        'Tools/AssetImport/Fixtures/DiscoveryGate/file-discovery-observations.json',
-        'Tools/AssetImport/Fixtures/DiscoveryGate/file-configuration-observations.json',
-        'Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json',
-        'Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json'
-    )
-    $call1=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 1 $false;$null=$trace.Add($call1)
-    $text=$script:Utf8.GetString($call1.stdoutBytes)
-    if($call1.exitCode -ne 0 -or $call1.stderr.Length -ne 0 -or $text -cnotmatch $oidPattern){throw 'FT-03: invalid start HEAD result.'}
-    $startOid=$text.Substring(0,40)
-    $call2=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[0])") 2 $true;$null=$trace.Add($call2)
-    if($call2.exitCode -ne 0 -or $call2.stderr.Length -ne 0){throw 'FT-03: invalid AR-I07 blob result.'}
-    $call3=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$startOid,'--',$paths[1],$paths[2]) 3 $false;$null=$trace.Add($call3)
-    if($call3.exitCode -ne 0 -or $call3.stderr.Length -ne 0 -or $call3.stdoutBytes.Length -ne 0){throw 'FT-03: optional absence result invalid.'}
-    $call4=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[3])") 4 $true;$null=$trace.Add($call4)
-    if($call4.exitCode -ne 0 -or $call4.stderr.Length -ne 0){throw 'FT-03: invalid AR-I10 blob result.'}
-    $call5=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[4])") 5 $true;$null=$trace.Add($call5)
-    if($call5.exitCode -ne 0 -or $call5.stderr.Length -ne 0){throw 'FT-03: invalid AR-I11 blob result.'}
-    $call6=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 6 $false;$null=$trace.Add($call6)
-    $endText=$script:Utf8.GetString($call6.stdoutBytes)
-    if($call6.exitCode -ne 0 -or $call6.stderr.Length -ne 0 -or $endText -cnotmatch $oidPattern){throw 'FT-03: invalid end HEAD result.'}
-    $endOid=$endText.Substring(0,40);$stable=$startOid -ceq $endOid
-    [pscustomobject][ordered]@{status=if($stable){'Passed'}else{'Failed'};failureAttribution=if($stable){$null}else{'FT-03:C2Check:Freshness'};startCommitOid=$startOid;endCommitOid=$endOid;headStable=$stable;discoveryInputFingerprint=$null;gitInspectionProcessCount=$trace.Count;heavyProcessCount=0;commandTrace=[object[]]$trace;blobs=[pscustomobject][ordered]@{AR_I07=$call2.stdoutBytes;AR_I10=$call4.stdoutBytes;AR_I11=$call5.stdoutBytes}}
+    Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $null -GitExecutable $gitExecutable
 }
 
 function Test-C2GitAdapterLifecycle {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','Call6InvalidOutput','ChangedHead','PrelaunchCall2')][string]$FailurePoint)
-    switch($FailurePoint){
-        'Call1StartFailure' {$count=0;$start=$null;$end=$null;$stable=$null;$owner='FT-03';$reason='StaleFingerprint'}
-        'Call3InvalidOutput' {$count=4;$start='1111111111111111111111111111111111111111';$end=$start;$stable=$true;$owner='FT-03';$reason='StaleFingerprint'}
-        'Call6InvalidOutput' {$count=6;$start='1111111111111111111111111111111111111111';$end=$null;$stable=$null;$owner='FT-03';$reason='StaleFingerprint'}
-        'ChangedHead' {$count=6;$start='1111111111111111111111111111111111111111';$end='2222222222222222222222222222222222222222';$stable=$false;$owner='FT-03';$reason='StaleFingerprint'}
-        'PrelaunchCall2' {$count=1;$start='1111111111111111111111111111111111111111';$end=$null;$stable=$null;$owner='FT-13';$reason='HeavyOperationAttempted'}
-    }
-    [pscustomobject][ordered]@{case=$FailurePoint;owner=$owner;reason=$reason;gitInspectionProcessCount=$count;startCommitOid=$start;endCommitOid=$end;headStable=$stable;discoveryInputFingerprint=$null}
+    [CmdletBinding()]param([Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','Call6InvalidOutput','ChangedHead','PrelaunchCall2')][string]$FailurePoint)
+    $oid1='1111111111111111111111111111111111111111';$oid2='2222222222222222222222222222222222222222'
+    $fakeTransport={param($number,$arguments,$raw)
+        if($FailurePoint -eq 'PrelaunchCall2' -and $number -eq 2){return [pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$true;exitCode=$null;stdoutBytes=[byte[]]@();stderr=''} }
+        if($FailurePoint -eq 'Call1StartFailure' -and $number -eq 1){return [pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'} }
+        $text=if($number -in @(1,6)){if($FailurePoint -eq 'ChangedHead' -and $number -eq 6){"$oid2`n"}else{"$oid1`n"}}elseif($number -eq 3){''}else{'blob'}
+        $exit=if(($FailurePoint -eq 'Call3InvalidOutput' -and $number -eq 3)-or($FailurePoint -eq 'Call6InvalidOutput' -and $number -eq 6)){1}else{0}
+        $encoding=[Text.UTF8Encoding]::new($false)
+        [pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}
+    }.GetNewClosure()
+    $r=Invoke-C2GitProtocol 'C:\repo' $fakeTransport
+    [pscustomobject][ordered]@{case=$FailurePoint;owner=$r.owner;reason=$r.reason;gitInspectionProcessCount=$r.gitInspectionProcessCount;startCommitOid=$r.startCommitOid;endCommitOid=$r.endCommitOid;headStable=$r.headStable;discoveryInputFingerprint=$r.discoveryInputFingerprint}
 }
 
 function Read-C2AuditedArtifactBytes {
