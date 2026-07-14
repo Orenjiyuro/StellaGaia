@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake')]
     [string]$Case = 'Pure'
 )
 
@@ -22,18 +22,18 @@ $p0Entries = @(
 if ($Case -ceq 'GitAdapter') {
     $adapter = Invoke-C2GitFreshnessAdapter -RepositoryRoot (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
     if ($adapter.status -cne 'Passed') { throw "Git adapter positive failed: $($adapter.failureAttribution)" }
-    if ($adapter.gitInspectionProcessCount -ne 6) { throw "Git adapter call count expected=6 actual=$($adapter.gitInspectionProcessCount)" }
+    if ($adapter.gitInspectionProcessCount -ne 7) { throw "Git adapter call count expected=7 actual=$($adapter.gitInspectionProcessCount)" }
     if (-not $adapter.headStable -or $adapter.startCommitOid -cne $adapter.endCommitOid) { throw 'Git adapter HEAD stability failed.' }
-    if ((@($adapter.commandTrace).Count) -ne 6) { throw 'Git adapter trace count invalid.' }
-    if (@($adapter.commandTrace)[0].arguments[-1] -cne 'HEAD^{commit}' -or @($adapter.commandTrace)[5].arguments[-1] -cne 'HEAD^{commit}') { throw 'Git adapter HEAD grammar invalid.' }
-    if (@($adapter.commandTrace)[2].stdoutByteCount -ne 0) { throw 'Optional-absence call returned bytes.' }
+    if ((@($adapter.commandTrace).Count) -ne 7) { throw 'Git adapter trace count invalid.' }
+    if (@($adapter.commandTrace)[0].arguments[-1] -cne 'HEAD^{commit}' -or @($adapter.commandTrace)[6].arguments[-1] -cne 'HEAD^{commit}') { throw 'Git adapter HEAD grammar invalid.' }
+    if (@($adapter.commandTrace)[3].stdoutByteCount -ne 0) { throw 'Optional-absence call returned bytes.' }
     foreach ($call in $adapter.commandTrace) {
         if (-not $call.environmentValid) { throw "Unsanitized child environment at call $($call.callNumber)" }
         if ($call.useShellExecute -or -not $call.redirectStandardOutput -or -not $call.redirectStandardError) { throw "Unsafe process mode at call $($call.callNumber)" }
     }
     $startFailure = Test-C2GitAdapterLifecycle -FailurePoint Call1StartFailure
     $middleFailure = Test-C2GitAdapterLifecycle -FailurePoint Call3InvalidOutput
-    $finalFailure = Test-C2GitAdapterLifecycle -FailurePoint Call6InvalidOutput
+    $finalFailure = Test-C2GitAdapterLifecycle -FailurePoint Call7InvalidOutput
     $changedHead = Test-C2GitAdapterLifecycle -FailurePoint ChangedHead
     $policyFailure = Test-C2GitAdapterLifecycle -FailurePoint PrelaunchCall2
     foreach($caseResult in @($startFailure,$middleFailure,$finalFailure,$changedHead)){
@@ -42,8 +42,8 @@ if ($Case -ceq 'GitAdapter') {
     if($policyFailure.owner -cne 'FT-13' -or $policyFailure.reason -cne 'HeavyOperationAttempted' -or $policyFailure.gitInspectionProcessCount -ne 1){throw 'FT-13 prelaunch ownership/count failed.'}
     if($startFailure.gitInspectionProcessCount -ne 0 -or $null -ne $startFailure.startCommitOid -or $null -ne $startFailure.endCommitOid -or $null -ne $startFailure.headStable){throw 'Call1 start failure vector invalid.'}
     if($middleFailure.gitInspectionProcessCount -ne 4 -or -not $middleFailure.headStable){throw 'Intermediate failure/final-revalidation vector invalid.'}
-    if($finalFailure.gitInspectionProcessCount -ne 6 -or $null -ne $finalFailure.endCommitOid -or $null -ne $finalFailure.headStable){throw 'Final failure vector invalid.'}
-    if($changedHead.gitInspectionProcessCount -ne 6 -or $changedHead.headStable -ne $false){throw 'Changed HEAD vector invalid.'}
+    if($finalFailure.gitInspectionProcessCount -ne 7 -or $null -ne $finalFailure.endCommitOid -or $null -ne $finalFailure.headStable){throw 'Final failure vector invalid.'}
+    if($changedHead.gitInspectionProcessCount -ne 7 -or $changedHead.headStable -ne $false){throw 'Changed HEAD vector invalid.'}
     "status=Passed"
     "gitInspectionProcessCount=$($adapter.gitInspectionProcessCount)"
     "startCommitOid=$($adapter.startCommitOid)"
@@ -54,21 +54,21 @@ if ($Case -ceq 'GitAdapter') {
     "rawBlobCallCount=$(@($adapter.commandTrace | Where-Object rawBlobCapture).Count)"
     "call1StartFailure=Passed"
     "intermediateFailureFinalRevalidation=Passed"
-    "call6Failure=Passed"
+    "call7Failure=Passed"
     "changedHead=Passed"
     "prelaunchFT13=Passed"
     return
 }
 
-if ($Case -ceq 'Integration') {
+if ($Case -in @('Integration','FileFixtureIntake')) {
     $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $result = Invoke-C2DiscoveryIntakeGate -RepositoryRoot $repositoryRoot
     if ($result.O2.status -cne 'Passed') { throw "Integration expected Passed: $($result.O1.decision.failureAttribution)" }
     $expectedCounts = [ordered]@{
-        registeredArtifactCount=11; readArtifactCount=9; requiredArtifactCount=6; presentOptionalArtifactCount=3; absentOptionalArtifactCount=2
-        failedRegistrySlotCount=0; acceptedArtifactCount=9; failedArtifactCount=0; contractCheckCount=5; acceptedCheckCount=3
-        failedCheckCount=0; notEvaluatedCheckCount=2; inputSubjectCount=14; acceptedInputSubjectCount=12; inputFailureCount=0
-        excludedInputSubjectCount=0; notEvaluatedInputSubjectCount=2; gitInspectionProcessCount=6; heavyProcessCount=0
+        registeredArtifactCount=11; readArtifactCount=10; requiredArtifactCount=6; presentOptionalArtifactCount=4; absentOptionalArtifactCount=1
+        failedRegistrySlotCount=0; acceptedArtifactCount=10; failedArtifactCount=0; contractCheckCount=5; acceptedCheckCount=3
+        failedCheckCount=0; notEvaluatedCheckCount=2; inputSubjectCount=15; acceptedInputSubjectCount=13; inputFailureCount=0
+        excludedInputSubjectCount=0; notEvaluatedInputSubjectCount=2; gitInspectionProcessCount=7; heavyProcessCount=0
         realAssetReadCount=0; createdExtractedCount=0; createdImportedCount=0
     }
     foreach($entry in $expectedCounts.GetEnumerator()) { if($result.O2.($entry.Key) -ne $entry.Value){throw "$($entry.Key) expected=$($entry.Value) actual=$($result.O2.($entry.Key))"} }
@@ -78,7 +78,11 @@ if ($Case -ceq 'Integration') {
     if(($result.O1.contractChecks.status -join ',') -cne 'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated'){throw 'Integration check vector invalid.'}
     $d9Entries=@($result.O1.artifactStates|Where-Object readStatus -eq Accepted|ForEach-Object{[pscustomobject][ordered]@{path=$_.path;sha256=$_.worktreeSha256}})
     $independentD9=Get-C2DiscoveryInputFingerprint -Entries $d9Entries
-    if($independentD9 -cne $result.O2.discoveryInputFingerprint -or $independentD9 -cne '0e1ad045d3b4bb5ec584132b8b115ee1a38b91d9a103e8ddcd5e41231a622e3a'){throw "Independent D9 mismatch: $independentD9"}
+    if($independentD9 -cne $result.O2.discoveryInputFingerprint -or $independentD9 -cne 'f2360d25078bfd90ca88a85ea1e801cb583841d3ef4cfbad0c8c92d2d0ba3eab'){throw "Independent D9 mismatch: $independentD9"}
+    $i08=@($result.O1.artifactStates|Where-Object artifactId -eq 'AR-I08')[0]
+    if($i08.worktreeSha256 -cne 'f1733a10236714e62404660083827091a7884f6ee0b1c7342d7737f6dd84c82a' -or $i08.commitBlobSha256 -cne $i08.worktreeSha256 -or $i08.manifestSha256 -cne $i08.worktreeSha256){throw 'AR-I08 exact binding invalid.'}
+    $i10=@($result.O1.artifactStates|Where-Object artifactId -eq 'AR-I10')[0]
+    if($i10.worktreeSha256 -cne '4b4b65de4a2ec12dfc1cbd09929bdc66d5aa1cf8345bd161043d694b62cb2ea8'){throw 'AR-I10 exact hash invalid.'}
     $artifactRowOrder='artifactId,path,requirement,presence,readStatus,worktreeSha256,commitBlobSha256,manifestSha256,identityStatus,freshnessStatus,evidence'
     foreach($row in $result.O1.artifactStates){if((@($row.PSObject.Properties.Name)-join ',') -cne $artifactRowOrder){throw "Artifact row shape invalid: $($row.artifactId)"}}
     $checkRowOrder='subjectId,status,attribution,evidence,prerequisites'
@@ -121,7 +125,7 @@ if ($Case -ceq 'FailureState') {
     $call1Result=$loadedModule.Invoke({param($root)Test-C2InjectedGateVector -RepositoryRoot $root -Vector Call1StartFailure},@($failureRoot))[0]
     if($call1Result.O2.status -cne 'Failed' -or $call1Result.O2.gitInspectionProcessCount -ne 0 -or $null -ne $call1Result.O2.startCommitOid -or $null -ne $call1Result.O2.endCommitOid -or $null -ne $call1Result.O2.headStable){throw 'Call1 Failed O1/O2 vector invalid.'}
     if($call1Result.O1.inputFailures[0].attribution -cne 'FT-03:C2Check:Freshness' -or $null -ne $call1Result.O2.discoveryInputFingerprint){throw 'Call1 failure ownership invalid.'}
-    if($call1Result.O2.failedRegistrySlotCount -ne 9 -or $call1Result.O2.absentOptionalArtifactCount -ne 2 -or @($call1Result.O1.artifactStates|Where-Object presence -eq Present).Count -ne 9 -or @($call1Result.O1.artifactStates|Where-Object readStatus -eq NotRead).Count -ne 11){throw 'Call1 artifact state derivation invalid.'}
+    if($call1Result.O2.failedRegistrySlotCount -ne 10 -or $call1Result.O2.absentOptionalArtifactCount -ne 1 -or @($call1Result.O1.artifactStates|Where-Object presence -eq Present).Count -ne 10 -or @($call1Result.O1.artifactStates|Where-Object readStatus -eq NotRead).Count -ne 11){throw 'Call1 artifact state derivation invalid.'}
     $call3Result=$loadedModule.Invoke({param($root)Test-C2InjectedGateVector -RepositoryRoot $root -Vector Call3InvalidOutput},@($failureRoot))[0]
     if($call3Result.O2.status -cne 'Failed' -or $call3Result.O2.gitInspectionProcessCount -ne 4 -or $call3Result.O2.startCommitOid -cne $oid -or $call3Result.O2.endCommitOid -cne $oid -or -not $call3Result.O2.headStable){throw 'Intermediate Failed O1/O2 vector invalid.'}
     if($call3Result.O1.inputFailures.Count -ne 1 -or $call3Result.O2.issueCount -ne 1 -or $null -ne $call3Result.O2.discoveryInputFingerprint){throw 'Intermediate failure accounting invalid.'}
@@ -159,9 +163,9 @@ if ($Case -ceq 'ValidatorMutations') {
     )
     foreach($vector in $vectors){
         $r=$vector.result
-        if($r.O2.status -cne 'Failed' -or $r.O2.issueCount -ne 1 -or $r.O2.gitInspectionProcessCount -ne 6 -or -not $r.O2.headStable -or $null -ne $r.O2.discoveryInputFingerprint){throw "$($vector.name) failure vector invalid"}
+        if($r.O2.status -cne 'Failed' -or $r.O2.issueCount -ne 1 -or $r.O2.gitInspectionProcessCount -ne 7 -or -not $r.O2.headStable -or $null -ne $r.O2.discoveryInputFingerprint){throw "$($vector.name) failure vector invalid"}
         if($r.O1.inputFailures[0].attribution -cne "FT-02:$($vector.subject)" -or $r.O1.contractChecks[2].status -cne 'NotEvaluated'){throw "$($vector.name) ownership/suppression invalid"}
-        if($r.O2.readArtifactCount -ne 9 -or $r.O2.acceptedArtifactCount -ne 8 -or $r.O2.failedArtifactCount -ne 1 -or $r.O2.failedRegistrySlotCount -ne 1 -or $r.O1.snapshotId -cne 'snapshot-pc-install-001'){throw "$($vector.name) actual artifact accounting invalid"}
+        if($r.O2.readArtifactCount -ne 10 -or $r.O2.acceptedArtifactCount -ne 9 -or $r.O2.failedArtifactCount -ne 1 -or $r.O2.failedRegistrySlotCount -ne 1 -or $r.O1.snapshotId -cne 'snapshot-pc-install-001'){throw "$($vector.name) actual artifact accounting invalid"}
         $failedArtifact=@($r.O1.artifactStates|Where-Object readStatus -eq Failed)
         if($failedArtifact.Count -ne 1 -or $failedArtifact[0].artifactId -cne $vector.subject -or $failedArtifact[0].worktreeSha256 -cnotmatch '^[0-9a-f]{64}$'){throw "$($vector.name) failed artifact state invalid"}
     }
@@ -176,7 +180,7 @@ if ($Case -ceq 'ValidatorMutations') {
     "manifestShapeMutation=Passed"
     "observationHI03Mutation=Passed"
     "approvalHI15Mutation=Passed"
-    "mutationFinalHeadRevalidationCount=6"
+    "mutationFinalHeadRevalidationCount=7"
     return
 }
 
@@ -211,19 +215,19 @@ $paths = @(
 $requirements = @('Required','Required','Required','Required','Required','Required','ConditionalInput','ConditionalInput','ConditionalInput','ConditionalAuthority','ConditionalApproval')
 $ids = 1..11 | ForEach-Object { 'AR-I{0:d2}' -f $_ }
 $shaValues = @($p0Entries.sha256) + @(
-    '39dfad072afb8316c47be545dbeed872e1c2f9bd6bd7b56365dd391f77ca244f',
+    '50616dd29ec968121675658ba8aa1c8ba78d038034ad3824453f64fd5050d63c',
+    'f1733a10236714e62404660083827091a7884f6ee0b1c7342d7737f6dd84c82a',
     $null,
-    $null,
-    '5ddb3da1cc346ca673c6f24df7d9b7c8ea321e21416d7320f4890456b3668a3e',
-    'e8e531a31fcf50891eaf9564aa0f9c86c816b883bc7f67635a21f7b7c97aa7f8'
+    '4b4b65de4a2ec12dfc1cbd09929bdc66d5aa1cf8345bd161043d694b62cb2ea8',
+    '50510b54502e2747d3f31c9032a21ffdd2eeb24c7121c8f132b7fa3a3c562820'
 )
 $facts = for ($i=0; $i -lt 11; $i++) {
-    $present = $i -notin @(7,8)
+    $present = $i -notin @(8)
     [pscustomobject][ordered]@{
         artifactId=$ids[$i]; path=$paths[$i]; requirement=$requirements[$i]; presence=if($present){'Present'}else{'Absent'}
         worktreeSha256=if($present){$shaValues[$i]}else{$null}
-        commitBlobSha256=if($i -in @(6,9,10)){$shaValues[$i]}else{$null}
-        manifestSha256=if($i -in @(6,10)){$shaValues[$i]}else{$null}
+        commitBlobSha256=if($i -in @(6,7,9,10)){$shaValues[$i]}else{$null}
+        manifestSha256=if($i -in @(6,7,10)){$shaValues[$i]}else{$null}
     }
 }
 $handoff = [pscustomobject][ordered]@{ snapshotId='snapshot-pc-install-001'; ledgerPath=$paths[1]; summaryPath=$paths[2] }
@@ -236,9 +240,9 @@ Assert-Equal (@($positive.O1.PSObject.Properties.Name) -join ',') $o1Order 'O1 p
 Assert-Equal (@($positive.O2.PSObject.Properties.Name) -join ',') $o2Order 'O2 property order'
 Assert-Equal $positive.O2.status Passed 'positive status'
 foreach($pair in @(
-    @('registeredArtifactCount',11),@('readArtifactCount',9),@('requiredArtifactCount',6),@('presentOptionalArtifactCount',3),@('absentOptionalArtifactCount',2),@('failedRegistrySlotCount',0),
-    @('acceptedArtifactCount',9),@('failedArtifactCount',0),@('contractCheckCount',5),@('acceptedCheckCount',3),@('failedCheckCount',0),@('notEvaluatedCheckCount',2),
-    @('inputSubjectCount',14),@('acceptedInputSubjectCount',12),@('inputFailureCount',0),@('excludedInputSubjectCount',0),@('notEvaluatedInputSubjectCount',2),
+    @('registeredArtifactCount',11),@('readArtifactCount',10),@('requiredArtifactCount',6),@('presentOptionalArtifactCount',4),@('absentOptionalArtifactCount',1),@('failedRegistrySlotCount',0),
+    @('acceptedArtifactCount',10),@('failedArtifactCount',0),@('contractCheckCount',5),@('acceptedCheckCount',3),@('failedCheckCount',0),@('notEvaluatedCheckCount',2),
+    @('inputSubjectCount',15),@('acceptedInputSubjectCount',13),@('inputFailureCount',0),@('excludedInputSubjectCount',0),@('notEvaluatedInputSubjectCount',2),
     @('gitInspectionProcessCount',0),@('heavyProcessCount',0),@('realAssetReadCount',0),@('createdExtractedCount',0),@('createdImportedCount',0)
 )) { Assert-Equal $positive.O2.($pair[0]) $pair[1] "positive $($pair[0])" }
 Assert-Equal ($positive.O1.artifactStates.Count) 11 'artifact slot count'

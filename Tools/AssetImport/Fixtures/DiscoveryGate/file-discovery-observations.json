@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "rows": [
+    {
+      "fileDiscoveryObservationId": "file-discovery-observation-sha256:195be146f0f08df54c160fbccf1c790bc1fbd535b6626976e1981344031b3e80",
+      "toolName": "ToolA",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "relativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "outcome": "Readable",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toola-file-readable.json"
+      ]
+    },
+    {
+      "fileDiscoveryObservationId": "file-discovery-observation-sha256:19e7158715bf0dd0807da34dddfa744b9d205a3d3e1273ea5185f217b426b5c4",
+      "toolName": "ToolB",
+      "toolVersion": "1.0.0",
+      "sourceId": "pc-install-primary",
+      "relativePath": "SourceCorpus/PcInstall/game-data.bundle",
+      "outcome": "Readable",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toolb-file-readable.json"
+      ]
+    }
+  ]
+}

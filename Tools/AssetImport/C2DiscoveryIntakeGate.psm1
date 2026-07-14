@@ -115,7 +115,7 @@ function Invoke-C2PureDiscoveryIntake {
         $pathFailure=$shapeOk -and -not $safe
         $shaOk=$shapeOk -and ($presence -eq 'Absent' -or $fact.worktreeSha256 -cmatch '^[0-9a-f]{64}$')
         if($i -lt 6){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $script:RequiredHashes[$i]}
-        elseif($i -in @(6,10)){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $fact.commitBlobSha256 -and $fact.worktreeSha256 -ceq $fact.manifestSha256}
+        elseif($i -in @(6,7,10)){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $fact.commitBlobSha256 -and $fact.worktreeSha256 -ceq $fact.manifestSha256}
         elseif($i -eq 9){$shaOk=$shaOk -and $fact.worktreeSha256 -ceq $fact.commitBlobSha256}
         $freshnessFailure=$requiredAbsent -or ($shapeOk -and $identityOk -and $safe -and $finding.Count -eq 0 -and -not $shaOk)
         $failed=$identityFailure -or $pathFailure -or $freshnessFailure
@@ -248,13 +248,14 @@ function Invoke-C2GitProtocol {
     if($null -eq $owner){
         $calls=@(
             @(2,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[0])"),$true),
-            @(3,@('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$start,'--',$paths[1],$paths[2]),$false),
-            @(4,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[3])"),$true),
-            @(5,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[4])"),$true)
+            @(3,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[1])"),$true),
+            @(4,@('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$start,'--',$paths[2]),$false),
+            @(5,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[3])"),$true),
+            @(6,@('-C',$RepositoryRoot,'cat-file','blob',"${start}:$($paths[4])"),$true)
         )
         foreach($spec in $calls){
             $c=Invoke-ProtocolCall $spec[0] $spec[1] $spec[2]
-            $valid=$c.started -and $c.exitCode -eq 0 -and $c.stderr.Length -eq 0 -and ($spec[0] -ne 3 -or $c.stdoutBytes.Length -eq 0)
+            $valid=$c.started -and $c.exitCode -eq 0 -and $c.stderr.Length -eq 0 -and ($spec[0] -ne 4 -or $c.stdoutBytes.Length -eq 0)
             if($c.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted';break}
             if(-not $valid){$owner='FT-03';$reason='StaleFingerprint';break}
         }
@@ -264,9 +265,9 @@ function Invoke-C2GitProtocol {
         if($validation.status -cne 'Passed'){$owner=$validation.owner;$reason=$validation.reason}
     }
     if($null -ne $start -and $owner -ne 'FT-13'){
-        $c6=Invoke-ProtocolCall 6 @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') $false
-        if($c6.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted'}
-        elseif($c6.started -and $c6.exitCode -eq 0 -and $c6.stderr.Length -eq 0 -and $script:Utf8.GetString($c6.stdoutBytes) -cmatch "^[0-9a-f]{40}`n$"){$end=$script:Utf8.GetString($c6.stdoutBytes).Substring(0,40);if($start -cne $end){$owner='FT-03';$reason='StaleFingerprint'}}
+        $c7=Invoke-ProtocolCall 7 @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') $false
+        if($c7.prelaunchRejected){$owner='FT-13';$reason='HeavyOperationAttempted'}
+        elseif($c7.started -and $c7.exitCode -eq 0 -and $c7.stderr.Length -eq 0 -and $script:Utf8.GetString($c7.stdoutBytes) -cmatch "^[0-9a-f]{40}`n$"){$end=$script:Utf8.GetString($c7.stdoutBytes).Substring(0,40);if($start -cne $end){$owner='FT-03';$reason='StaleFingerprint'}}
         else{$owner='FT-03';$reason='StaleFingerprint'}
     }
     $stable=if($null -ne $start -and $null -ne $end){$start -ceq $end}else{$null}
@@ -281,13 +282,13 @@ function Invoke-C2GitFreshnessAdapter {
 }
 
 function Test-C2GitAdapterLifecycle {
-    [CmdletBinding()]param([Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','Call6InvalidOutput','ChangedHead','PrelaunchCall2')][string]$FailurePoint)
+    [CmdletBinding()]param([Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','Call7InvalidOutput','ChangedHead','PrelaunchCall2')][string]$FailurePoint)
     $oid1='1111111111111111111111111111111111111111';$oid2='2222222222222222222222222222222222222222'
     $fakeTransport={param($number,$arguments,$raw)
         if($FailurePoint -eq 'PrelaunchCall2' -and $number -eq 2){return [pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$true;exitCode=$null;stdoutBytes=[byte[]]@();stderr=''} }
         if($FailurePoint -eq 'Call1StartFailure' -and $number -eq 1){return [pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'} }
-        $text=if($number -in @(1,6)){if($FailurePoint -eq 'ChangedHead' -and $number -eq 6){"$oid2`n"}else{"$oid1`n"}}elseif($number -eq 3){''}else{'blob'}
-        $exit=if(($FailurePoint -eq 'Call3InvalidOutput' -and $number -eq 3)-or($FailurePoint -eq 'Call6InvalidOutput' -and $number -eq 6)){1}else{0}
+        $text=if($number -in @(1,7)){if($FailurePoint -eq 'ChangedHead' -and $number -eq 7){"$oid2`n"}else{"$oid1`n"}}elseif($number -eq 4){''}else{'blob'}
+        $exit=if(($FailurePoint -eq 'Call3InvalidOutput' -and $number -eq 3)-or($FailurePoint -eq 'Call7InvalidOutput' -and $number -eq 7)){1}else{0}
         $encoding=[Text.UTF8Encoding]::new($false)
         [pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}
     }.GetNewClosure()
@@ -349,6 +350,12 @@ function Get-C2ObservationId {
     $canonicalDigest=if($null -eq $Row.canonicalEvidence){$null}else{[string]$Row.canonicalEvidence.digest}
     $text="C2ObjectObservationV1`n"+(ConvertTo-C2ScalarLine toolName $Row.toolName)+(ConvertTo-C2ScalarLine toolVersion $Row.toolVersion)+(ConvertTo-C2ScalarLine sourceId $Row.sourceId)+(ConvertTo-C2ScalarLine containerRelativePath $Row.containerRelativePath)+(ConvertTo-C2ScalarLine pathId ([string]$Row.pathId))+(ConvertTo-C2ScalarLine classId ([string]$Row.classId))+(ConvertTo-C2ScalarLine serializedSizeBytes ([string]$Row.serializedSizeBytes))+(ConvertTo-C2ScalarLine objectType $Row.objectType)+(ConvertTo-C2ScalarLine objectName $Row.objectName)+(Add-C2SetFrame dependencyLocatorIds $dependencyIds)+(ConvertTo-C2ScalarLine contentFingerprint $Row.contentFingerprint)+(Add-C2NullableFrame configurationDisposition $Row.configurationDisposition)+(Add-C2NullableFrame canonicalEvidenceDigest $canonicalDigest)+(ConvertTo-C2ScalarLine correlationId $Row.correlationEvidence.correlationId)+(Add-C2SetFrame evidence @($Row.evidence))
     "observation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Get-C2FileDiscoveryObservationId {
+    param($Row)
+    $text="C2FileDiscoveryObservationV1`n"+(ConvertTo-C2ScalarLine toolName $Row.toolName)+(ConvertTo-C2ScalarLine toolVersion $Row.toolVersion)+(ConvertTo-C2ScalarLine sourceId $Row.sourceId)+(ConvertTo-C2ScalarLine relativePath $Row.relativePath)+(ConvertTo-C2ScalarLine outcome $Row.outcome)+(Add-C2SetFrame evidence @($Row.evidence))
+    "file-discovery-observation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
 }
 
 function Get-C2ApprovalId {
@@ -419,6 +426,7 @@ function Test-C2FixtureContracts {
         'AR-I05'='schemaVersion,generatedAt,corpus,extraction,semantics,configurationDisposition,unity,disposition,familyStaticOutcome,sourceKind'
         'AR-I06'='$schema,$id,title,type,required,additionalProperties,properties,$defs'
         'AR-I07'='schemaVersion,snapshotId,inputFingerprint,rows'
+        'AR-I08'='schemaVersion,snapshotId,inputFingerprint,rows'
         'AR-I10'='schemaVersion,snapshotId,inputFingerprint,entries'
         'AR-I11'='schemaVersion,snapshotId,inputFingerprint,observationArtifactPath,observationArtifactSha256,approvals'
     }
@@ -429,8 +437,8 @@ function Test-C2FixtureContracts {
     foreach($name in $expectedVocabulary.Keys){if((@($Documents['AR-I05'].$name)-join ',') -cne $expectedVocabulary[$name]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I05';message="vocabulary $name"}}}
     $snapshot=$Documents['AR-I01'].snapshotId;$fingerprint=$Documents['AR-I01'].inputFingerprint
     if($snapshot -cne 'snapshot-pc-install-001' -or $Documents['AR-I01'].ledgerPath -cne $script:Registry[1].path -or $Documents['AR-I01'].summaryPath -cne $script:Registry[2].path){return [pscustomobject]@{status='Failed';owner='FT-01';reason='IdentityMismatch';subjectId='C2Check:C1Handoff';message='handoff identity'}}
-    foreach($id in @('AR-I02','AR-I03','AR-I07','AR-I10','AR-I11')){if($Documents[$id].snapshotId -cne $snapshot){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message='snapshot mismatch'}}}
-    foreach($id in @('AR-I02','AR-I03','AR-I07','AR-I10','AR-I11')){if($Documents[$id].inputFingerprint -cne $fingerprint){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message='input fingerprint mismatch'}}}
+    foreach($id in @('AR-I02','AR-I03','AR-I07','AR-I08','AR-I10','AR-I11')){if($Documents[$id].snapshotId -cne $snapshot){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message='snapshot mismatch'}}}
+    foreach($id in @('AR-I02','AR-I03','AR-I07','AR-I08','AR-I10','AR-I11')){if($Documents[$id].inputFingerprint -cne $fingerprint){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message='input fingerprint mismatch'}}}
     $rowKeys='observationId,toolName,toolVersion,sourceId,containerRelativePath,pathId,classId,serializedSizeBytes,objectType,objectName,dependencyLocators,contentFingerprint,configurationDisposition,canonicalEvidence,correlationEvidence,evidence';$rows=@($Documents['AR-I07'].rows)
     if($rows.Count -ne 6){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message='row count'}}
     for($i=0;$i -lt 6;$i++){
@@ -438,7 +446,10 @@ function Test-C2FixtureContracts {
         if($i -eq 4){if($null -ne $rows[$i].observationId -or [int]$rows[$i].classId -ge 0){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message='r5 counterexample'}}}
         elseif($rows[$i].observationId -cne (Get-C2ObservationId $rows[$i])){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I07';message="HI-03 row $i"}}
     }
-    $entries=@($Documents['AR-I10'].entries);if($entries.Count -ne 2 -or (@($entries[0].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or (@($entries[1].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or $entries[0].path -cne $script:Registry[10].path -or $entries[0].sha256 -cne $Hashes['AR-I11'] -or $entries[1].path -cne $script:Registry[6].path -or $entries[1].sha256 -cne $Hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I10';message='manifest shape/binding'}}
+    $fileRowKeys='fileDiscoveryObservationId,toolName,toolVersion,sourceId,relativePath,outcome,evidence';$fileRows=@($Documents['AR-I08'].rows)
+    if($fileRows.Count -ne 2){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I08';message='file row count'}}
+    foreach($row in $fileRows){if((@($row.PSObject.Properties.Name)-join ',') -cne $fileRowKeys -or $row.outcome -cnotin @('Readable','Opaque','Failed') -or @($row.evidence).Count -eq 0 -or $row.fileDiscoveryObservationId -cne (Get-C2FileDiscoveryObservationId $row)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I08';message='file observation shape/HI-06'}}}
+    $entries=@($Documents['AR-I10'].entries);if($entries.Count -ne 3 -or (@($entries[0].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or (@($entries[1].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or (@($entries[2].PSObject.Properties.Name)-join ',') -cne 'path,sha256' -or $entries[0].path -cne $script:Registry[10].path -or $entries[0].sha256 -cne $Hashes['AR-I11'] -or $entries[1].path -cne $script:Registry[7].path -or $entries[1].sha256 -cne $Hashes['AR-I08'] -or $entries[2].path -cne $script:Registry[6].path -or $entries[2].sha256 -cne $Hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I10';message='manifest shape/binding'}}
     if($Documents['AR-I11'].observationArtifactPath -cne $script:Registry[6].path -or $Documents['AR-I11'].observationArtifactSha256 -cne $Hashes['AR-I07']){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='approval artifact binding'}}
     $approvals=@($Documents['AR-I11'].approvals);if($approvals.Count -ne 1){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='approval count'}};$approval=$approvals[0]
     if((@($approval.PSObject.Properties.Name)-join ',') -cne 'approvalId,subjectKind,subjectId,reasonCode,reason,approvedBy,approvedAt,evidence' -or $approval.subjectId -cne $rows[5].observationId -or $approval.approvalId -cne (Get-C2ApprovalId $approval)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I11';message='HI-15/subject binding'}}
@@ -464,18 +475,18 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     $validation={param($bundle)
         try{
             $traceRows=@($bundle.trace)
-            foreach($absentIndex in @(7,8)){
+            foreach($absentIndex in @(8)){
                 $candidate=[IO.Path]::Combine($RepositoryRoot,$registry[$absentIndex].path.Replace('/',[IO.Path]::DirectorySeparatorChar))
                 $null=$context.events.Add([pscustomobject]@{kind='RegisteredPathProbe';path=$registry[$absentIndex].path})
                 if([IO.File]::Exists($candidate)){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message="unexpected worktree presence: $($registry[$absentIndex].artifactId)"}}
             }
-            $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$null=$context.events.Add([pscustomobject]@{kind='RegisteredArtifactRead';path=$registry[$index].path})}
+            $bytes=[ordered]@{};foreach($index in @(0,1,2,3,4,5,6,7,9,10)){$bytes[$registry[$index].artifactId]=[IO.File]::ReadAllBytes([IO.Path]::Combine($RepositoryRoot,$registry[$index].path.Replace('/',[IO.Path]::DirectorySeparatorChar)));$null=$context.events.Add([pscustomobject]@{kind='RegisteredArtifactRead';path=$registry[$index].path})}
             $hashes=[ordered]@{};foreach($key in $bytes.Keys){$hashes[$key]=@($hashBytes.Invoke([byte[]]$bytes[$key]))[0]}
-            $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(7,8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,10)){$sha}else{$null}}}
+            $context.facts=for($i=0;$i -lt 11;$i++){$present=$i -notin @(8);$id=$registry[$i].artifactId;$sha=if($present){$hashes[$id]}else{$null};[pscustomobject][ordered]@{artifactId=$id;path=$registry[$i].path;requirement=$registry[$i].requirement;presence=if($present){'Present'}else{'Absent'};worktreeSha256=$sha;commitBlobSha256=if($i -in @(6,7,9,10)){$sha}else{$null};manifestSha256=if($i -in @(6,7,10)){$sha}else{$null}}}
             $context.handoff=[pscustomobject][ordered]@{snapshotId='snapshot-pc-install-001';ledgerPath=$registry[1].path;summaryPath=$registry[2].path}
             for($i=0;$i -lt 6;$i++){if($hashes["AR-I{0:d2}" -f ($i+1)] -cne $requiredHashes[$i]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='required hash mismatch'}}}
-            $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c4=@($traceRows|Where-Object callNumber -eq 4)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0]
-            if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c4.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
+            $c2=@($traceRows|Where-Object callNumber -eq 2)[0];$c3=@($traceRows|Where-Object callNumber -eq 3)[0];$c5=@($traceRows|Where-Object callNumber -eq 5)[0];$c6=@($traceRows|Where-Object callNumber -eq 6)[0]
+            if($hashes['AR-I07'] -cne @($hashBytes.Invoke([byte[]]$c2.stdoutBytes))[0] -or $hashes['AR-I08'] -cne @($hashBytes.Invoke([byte[]]$c3.stdoutBytes))[0] -or $hashes['AR-I10'] -cne @($hashBytes.Invoke([byte[]]$c5.stdoutBytes))[0] -or $hashes['AR-I11'] -cne @($hashBytes.Invoke([byte[]]$c6.stdoutBytes))[0]){return [pscustomobject]@{status='Failed';owner='FT-03';reason='StaleFingerprint';message='blob mismatch'}}
             $documents=[ordered]@{};foreach($id in $bytes.Keys){$documents[$id]=$utf8.GetString($bytes[$id])|ConvertFrom-Json -Depth 100 -DateKind String}
             if($null -ne $fixtureMutation){$null=$fixtureMutation.Invoke([pscustomobject]@{documents=$documents})}
             $contractResult=@($fixtureValidator.Invoke($documents,$hashes))[0]
@@ -512,7 +523,7 @@ function Test-C2InjectedGateVector {
     [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','RootSchemaRequiredInvalid','RootSchemaPropertyInvalid','RootSchemaDefInvalid','RootSchemaMinimumInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
     $transport=$null;$mutation=$null;$encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
     if($Vector -eq 'Call1StartFailure'){$transport={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()}
-    elseif($Vector -eq 'Call3InvalidOutput'){$transport={param($number,$arguments,$raw)$text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0};[pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}}.GetNewClosure()}
+    elseif($Vector -eq 'Call3InvalidOutput'){$transport={param($number,$arguments,$raw)$text=if($number -in @(1,7)){"$oid`n"}elseif($number -eq 4){''}else{'blob'};$exit=if($number -eq 3){1}else{0};[pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}}.GetNewClosure()}
     else{
         $mutation=switch($Vector){
             'LedgerNestedInvalid' {{param($bundle)$bundle.documents['AR-I02'].files=$null}}
