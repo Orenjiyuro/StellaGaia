@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState')]
     [string]$Case = 'Pure'
 )
 
@@ -97,6 +97,34 @@ if ($Case -ceq 'Integration') {
     "endCommitOid=$($result.O2.endCommitOid)"
     "headStable=$($result.O2.headStable)"
     "discoveryInputFingerprint=$($result.O2.discoveryInputFingerprint)"
+    return
+}
+
+if ($Case -ceq 'FailureState') {
+    $encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
+    $call1Failure={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()
+    $call1Result=Invoke-C2DiscoveryIntakeGate -RepositoryRoot 'C:\repo' -GitTransport $call1Failure
+    if($call1Result.O2.status -cne 'Failed' -or $call1Result.O2.gitInspectionProcessCount -ne 0 -or $null -ne $call1Result.O2.startCommitOid -or $null -ne $call1Result.O2.endCommitOid -or $null -ne $call1Result.O2.headStable){throw 'Call1 Failed O1/O2 vector invalid.'}
+    if($call1Result.O1.inputFailures[0].attribution -cne 'FT-03:C2Check:Freshness' -or $null -ne $call1Result.O2.discoveryInputFingerprint){throw 'Call1 failure ownership invalid.'}
+    $call3Failure={param($number,$arguments,$raw)
+        $text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0}
+        [pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}
+    }.GetNewClosure()
+    $call3Result=Invoke-C2DiscoveryIntakeGate -RepositoryRoot 'C:\repo' -GitTransport $call3Failure
+    if($call3Result.O2.status -cne 'Failed' -or $call3Result.O2.gitInspectionProcessCount -ne 4 -or $call3Result.O2.startCommitOid -cne $oid -or $call3Result.O2.endCommitOid -cne $oid -or -not $call3Result.O2.headStable){throw 'Intermediate Failed O1/O2 vector invalid.'}
+    if($call3Result.O1.inputFailures.Count -ne 1 -or $call3Result.O2.issueCount -ne 1 -or $null -ne $call3Result.O2.discoveryInputFingerprint){throw 'Intermediate failure accounting invalid.'}
+    foreach($r in @($call1Result,$call3Result)){
+        if($r.O2.contractCheckCount -ne ($r.O2.acceptedCheckCount+$r.O2.failedCheckCount+$r.O2.notEvaluatedCheckCount)){throw 'Failure NP-03 mismatch.'}
+        if($r.O2.inputSubjectCount -ne ($r.O2.acceptedInputSubjectCount+$r.O2.inputFailureCount+$r.O2.excludedInputSubjectCount+$r.O2.notEvaluatedInputSubjectCount)){throw 'Failure NP-04 mismatch.'}
+    }
+    "status=Passed"
+    "call1FailureStatus=$($call1Result.O2.status)"
+    "call1GitInspectionProcessCount=$($call1Result.O2.gitInspectionProcessCount)"
+    "call1HeadStable=$($call1Result.O2.headStable)"
+    "intermediateFailureStatus=$($call3Result.O2.status)"
+    "intermediateGitInspectionProcessCount=$($call3Result.O2.gitInspectionProcessCount)"
+    "intermediateFinalHeadRevalidated=$($call3Result.O2.headStable)"
+    "failureFingerprintSuppressed=$($null -eq $call3Result.O2.discoveryInputFingerprint)"
     return
 }
 

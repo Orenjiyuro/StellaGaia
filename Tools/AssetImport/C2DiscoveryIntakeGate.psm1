@@ -288,9 +288,33 @@ function Read-C2AuditedArtifactBytes {
     return [IO.File]::ReadAllBytes($full)
 }
 
+function New-C2FailedIntakeResult {
+    param([string]$Owner,[string]$Reason,[AllowNull()]$StartOid,[AllowNull()]$EndOid,$HeadStable,[int]$GitCount,[int]$HeavyCount,[string]$SubjectId='C2Check:Freshness')
+    $subjectKind=if($Owner -eq 'FT-13'){'LightweightPolicy'}elseif($Owner -eq 'FT-01'){'C1Handoff'}elseif($Owner -eq 'FT-02'){'SchemaDocument'}else{'FreshnessCheck'}
+    if($Owner -eq 'FT-13'){$SubjectId='C2Check:LightweightPolicy'}elseif($Owner -eq 'FT-01'){$SubjectId='C2Check:C1Handoff'}
+    $failure=New-C2AccountingRow inputFailures $subjectKind $SubjectId $Reason "${Owner}:$SubjectId" @()
+    $states=foreach($reg in $script:Registry){[pscustomobject][ordered]@{artifactId=$reg.artifactId;path=$reg.path;requirement=$reg.requirement;presence='Absent';readStatus='Failed';worktreeSha256=$null;commitBlobSha256=$null;manifestSha256=$null;identityStatus='NotApplicable';freshnessStatus='Failed';evidence=@($reg.path)}}
+    $lightStatus=if($Owner -eq 'FT-13'){'Failed'}else{'Accepted'};$handoffStatus=if($Owner -eq 'FT-01'){'Failed'}else{'Accepted'}
+    $freshStatus=if($Owner -in @('FT-13','FT-01','FT-02')){'NotEvaluated'}elseif($Owner -eq 'FT-03'){'Failed'}else{'NotEvaluated'}
+    $checks=@(
+        (New-C2Check 'C2Check:LightweightPolicy' $lightStatus $(if($lightStatus -eq 'Failed'){'FT-13:C2Check:LightweightPolicy'}else{'Accepted:C2Check:LightweightPolicy'}) @() @()),
+        (New-C2Check 'C2Check:C1Handoff' $handoffStatus $(if($handoffStatus -eq 'Failed'){'FT-01:C2Check:C1Handoff'}else{'Accepted:C2Check:C1Handoff'}) @() @('AR-I01','AR-I02','AR-I03')),
+        (New-C2Check 'C2Check:Freshness' $freshStatus $(if($freshStatus -eq 'Failed'){'FT-03:C2Check:Freshness'}else{'FT-15:C2Check:Freshness'}) @() @('GitAdapter:StartCommitOid','GitAdapter:EndHead')),
+        (New-C2Check 'C2Check:Conservation' NotEvaluated 'FT-15:C2Check:Conservation' @() @('Stage:C2Partitions')),
+        (New-C2Check 'C2Check:PublicProjection' NotEvaluated 'FT-15:C2Check:PublicProjection' @($script:Registry[5].path) @('AR-O01','AR-O02','AR-O03','AR-O04','AR-O05'))
+    )
+    $suppressions=[Collections.Generic.List[object]]::new()
+    foreach($check in $checks|Where-Object status -eq NotEvaluated){$suppressions.Add((New-C2AccountingRow inputSuppressions ContractCheck $check.subjectId PrerequisiteUnavailable "FT-15:$($check.subjectId)" $check.evidence))}
+    $acceptedChecks=@($checks|Where-Object status -eq Accepted).Count;$failedChecks=@($checks|Where-Object status -eq Failed).Count;$notEvaluated=@($checks|Where-Object status -eq NotEvaluated).Count
+    $next=if($Owner -eq 'FT-13'){'Remove unsafe operation'}elseif($Owner -eq 'FT-01'){'Fix C1 handoff fixture'}elseif($Owner -eq 'FT-02'){'Fix reviewed registry shape'}else{'Restore reviewed frozen-commit bytes and stable HEAD'}
+    $o1=[pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId=$null;startCommitOid=$StartOid;endCommitOid=$EndOid;headStable=$HeadStable;discoveryInputFingerprint=$null;artifactStates=[object[]]$states;contractChecks=[object[]]$checks;inputFailures=@($failure);inputExclusions=@();inputSuppressions=[object[]]$suppressions;decision=[pscustomobject][ordered]@{failureAttribution=$failure.attribution;nextAllowedAction=$next}}
+    $o2=[pscustomobject][ordered]@{status='Failed';issueCount=1;registeredArtifactCount=11;readArtifactCount=0;requiredArtifactCount=6;presentOptionalArtifactCount=0;absentOptionalArtifactCount=0;failedRegistrySlotCount=11;acceptedArtifactCount=0;failedArtifactCount=0;contractCheckCount=5;acceptedCheckCount=$acceptedChecks;failedCheckCount=$failedChecks;notEvaluatedCheckCount=$notEvaluated;inputSubjectCount=5;acceptedInputSubjectCount=$acceptedChecks;inputFailureCount=1;excludedInputSubjectCount=0;notEvaluatedInputSubjectCount=$notEvaluated;gitInspectionProcessCount=$GitCount;heavyProcessCount=$HeavyCount;realAssetReadCount=0;createdExtractedCount=0;createdImportedCount=0;startCommitOid=$StartOid;endCommitOid=$EndOid;headStable=$HeadStable;discoveryInputFingerprint=$null;nextAllowedAction=$next}
+    [pscustomobject][ordered]@{O1=$o1;O2=$o2}
+}
+
 function Invoke-C2DiscoveryIntakeGate {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    param([Parameter(Mandatory)][string]$RepositoryRoot,[AllowNull()][scriptblock]$GitTransport)
     $requiredHashes=@(
         '548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac',
         'acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462',
@@ -299,8 +323,8 @@ function Invoke-C2DiscoveryIntakeGate {
         '88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444',
         '45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449'
     )
-    $gitExecutable=(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source
-    if(-not [IO.Path]::IsPathFullyQualified($gitExecutable)){throw 'FT-13: git executable is not absolute.'}
+    $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
+    if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
     $context=[ordered]@{facts=$null;handoff=$null;artifactReadCount=0;realAssetReadCount=0;extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
     $registry=$script:Registry;$utf8=$script:Utf8
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
@@ -325,8 +349,11 @@ function Invoke-C2DiscoveryIntakeGate {
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
         }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
     }.GetNewClosure()
-    $protocol=Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $null -GitExecutable $gitExecutable -BeforeFinalHead $validation
-    if($protocol.status -ne 'Passed'){throw "$($protocol.owner): $($protocol.reason); $($protocol.validation.message); start=$($protocol.startCommitOid); end=$($protocol.endCommitOid); calls=$($protocol.gitInspectionProcessCount)"}
+    $protocol=Invoke-C2GitProtocol -RepositoryRoot $RepositoryRoot -Transport $GitTransport -GitExecutable $gitExecutable -BeforeFinalHead $validation
+    if($protocol.status -ne 'Passed'){
+        $subject=if($protocol.owner -eq 'FT-02' -and $protocol.validation.message -match 'approval'){'AR-I11'}elseif($protocol.owner -eq 'FT-02'){'AR-I10'}else{'C2Check:Freshness'}
+        return New-C2FailedIntakeResult $protocol.owner $protocol.reason $protocol.startCommitOid $protocol.endCommitOid $protocol.headStable $protocol.gitInspectionProcessCount $protocol.heavyProcessCount $subject
+    }
     $result=Invoke-C2PureDiscoveryIntake $context.facts $context.handoff $protocol.startCommitOid $protocol.endCommitOid
     $result.O2.gitInspectionProcessCount=$protocol.gitInspectionProcessCount
     $result.O2.realAssetReadCount=$context.realAssetReadCount
