@@ -116,16 +116,11 @@ if ($Case -ceq 'Integration') {
 }
 
 if ($Case -ceq 'FailureState') {
-    $encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
-    $call1Failure={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()
-    $call1Result=Invoke-C2DiscoveryIntakeGate -RepositoryRoot 'C:\repo' -GitTransport $call1Failure
+    $oid='1111111111111111111111111111111111111111'
+    $call1Result=Test-C2InjectedGateVector -RepositoryRoot 'C:\repo' -Vector Call1StartFailure
     if($call1Result.O2.status -cne 'Failed' -or $call1Result.O2.gitInspectionProcessCount -ne 0 -or $null -ne $call1Result.O2.startCommitOid -or $null -ne $call1Result.O2.endCommitOid -or $null -ne $call1Result.O2.headStable){throw 'Call1 Failed O1/O2 vector invalid.'}
     if($call1Result.O1.inputFailures[0].attribution -cne 'FT-03:C2Check:Freshness' -or $null -ne $call1Result.O2.discoveryInputFingerprint){throw 'Call1 failure ownership invalid.'}
-    $call3Failure={param($number,$arguments,$raw)
-        $text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0}
-        [pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}
-    }.GetNewClosure()
-    $call3Result=Invoke-C2DiscoveryIntakeGate -RepositoryRoot 'C:\repo' -GitTransport $call3Failure
+    $call3Result=Test-C2InjectedGateVector -RepositoryRoot 'C:\repo' -Vector Call3InvalidOutput
     if($call3Result.O2.status -cne 'Failed' -or $call3Result.O2.gitInspectionProcessCount -ne 4 -or $call3Result.O2.startCommitOid -cne $oid -or $call3Result.O2.endCommitOid -cne $oid -or -not $call3Result.O2.headStable){throw 'Intermediate Failed O1/O2 vector invalid.'}
     if($call3Result.O1.inputFailures.Count -ne 1 -or $call3Result.O2.issueCount -ne 1 -or $null -ne $call3Result.O2.discoveryInputFingerprint){throw 'Intermediate failure accounting invalid.'}
     foreach($r in @($call1Result,$call3Result)){
@@ -145,13 +140,12 @@ if ($Case -ceq 'FailureState') {
 
 if ($Case -ceq 'ValidatorMutations') {
     $repositoryRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $manifestMutation={param($bundle)$bundle.documents['AR-I10'].PSObject.Properties.Remove('entries')}
-    $observationMutation={param($bundle)$bundle.documents['AR-I07'].rows[5].observationId='observation-sha256:0000000000000000000000000000000000000000000000000000000000000000'}
-    $approvalMutation={param($bundle)$bundle.documents['AR-I11'].approvals[0].approvalId='exclusion-approval-sha256:0000000000000000000000000000000000000000000000000000000000000000'}
     $vectors=@(
-        [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $manifestMutation)},
-        [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $observationMutation)},
-        [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Invoke-C2DiscoveryIntakeGate $repositoryRoot -FixtureMutator $approvalMutation)}
+        [pscustomobject]@{name='ledgerNestedSchema';subject='AR-I02';result=(Test-C2InjectedGateVector $repositoryRoot LedgerNestedInvalid)},
+        [pscustomobject]@{name='vocabularyContent';subject='AR-I05';result=(Test-C2InjectedGateVector $repositoryRoot VocabularyInvalid)},
+        [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Test-C2InjectedGateVector $repositoryRoot ManifestShapeInvalid)},
+        [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Test-C2InjectedGateVector $repositoryRoot ObservationHI03Invalid)},
+        [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Test-C2InjectedGateVector $repositoryRoot ApprovalHI15Invalid)}
     )
     foreach($vector in $vectors){
         $r=$vector.result
@@ -159,10 +153,12 @@ if ($Case -ceq 'ValidatorMutations') {
         if($r.O1.inputFailures[0].attribution -cne "FT-02:$($vector.subject)" -or $r.O1.contractChecks[2].status -cne 'NotEvaluated'){throw "$($vector.name) ownership/suppression invalid"}
     }
     "status=Passed"
+    "ledgerNestedSchemaMutation=Passed"
+    "vocabularyContentMutation=Passed"
     "manifestShapeMutation=Passed"
     "observationHI03Mutation=Passed"
     "approvalHI15Mutation=Passed"
-    "mutationFinalHeadRevalidationCount=3"
+    "mutationFinalHeadRevalidationCount=5"
     return
 }
 
@@ -303,7 +299,7 @@ function Get-AstViolations {
                 'Invoke-C2GitChild'='^(\[Diagnostics\.Process\]::new\(\)|\$process\.Start\(\)|\[IO\.MemoryStream\]::new\(\)|\$process\.StandardOutput\.BaseStream\.CopyToAsync\(\$memory\)|\$process\.StandardError\.ReadToEndAsync\(\)|\$process\.WaitForExit\(\)|\$process\.Dispose\(\))$'
                 'Invoke-C2GitFreshnessAdapter'='^\[IO\.Path\]::IsPathFullyQualified\(\$gitExecutable\)$'
                 'Read-C2AuditedArtifactBytes'='^\[IO\.Path\]::(GetFullPath|Combine)\(.+\)$|^\[IO\.File\]::ReadAllBytes\(\$full\)$'
-                'Invoke-C2DiscoveryIntakeGate'='^\[IO\.(Path|Directory|File)\]::(IsPathFullyQualified|Combine|Exists|ReadAllBytes)\(.+\)$'
+                'Invoke-C2DiscoveryIntakeGateInternal'='^\[IO\.(Path|Directory|File)\]::(IsPathFullyQualified|Combine|Exists|ReadAllBytes)\(.+\)$'
             }
             if($null -eq $parent -or -not $allowedByFunction.ContainsKey($parent.Name) -or $text -cnotmatch $allowedByFunction[$parent.Name]){$violations.Add("api:$text")}
         }
