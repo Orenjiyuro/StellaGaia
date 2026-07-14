@@ -1,17 +1,17 @@
 # StellaSora C2 SP-05/SP-06 Minimal Configuration And Canonical Plan
 
 **Date:** 2026-07-14
-**Status:** Task 0 implemented in this documentation change, pending read-only approval; Tasks 1/2 not started
-**Baseline:** `codex/asset-corpus-integration` at `5829e16be0aac7ad5321e388d51da52a7c6bb0a0`
+**Status:** Task 0 superseded by Task 0B; Task 1/SP-05 complete at `12e89c8`; Task 2/SP-06 BLOCKED pending Task 0B read-only approval
+**Baseline:** `codex/asset-corpus-integration` at `12e89c80e21a03c13609623e8460e38065207eb3`
 **Scope:** fixture-only SP-05 configuration candidates/conflicts and SP-06 canonical groups/conflicts. No fixture creation or modification, output persistence, SP-07+, C3-C6, G5, Unity, extraction, import, real assets, or forbidden-path creation.
 
 ## 1. Slicing decision
 
 1. **One Task in the existing module/harness:** smallest apparent scope, but combines AR-I09 validation, HI-09, FT-08, HI-10, overlap detection, FT-09, and two public fragments beyond one 20–30 minute Task.
-2. **A spec-amendment Task followed by two implementation Tasks (recommended):** Task 0 registers canonical proposal provenance and exact FT-09 ownership; Task 1 implements SP-05; Task 2 implements SP-06 only after Task 0 is separately approved. Each increment stays green.
+2. **A spec-amendment Task followed by two implementation Tasks (recommended):** superseding Task 0B registers complete canonical proposal provenance and exact FT-05/09/10 ownership; Task 1 implemented SP-05; Task 2 implements SP-06 only after Task 0B is separately approved. Each increment stays green.
 3. **New module/harness:** stronger isolation, but creates another production boundary before AR-P01 publication exists.
 
-This plan intentionally contains three Tasks because the pre-amendment AR-S02/AR-S05 shapes could not express proposed member sets, target IDs, proposed canonical IDs, overlap, or missing-member inputs. Task 0 supplies that amendment. Execute only one Task per explicit authorization; Task 2 remains blocked until Task 0 is approved and committed.
+This plan contains sequential documentation and implementation Tasks because the pre-amendment AR-S05 shape could not carry the resolved/missing member facts required by SP-06. The original Task 0 amendment is superseded by Task 0B, which closes that provenance model. Execute only one Task per explicit authorization; Task 2 remains blocked until Task 0B is independently approved and committed.
 
 ## 2. Frozen integrated universe
 
@@ -151,12 +151,27 @@ evidence
 - Null canonical evidence deterministically creates one-member `Unresolved`; `canonicalAssetId` is the object ID itself, `platformScope` is the member platform, equivalence fingerprint is null, and variant evidence is empty.
 - `ExactDuplicate` requires at least two distinct objects, one exact non-null equivalence fingerprint, identical content fingerprint, and agreement from every member proposal. HI-10a uses `C2CanonicalGroupV1`.
 - `ConfirmedVariant` requires at least one Pc and one Android member, distinct content fingerprints, one exact equivalence fingerprint, and nonempty variant evidence. Its equivalence fingerprint is independently recomputed with `C2VariantEquivalenceV1` over the distinct Ordinal content-fingerprint set.
-- An object may occur in one canonical group only. Overlapping proposals, inconsistent member sets/status/platform/equivalence evidence, duplicate proposed groups, or proposal targeting a missing/conflicted object produce one or more exact HI-10c/FT-09 subjects under unique ownership; no affected public object receives a canonical ID.
+- An object may occur in one canonical group only. Overlapping different proposed groups, inconsistent member sets/status/platform/equivalence evidence, or proposal targeting a missing/conflicted object produce one or more exact HI-10c/FT-09 subjects under unique ownership; no affected public object receives a canonical ID. Different observations expressing the same exact group are required agreement, not duplicates.
 - Null evidence is never heuristically grouped with another object.
 
-The pre-amendment input could express only the integrated null-evidence Unresolved vector. Task 0 now amends the spec: AR-S02 canonical evidence carries nullable proposed canonical ID and member IDs; amended HI-04 binds them; AR-S05 carries `canonicalProposalProvenance`; HI-10d binds each accepted observation/HI-04 proposal. These fields never enter `resolvedValues` and provenance rows are not extra SP-08 subjects.
+The pre-amendment input could express only the integrated null-evidence Unresolved vector. Task 0B freezes AR-S05 `canonicalProposalProvenance` as exactly `proposalId,observationId,canonicalEvidenceId,proposedCanonicalAssetId,matchStatus,platformScope,equivalenceFingerprint,memberObjectIds,memberFacts,missingMemberObjectIds,evidence`. A `memberFacts` row is exactly `assetObjectId,memberPlatform,contentFingerprint`. These fields never enter `resolvedValues`; provenance rows are not extra SP-08 subjects.
 
-The spec's SP-06 provenance subregistry freezes ExactDuplicate A/B and ConfirmedVariant inputs, exact HI-10b, all three HI-10a IDs, six HI-10c IDs, and six FT-09 AR-S10 recordIds. Those literal values—not production helpers—are the focused-test oracle. Until this amendment is approved, Task 2 may implement nothing; even Unresolved waits so one coherent model is reviewed.
+`memberFacts` and `missingMemberObjectIds` are disjoint, Ordinal-sorted, exhaustive partitions of `memberObjectIds`; count conservation is `memberObjectIds.Count = memberFacts.Count + missingMemberObjectIds.Count`. Nonempty missing IDs force `platformScope=Unknown`; otherwise scope derives from the complete fact set. Every accepted non-null canonical-evidence observation has exactly one provenance row and every such row maps back to exactly one such observation. Missing/multiple rows or duplicate `proposalId` are one FT-10 Conservation failure. Raw canonical-evidence shape/HI failure is FT-05. Missing members, overlap, and status/scope/content/equivalence contradictions after a valid one-to-one join are FT-09.
+
+HI-10d V2 is `canonical-proposal-sha256:` / `C2CanonicalProposalV2`, with field order `observationId`, `canonicalEvidenceId`, nullable `proposedCanonicalAssetId`, `matchStatus`, `platformScope`, nullable `equivalenceFingerprint`, `memberObjectIds` set, `memberFacts` nested list, `missingMemberObjectIds` set, `evidence` set. Each nested item is the complete UTF-8/no-BOM `C2CanonicalMemberFactV1` record with `assetObjectId`, `memberPlatform`, `contentFingerprint`, sorted by decoded asset ID and length-framed under `memberFacts[index]`. The spec's literal tables are the focused-test oracle. Until Task 0B is approved, Task 2 may implement nothing; even Unresolved waits so one coherent model is reviewed.
+
+Task 0B from-zero literals are frozen as follows:
+
+| vector | HI-10a/10b | e HI-04 / HI-10d V2 | f HI-04 / HI-10d V2 |
+|---|---|---|---|
+| ExactDuplicate A | `canonical-sha256:843086f47eb4de699ad9d586f4692993fb1bbe0f68b1487b32aa1cd5b7eeff3c` | `canonical-evidence-sha256:db79daf694e7124465b9ab59f11e5c83099708887ccbb8165d4082d96f72b635` / `canonical-proposal-sha256:3e94ad5cd6c7dfbc0b844c4cc9d6a45c89cb743a90f3fd613ac861b6f9cf075e` | `canonical-evidence-sha256:84d251cfa1e7737a37cfba8044aa0a9b5b6ae445d006486f6085e27bdaf1b6d3` / `canonical-proposal-sha256:07596af8c1ccced882613599bf6b2f4e47efa7baed7e8b5a96bbfaa8001e83ee` |
+| ConfirmedVariant | HI-10b `1bbf97948d5f9111ae0e5000a7420a367632e52f434c9cdf15ecae33dfa5bbe1`; HI-10a `canonical-sha256:0daa9f57bb5628818d732ec67ff39f74839a47a4a668c0465bd6f4f0a7e0dc85` | `canonical-evidence-sha256:8f15fd3e611ba21a1edcd7dbde908459200c3b6cdde21010da9f2b41bbe507e2` / `canonical-proposal-sha256:bcfd8bd495f025e7499ca30ab49c5026030b47b6ebf4826dd46fb629ccaf56f6` | `canonical-evidence-sha256:144a9217b5fdd1b299e9ad4adb69296ba8ac7eb001eb837bf4dc8c9dc2418fcc` / `canonical-proposal-sha256:66cae93bc4f8b1c7abc575cd7a771928a693fed0498b75ba2abb05f656f514f7` |
+
+Overlap B HI-10a is `canonical-sha256:0942c13e4665a597883b01a50826348ce4443e1cbe3c676d74c24ab81c3a4ad3`; B/f HI-04/HI-10d are `canonical-evidence-sha256:e879808a21e1683270df2417aba026e455f6ec5c1b16f5f58f7aed3ffb3eee16` / `canonical-proposal-sha256:966b0d84c34ecfde8c42c64f892601d3f6ec44e8c0530cf0c935fc4f8f2b73d5`. Missing-b/e has fact a, missing b, `platformScope=Unknown`, raw proposed A, Unknown-scope HI-10a `canonical-sha256:2deebf8783219024da05851d8e639a2f9a2b5a3b944c96d8187ab7c8b0e441c8`, HI-10d `canonical-proposal-sha256:24f936f959f9cff908eaf79b2159bcf55e5879be3a2a1e276c9d3c123bde9cc6`, and one FT-09 subject owning both missing-member and proposed-ID mismatch.
+
+FT-09 conflict/accounting pairs are overlap `6d27bbe91cbcdcf600269fa6e7f9f8566c47bb072bb389948352908de8b5df84` / `b96c96d4eb5a03e06798d939a37b102dac4a578495f2c4fb1275078e6ef58a77`; missing `2bdbd0bd8082a99d1665216df74581f06dc752254bb03f63c5262650c807b499` / `14cf5beeae126026d50ebbde74287d6df7da711a44570affbbc589dc2eda7fc8`; status `781d9a95c17b2b13e3d7dc238cbc8e617f6eb3c0055cdbcdef7024d7f9aa67b5` / `3a270d9e610aa9ebe108a56d5c58ce3f284e7f70ad6e2e6d207b7d2f39c1b5bc`; scope `cb87382ad9e3e0c4df42bc295b042face94d7c73219cc8165e63279504f29776` / `2a5ab596f6edacec595bea75857596b7e850dfe5cf2c98841bc71800b035506f`; same-platform `b45a6162ea16bda2d7c717d451de5c565296b9ce16edb676930a9b4e16b9b694` / `a2f3cf79107d4422fd7f75bddcad234e5d079a03f8a52f99ea970736ae7bc103`; same-content `bffc1ab94aa94f182dbae0e02c4a6eb1edd3e2cdce821390df9ab315131c6a12` / `0ca4f829ad7b7e71132e055f329c1f6351b2fb934d09cce992a6de1f73928c89`; bad-equivalence `36e974feaf687441fdcd12bede62c5461ad3ce2b3cf843a40858279c5a2f1cbe` / `7c5158ff25a6da20c94656196b201a0a07044865c4e3b33ccfa8612a452c33b7`; wrong-proposed-ID `9e90ab6ccc6053632f98f1394ee626344ccc5d40206975ba84c66528397e3d22` / `5022d9b9231dfa748eefb232045b00ae209148748e5d2d44c54085c06fbf0dda`, with the respective `canonical-conflict-sha256:` / `accounting-sha256:` prefixes. Status mismatch changes only f `matchStatus=ExactDuplicate`; scope mismatch changes only f provenance `platformScope=PcOnly`; all other fields remain the ConfirmedVariant positive values. Repeating e's exact provenance row is the sole duplicate counterexample and produces FT-10 record `accounting-sha256:99b22592adff48c273bdc79844085fdd2052dc5bc18766d8a6d8249cb7967985`, not HI-10c/FT-09.
+
+Positive/conflict disjointness is structural: A/e+A/f have the same proposed ID, exact-equal status/scope/equivalence/member IDs/member facts, empty missing sets, and distinct observation/proposal IDs, so they form one ExactDuplicate group. Overlap introduces different A/B proposed IDs sharing b; missing introduces a nonempty missing set; each variant mismatch changes exactly its named member-fact/equivalence predicate. None of those negative sets equals either positive set. The duplicate-provenance set repeats e's identical proposal and observation IDs and is rejected by FT-10 before SP-06, so it cannot also produce FT-09.
 
 Integrated conservation is:
 
@@ -197,7 +212,7 @@ canonicalConflicts
 publicObjectsWithCanonicalId
 ```
 
-The pure input extends only with parsed in-memory `c1Files`, `fileConfigurationArtifact` (`artifactPath`, `artifactSha256`, `documentReadStatus`, `document`), and—only after Task 0 approval—the registered `canonicalProposalProvenance`. AR-I09 Absent is explicit and carries null SHA/document. No reader, callback, script block, process object, final partition, or count is accepted.
+The pure input extends only with parsed in-memory `c1Files`, `fileConfigurationArtifact` (`artifactPath`, `artifactSha256`, `documentReadStatus`, `document`), and—only after Task 0B approval—the registered `canonicalProposalProvenance`. AR-I09 Absent is explicit and carries null SHA/document. No reader, callback, script block, process object, final partition, or count is accepted.
 
 `publicObjectsWithCanonicalId` omits every object affected by a canonical conflict and never emits a null canonical ID. Independent earlier failures do not erase an otherwise evaluable normalized join; the diagnostic state retains it while AR-O01 publication remains suppressed. On a conflict-free normalized derivation it has the complete AR-S06 object row shape/order:
 
@@ -242,22 +257,27 @@ unresolvedCanonicalGroupCount
 
 FT-08/FT-09 each create one AR-S10 row per derived conflict identity, add one SP-08 subject/failure/issue, suppress D9 and every public output, and preserve all independent actual states. Conflict subjects never also produce resolved candidates/groups. On the current integrated fixture, pre-existing r5 and FT-07 still make the overall gate Failed; SP-05/SP-06 positive normalized rows must nevertheless be derived and retained as diagnostic state because their prerequisites exist.
 
-## 6. Task 0 — Register Canonical Proposal Provenance (20–30 minutes)
+## 6. Task 0 — Register Canonical Proposal Provenance (Superseded by Task 0B)
 
 **Exact files:** modify only the C2 spec and this plan. No scripts or fixtures.
 
 ### Steps
 
-1. **Completed:** selected expanded AR-S02 evidence + separate AR-S05 provenance over an unbound sidecar or illegal `resolvedValues` extension.
-2. **Completed:** registered exact recursive shapes, HI-04 V2, HI-10d, ordering, duplicate rules, and non-subject status.
-3. **Completed:** froze ExactDuplicate A/B and ConfirmedVariant inputs plus exact HI-10a/HI-10b.
-4. **Completed:** froze six FT-09 inputs, HI-10c ownership/evidence, and exact AR-S10 recordIds.
-5. **Completed:** froze `publicObjectsWithCanonicalId` success/failure join.
-6. **Current checkpoint:** run doc consistency/diff checks, commit only these two docs, and stop for read-only approval.
+The original amendment omitted resolved/missing member facts and incorrectly treated two observations agreeing on one ExactDuplicate proposal as a duplicate conflict. Its HI-10d V1 and duplicateProposal FT-09 literals are obsolete and must not be implemented.
 
-**Stop checkpoint:** commit approved documentation independently. Task 2 remains blocked until this checkpoint is approved.
+## 6A. Task 0B — Close Canonical Proposal Provenance (20–30 minutes)
 
-## 7. Task 1 — SP-05 Configuration Partition (20–30 minutes)
+**Exact files:** this C2 spec and this plan only.
+
+1. Register the complete provenance/memberFacts shape and exhaustive member conservation.
+2. Upgrade HI-10d to V2 with directly nested member-fact records.
+3. Freeze one-to-one production conservation and FT-05/09/10 ownership.
+4. Recompute every positive and negative literal from zero; prove A/e+A/f agreement is disjoint from all conflicts.
+5. Commit the two documents and stop for read-only approval.
+
+**Stop checkpoint:** Task 2 remains BLOCKED until Task 0B is independently approved.
+
+## 7. Task 1 — SP-05 Configuration Partition (Complete at `12e89c8`)
 
 **Exact files:** modify only:
 
@@ -281,7 +301,7 @@ pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1 -Case Con
 
 **Stop checkpoint:** commit Task 1 independently and stop. Do not start Task 2 without new authorization.
 
-## 8. Task 2 — SP-06 Canonical Partition (20–30 minutes)
+## 8. Task 2 — SP-06 Canonical Partition (BLOCKED pending Task 0B approval; 20–30 minutes after approval)
 
 **Exact files:** modify only the same two scripts. No fixture or document changes.
 
@@ -289,7 +309,7 @@ pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1 -Case Con
 
 1. **RED: integrated Unresolved (2–5 min).** Add `-Case CanonicalPartitions`; assert exact one-member group, self canonical ID, null equivalence, and 1=1+0 / 1=0+0+1.
 2. **Implement HI-10a groups (2–5 min).** Derive Unresolved, ExactDuplicate, and ConfirmedVariant with exact set ordering and independent variant digest.
-3. **Conflict matrix (2–5 min).** Freeze overlaps, missing member, same-platform/content invalid variants, mismatched equivalence, and duplicate proposals.
+3. **Conservation/conflict matrix (2–5 min).** Assert duplicate/missing/multiple provenance ownership by FT-10 before grouping; then freeze overlap, missing member, status/scope/platform/content/equivalence/proposed-ID mismatches under FT-09.
 4. **HI-10c/FT-09 (2–5 min).** Assert exact conflict/accounting shapes, stable IDs, unique ownership, and no canonical projection for affected objects.
 5. **Public join/integration (2–5 min).** Join canonical IDs by object ID only; preserve platform/status; derive actual SP-08/O1/O2 counts and suppression.
 6. **GREEN/checkpoint (2–5 min).** Run complete regressions, AST safety, and exact scope checks.
@@ -315,6 +335,6 @@ Test-Path -LiteralPath Extracted
 Test-Path -LiteralPath Assets/StellaGaia/Imported
 ```
 
-Both scripts must parse with zero syntax errors and the pure path AST audit must report zero filesystem/process/native/dynamic/Unity/extraction/import violations. Stage only the two exact scripts with explicit paths; never use `git add .`. `AGENTS.md` and plan documents remain unstaged unless separately authorized. Both forbidden paths remain `False`.
+Both scripts must parse with zero syntax errors and the pure path AST audit must report zero filesystem/process/native/dynamic/Unity/extraction/import violations. Stage only the currently authorized exact files with explicit paths; never use `git add .`. `AGENTS.md` and unrelated plan documents remain unstaged unless separately authorized. Both forbidden paths remain `False`.
 
-This plan is the only authorized change now. Submit it uncommitted for read-only review and do not execute Task 1 until approved.
+Task 0B is the only authorized change now. Commit exactly the C2 spec and this plan, then stop for read-only review; do not execute Task 2 until Task 0B is separately approved.
