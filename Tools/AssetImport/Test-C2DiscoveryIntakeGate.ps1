@@ -196,6 +196,29 @@ Assert-Equal $ft15.O2.inputFailureCount 0 'FT-15 failure count'
 Assert-Equal $ft15.O1.contractChecks[2].status NotEvaluated 'FT-15 freshness status'
 Assert-Equal $ft15.O1.inputSuppressions.Count 3 'FT-15 suppression count'
 
+$requiredAbsent=Copy-MemoryValue $facts; $requiredAbsent[0].presence='Absent';$requiredAbsent[0].worktreeSha256=$null
+$requiredAbsentResult=Invoke-C2PureDiscoveryIntake $requiredAbsent $handoff $oid $oid
+Assert-Equal $requiredAbsentResult.O2.status Failed 'required absence status'
+Assert-Equal $requiredAbsentResult.O1.artifactStates[0].readStatus Failed 'required absence slot state'
+Assert-Equal $requiredAbsentResult.O1.inputFailures[0].attribution 'FT-03:C2Check:Freshness' 'required absence owner'
+Assert-Equal $requiredAbsentResult.O2.registeredArtifactCount ($requiredAbsentResult.O2.readArtifactCount+$requiredAbsentResult.O2.absentOptionalArtifactCount+$requiredAbsentResult.O2.failedRegistrySlotCount) 'required absence NP-01'
+Assert-Equal $requiredAbsentResult.O2.inputSubjectCount ($requiredAbsentResult.O2.acceptedInputSubjectCount+$requiredAbsentResult.O2.inputFailureCount+$requiredAbsentResult.O2.excludedInputSubjectCount+$requiredAbsentResult.O2.notEvaluatedInputSubjectCount) 'required absence NP-04'
+
+$freshnessFalse=Copy-MemoryValue $facts;$freshnessFalse[0].freshnessValid=$false
+$freshnessFalseResult=Invoke-C2PureDiscoveryIntake $freshnessFalse $handoff $oid $oid
+Assert-Equal $freshnessFalseResult.O1.inputFailures[0].attribution 'FT-03:C2Check:Freshness' 'freshness fact owner'
+Assert-Equal $freshnessFalseResult.O1.contractChecks[2].attribution 'FT-03:C2Check:Freshness' 'freshness check attribution'
+
+$manifestShape=Copy-MemoryValue $facts;$manifestShape[9].PSObject.Properties.Remove('manifestSha256')
+$manifestShapeResult=Invoke-C2PureDiscoveryIntake $manifestShape $handoff $oid $oid
+Assert-Equal $manifestShapeResult.O1.contractChecks[2].status NotEvaluated 'manifest FT-15 freshness status'
+Assert-Equal $manifestShapeResult.O1.contractChecks[2].attribution 'FT-15:C2Check:Freshness' 'manifest FT-15 attribution'
+
+$twoFailures=Copy-MemoryValue $facts;$twoFailures[3].identityValid=$false;$twoFailures[4].identityValid=$false
+$twoFailureResult=Invoke-C2PureDiscoveryIntake $twoFailures $handoff $oid $oid
+Assert-Equal $twoFailureResult.O1.inputFailures.Count 2 'independent failure accounting count'
+Assert-Equal $twoFailureResult.O2.issueCount 2 'independent issue count'
+
 function Get-AstViolations {
     param([Management.Automation.Language.Ast]$Ast)
     $forbiddenCommands = @('Get-Content','Set-Content','Add-Content','Clear-Content','New-Item','Copy-Item','Move-Item','Remove-Item','Out-File','Get-ChildItem','Test-Path','Get-Item','Get-FileHash','Start-Process','Invoke-Item')
@@ -235,6 +258,10 @@ if($moduleViolations.Count -or $harnessViolations.Count){throw "AST violations: 
 "ft02=Passed"
 "ft04=Passed"
 "ft15=Passed"
+"requiredAbsent=Passed"
+"freshnessOwnership=Passed"
+"manifestFreshnessSuppression=Passed"
+"independentFailureAccounting=Passed"
 "moduleAstViolationCount=$($moduleViolations.Count)"
 "harnessAstViolationCount=$($harnessViolations.Count)"
 "gitInspectionProcessCount=$($positive.O2.gitInspectionProcessCount)"
