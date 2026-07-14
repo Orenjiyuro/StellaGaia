@@ -143,7 +143,7 @@ function Invoke-C2PureDiscoveryIntake {
         if($null -eq $directOwner){$directOwner='FT-02'}
         $artifactPrerequisiteFailed=$true
         if($ArtifactFacts.Count -gt $script:Registry.Count -and -not @($failures|Where-Object{$_.subjectId -ceq 'AR-I10'}).Count){
-            $failures.Add((New-C2AccountingRow inputFailures RegistryShape 'AR-I10' UnexpectedRegistrySlot 'FT-02:AR-I10' @("expectedCount=11","actualCount=$($ArtifactFacts.Count)")))
+            $failures.Add((New-C2AccountingRow inputFailures RegistryShape 'AR-I10' UnexpectedRegistrySlot 'FT-02:AR-I10' @($script:Registry[9].path)))
         }
     }
     $handoffNames=@('snapshotId','ledgerPath','summaryPath')
@@ -372,7 +372,16 @@ function Test-C2SchemaNode {
         }
         if($names -contains 'enum' -and @($current.enum).Count -eq 0){return $false}
         if($names -contains 'additionalProperties' -and $current.additionalProperties -isnot [bool]){return $false}
-        if($names -contains 'pattern'){try{$null=[regex]::new([string]$current.pattern)}catch{return $false}}
+        foreach($integerKeyword in @('minItems','minLength')){
+            if($names -contains $integerKeyword -and ($current.$integerKeyword -isnot [int] -and $current.$integerKeyword -isnot [long] -or [long]$current.$integerKeyword -lt 0)){return $false}
+        }
+        if($names -contains 'minimum' -and $current.minimum -isnot [byte] -and $current.minimum -isnot [sbyte] -and $current.minimum -isnot [short] -and $current.minimum -isnot [ushort] -and $current.minimum -isnot [int] -and $current.minimum -isnot [uint] -and $current.minimum -isnot [long] -and $current.minimum -isnot [ulong] -and $current.minimum -isnot [float] -and $current.minimum -isnot [double] -and $current.minimum -isnot [decimal]){return $false}
+        if($names -contains 'uniqueItems' -and $current.uniqueItems -isnot [bool]){return $false}
+        if($names -contains 'format' -and ($current.format -isnot [string] -or [string]::IsNullOrEmpty($current.format))){return $false}
+        if($names -contains 'pattern'){
+            if($current.pattern -isnot [string]){return $false}
+            try{$null=[regex]::new($current.pattern)}catch{return $false}
+        }
         if($names -contains '$ref'){
             $reference=[string]$current.'$ref';$definitionName=if($reference.Length -gt 8){$reference.Substring(8)}else{''}
             if($reference -cnotmatch '^#/\$defs/[^/]+$' -or @($Definitions.PSObject.Properties.Name) -cnotcontains $definitionName){return $false}
@@ -500,7 +509,7 @@ function Invoke-C2DiscoveryIntakeGate {
 }
 
 function Test-C2InjectedGateVector {
-    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','RootSchemaRequiredInvalid','RootSchemaPropertyInvalid','RootSchemaDefInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
+    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','LedgerNestedInvalid','VocabularyInvalid','RootSchemaInvalid','RootSchemaRequiredInvalid','RootSchemaPropertyInvalid','RootSchemaDefInvalid','RootSchemaMinimumInvalid','ManifestShapeInvalid','ObservationHI03Invalid','ApprovalHI15Invalid')][string]$Vector)
     $transport=$null;$mutation=$null;$encoding=[Text.UTF8Encoding]::new($false);$oid='1111111111111111111111111111111111111111'
     if($Vector -eq 'Call1StartFailure'){$transport={param($number,$arguments,$raw)[pscustomobject]@{callNumber=$number;started=$false;prelaunchRejected=$false;exitCode=$null;stdoutBytes=[byte[]]@();stderr='start failure'}}.GetNewClosure()}
     elseif($Vector -eq 'Call3InvalidOutput'){$transport={param($number,$arguments,$raw)$text=if($number -in @(1,6)){"$oid`n"}elseif($number -eq 3){''}else{'blob'};$exit=if($number -eq 3){1}else{0};[pscustomobject]@{callNumber=$number;started=$true;prelaunchRejected=$false;exitCode=$exit;stdoutBytes=$encoding.GetBytes($text);stderr='';arguments=$arguments;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$raw;stdoutByteCount=$encoding.GetByteCount($text)}}.GetNewClosure()}
@@ -512,6 +521,7 @@ function Test-C2InjectedGateVector {
             'RootSchemaRequiredInvalid' {{param($bundle)$bundle.documents['AR-I06'].required=@('DefinitelyMissing')}}
             'RootSchemaPropertyInvalid' {{param($bundle)$first=@($bundle.documents['AR-I06'].properties.PSObject.Properties)[0];$first.Value=$null}}
             'RootSchemaDefInvalid' {{param($bundle)$first=@($bundle.documents['AR-I06'].'$defs'.PSObject.Properties)[0];$first.Value=$null}}
+            'RootSchemaMinimumInvalid' {{param($bundle)$bundle.documents['AR-I06'].properties.corpusSnapshotComplete.properties.catalogedFileCount.minimum='definitely-not-a-number'}}
             'ManifestShapeInvalid' {{param($bundle)$bundle.documents['AR-I10'].PSObject.Properties.Remove('entries')}}
             'ObservationHI03Invalid' {{param($bundle)$bundle.documents['AR-I07'].rows[5].observationId='observation-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}
             'ApprovalHI15Invalid' {{param($bundle)$bundle.documents['AR-I11'].approvals[0].approvalId='exclusion-approval-sha256:0000000000000000000000000000000000000000000000000000000000000000'}}

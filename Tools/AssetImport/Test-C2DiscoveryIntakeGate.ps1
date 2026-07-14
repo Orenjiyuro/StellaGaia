@@ -152,6 +152,7 @@ if ($Case -ceq 'ValidatorMutations') {
         [pscustomobject]@{name='rootSchemaRequiredBinding';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaRequiredInvalid)},
         [pscustomobject]@{name='rootSchemaPropertyDefinition';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaPropertyInvalid)},
         [pscustomobject]@{name='rootSchemaDefsDefinition';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaDefInvalid)},
+        [pscustomobject]@{name='rootSchemaMinimumType';subject='AR-I06';result=(Invoke-PrivateVector RootSchemaMinimumInvalid)},
         [pscustomobject]@{name='manifestShape';subject='AR-I10';result=(Invoke-PrivateVector ManifestShapeInvalid)},
         [pscustomobject]@{name='observationHI03';subject='AR-I07';result=(Invoke-PrivateVector ObservationHI03Invalid)},
         [pscustomobject]@{name='approvalHI15';subject='AR-I11';result=(Invoke-PrivateVector ApprovalHI15Invalid)}
@@ -171,6 +172,7 @@ if ($Case -ceq 'ValidatorMutations') {
     "rootSchemaRequiredBindingMutation=Passed"
     "rootSchemaPropertyDefinitionMutation=Passed"
     "rootSchemaDefsDefinitionMutation=Passed"
+    "rootSchemaMinimumTypeMutation=Passed"
     "manifestShapeMutation=Passed"
     "observationHI03Mutation=Passed"
     "approvalHI15Mutation=Passed"
@@ -267,6 +269,12 @@ $extraResult=Invoke-C2PureDiscoveryIntake $extraFacts $handoff $oid $oid
 Assert-Equal $extraResult.O2.status Failed 'extra registry slot status'
 Assert-Equal $extraResult.O2.inputFailureCount 1 'extra registry slot failure count'
 Assert-Equal $extraResult.O1.inputFailures[0].attribution 'FT-02:AR-I10' 'extra registry slot owner'
+Assert-Equal (@($extraResult.O1.inputFailures[0].PSObject.Properties.Name)-join ',') 'recordId,subjectKind,subjectId,reasonCode,attribution,evidence' 'extra registry slot failure shape'
+Assert-Equal $extraResult.O1.inputFailures[0].subjectKind RegistryShape 'extra registry slot subject kind'
+Assert-Equal $extraResult.O1.inputFailures[0].subjectId 'AR-I10' 'extra registry slot subject id'
+Assert-Equal $extraResult.O1.inputFailures[0].reasonCode UnexpectedRegistrySlot 'extra registry slot reason'
+Assert-Equal (@($extraResult.O1.inputFailures[0].evidence)-join ',') $paths[9] 'extra registry slot portable-path evidence'
+Assert-Equal ($extraResult.O1.inputFailures[0].recordId -cmatch '^accounting-sha256:[0-9a-f]{64}$') $true 'extra registry slot record identity'
 Assert-Equal $extraResult.O1.contractChecks[2].status NotEvaluated 'extra registry slot freshness suppression'
 Assert-Equal $extraResult.O1.discoveryInputFingerprint $null 'extra registry slot fingerprint suppression'
 
