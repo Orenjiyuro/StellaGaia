@@ -358,6 +358,75 @@ function Get-C2FileDiscoveryObservationId {
     "file-discovery-observation-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
 }
 
+function Get-C2RawRowId {
+    param([string]$ArtifactPath,[string]$ArtifactSha256,[int]$RowIndex)
+    $text="C2RawRowV1`n"+(ConvertTo-C2ScalarLine artifactPath $ArtifactPath)+(ConvertTo-C2ScalarLine artifactSha256 $ArtifactSha256)+(ConvertTo-C2ScalarLine rowIndex ([string]$RowIndex))
+    "raw-row-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Get-C2FileDiscoveryConflictId {
+    param([string]$SourceId,[string]$RelativePath,[string[]]$ObservationIds,[string[]]$Outcomes)
+    $text="C2FileDiscoveryConflictV1`n"+(ConvertTo-C2ScalarLine sourceId $SourceId)+(ConvertTo-C2ScalarLine relativePath $RelativePath)+(Add-C2SetFrame observationIds $ObservationIds)+(Add-C2SetFrame outcomes $Outcomes)
+    "file-discovery-conflict-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function Invoke-C2FileDiscoveryPartitions {
+    [CmdletBinding()]param([Parameter(Mandatory)][psobject]$InputFact)
+    $failures=[Collections.Generic.List[object]]::new();$subjects=[Collections.Generic.List[object]]::new();$resolved=[Collections.Generic.List[object]]::new();$conflicts=[Collections.Generic.List[object]]::new()
+    $files=@($InputFact.c1Files);$identity=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($file in $files){
+        $key="$($file.sourceId)`n$($file.relativePath)";$validKind=$file.containerKind -is [string] -and -not [string]::IsNullOrEmpty($file.containerKind)
+        $valid=$file.sourceId -is [string] -and -not [string]::IsNullOrEmpty($file.sourceId) -and (Test-C2PortablePath ([string]$file.relativePath)) -and $validKind -and [long]$file.sizeBytes -ge 0 -and $file.parseStatus -ceq $file.status.extraction
+        if(-not $valid -or $identity.ContainsKey($key)){$failures.Add((New-C2AccountingRow inputFailures C1Ledger AR-I02 InvalidSchema 'FT-02:AR-I02' @($script:Registry[1].path)));continue}
+        $identity.Add($key,$file)
+    }
+    $observations=[Collections.Generic.Dictionary[string,Collections.Generic.List[object]]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($key in $identity.Keys){$observations[$key]=[Collections.Generic.List[object]]::new()}
+    foreach($wrapper in @($InputFact.objectObservationArtifact.acceptedRows)){
+        $row=$wrapper.observation;$key="$($row.sourceId)`n$($row.containerRelativePath)"
+        if(-not $identity.ContainsKey($key)){
+            $rawId=Get-C2RawRowId $InputFact.objectObservationArtifact.artifactPath $InputFact.objectObservationArtifact.artifactSha256 ([int]$wrapper.rowIndex)
+            $failures.Add((New-C2AccountingRow inputFailures ObjectObservation $rawId InvalidObservation "FT-05:$rawId" @($InputFact.objectObservationArtifact.artifactPath)));continue
+        }
+        $derived=[pscustomobject][ordered]@{fileDiscoveryObservationId=$null;toolName=$row.toolName;toolVersion=$row.toolVersion;sourceId=$row.sourceId;relativePath=$row.containerRelativePath;outcome='Readable';evidence=@($row.evidence)}
+        $derived.fileDiscoveryObservationId=Get-C2FileDiscoveryObservationId $derived;$observations[$key].Add($derived)
+    }
+    $artifact=$InputFact.fileDiscoveryArtifact
+    if($artifact.documentReadStatus -ceq 'Unparseable'){$failures.Add((New-C2AccountingRow inputFailures ObservationDocument AR-I08 InvalidObservation 'FT-05:AR-I08' @($script:Registry[7].path)))}
+    elseif($artifact.documentReadStatus -ceq 'Parsed'){
+        $rows=@($artifact.document.rows)
+        for($i=0;$i -lt $rows.Count;$i++){
+            $row=$rows[$i];$rawId=Get-C2RawRowId $artifact.artifactPath $artifact.artifactSha256 $i;$names=@($row.PSObject.Properties.Name)-join ','
+            $valid=$names -ceq 'fileDiscoveryObservationId,toolName,toolVersion,sourceId,relativePath,outcome,evidence' -and $row.outcome -cin @('Readable','Opaque','Failed') -and @($row.evidence).Count -gt 0 -and (Test-C2PortablePath ([string]$row.relativePath)) -and $row.fileDiscoveryObservationId -ceq (Get-C2FileDiscoveryObservationId $row)
+            $key="$($row.sourceId)`n$($row.relativePath)"
+            if(-not $valid -or -not $identity.ContainsKey($key)){$reason=if(-not(Test-C2PortablePath ([string]$row.relativePath))){'UnsafePath'}else{'InvalidObservation'};$owner=if($reason -ceq 'UnsafePath'){'FT-04'}else{'FT-05'};$failures.Add((New-C2AccountingRow inputFailures FileDiscoveryObservation $rawId $reason "${owner}:$rawId" @($artifact.artifactPath)));continue}
+            $observations[$key].Add($row)
+        }
+    }elseif($artifact.documentReadStatus -cne 'Absent'){$failures.Add((New-C2AccountingRow inputFailures ObservationDocument AR-I08 InvalidObservation 'FT-05:AR-I08' @($script:Registry[7].path)))}
+    $orderedKeys=[string[]]@($identity.Keys);[Array]::Sort($orderedKeys,$script:Ordinal)
+    foreach($key in $orderedKeys){
+        $file=$identity[$key];$unique=[ordered]@{}
+        foreach($row in $observations[$key]){$tuple="$($row.toolName)`n$($row.toolVersion)`n$($row.outcome)`n$($row.fileDiscoveryObservationId)";if(-not $unique.Contains($tuple)){$unique[$tuple]=$row}}
+        $rows=@($unique.Values);$ids=@(Get-C2OrdinalUnique @($rows|ForEach-Object{$_.fileDiscoveryObservationId}));$outcomes=@(Get-C2OrdinalUnique @($rows|ForEach-Object{$_.outcome}));$evidence=@(Get-C2OrdinalUnique @($rows|ForEach-Object{$_.evidence}));$tools=@(Get-C2OrdinalUnique @($rows|ForEach-Object{"$($_.toolName)`n$($_.toolVersion)"}))
+        $private=if($rows.Count -eq 0){'NotAttempted'}elseif($outcomes.Count -gt 1){'FileDiscoveryConflict'}elseif($outcomes[0] -ceq 'Readable'){'Parsed'}else{$outcomes[0]}
+        $public=if($private -ceq 'Parsed'){if($tools.Count -gt 1){'CrossToolVerified'}else{'ExtractedReadable'}}elseif($private -ceq 'FileDiscoveryConflict'){$null}else{$private}
+        $partition=if($file.containerKind -cin @('DirectMedia','Metadata','ConfigurationCandidate')){'NonContainer'}else{'Container'}
+        if($private -ceq 'FileDiscoveryConflict'){
+            $conflictId=Get-C2FileDiscoveryConflictId $file.sourceId $file.relativePath $ids $outcomes
+            $conflicts.Add([pscustomobject][ordered]@{fileDiscoveryConflictId=$conflictId;sourceId=$file.sourceId;relativePath=$file.relativePath;observationIds=[string[]]$ids;outcomes=[string[]]$outcomes;evidence=[string[]]$evidence})
+            $failures.Add((New-C2AccountingRow inputFailures FileDiscoveryConflict $conflictId ConflictDetected "FT-06:$conflictId" $evidence))
+        }else{$resolved.Add([pscustomobject][ordered]@{sourceId=$file.sourceId;relativePath=$file.relativePath;parseStatus=$public;observationIds=[string[]]$ids;evidence=[string[]]$evidence})}
+        $subjects.Add([pscustomobject][ordered]@{sourceId=$file.sourceId;relativePath=$file.relativePath;containerKind=$file.containerKind;sizeBytes=[long]$file.sizeBytes;sp01Partition=$partition;sp02Partition=$private;observationIds=[string[]]$ids;evidence=[string[]]$evidence;publicExtraction=$public})
+    }
+    function Sum-Bytes($Rows){$items=@($Rows);if($items.Count -eq 0){return [long]0};[long](($items|Measure-Object sizeBytes -Sum).Sum)}
+    $containers=@($subjects|Where-Object sp01Partition -eq Container);$nonContainers=@($subjects|Where-Object sp01Partition -eq NonContainer)
+    $coverage=[ordered]@{catalogedFileCount=$subjects.Count;catalogedBytes=(Sum-Bytes $subjects);catalogedContainerCount=$containers.Count;catalogedContainerBytes=(Sum-Bytes $containers);nonContainerFileCount=$nonContainers.Count;nonContainerFileBytes=(Sum-Bytes $nonContainers);fileDiscoverySubjectCount=$subjects.Count;fileDiscoverySubjectBytes=(Sum-Bytes $subjects)}
+    foreach($pair in @(@('NotAttempted','notAttempted'),@('Parsed','parsed'),@('Opaque','opaque'),@('Failed','failed'),@('FileDiscoveryConflict','fileDiscoveryConflict'))){$all=@($subjects|Where-Object sp02Partition -eq $pair[0]);$con=@($all|Where-Object sp01Partition -eq Container);$coverage["$($pair[1])FileCount"]=$all.Count;$coverage["$($pair[1])FileBytes"]=Sum-Bytes $all;$coverage["$($pair[1])ContainerCount"]=$con.Count;$coverage["$($pair[1])ContainerBytes"]=Sum-Bytes $con}
+    $orderedCoverage=[ordered]@{};foreach($name in @('catalogedFileCount','catalogedBytes','catalogedContainerCount','catalogedContainerBytes','nonContainerFileCount','nonContainerFileBytes','fileDiscoverySubjectCount','fileDiscoverySubjectBytes','notAttemptedFileCount','notAttemptedFileBytes','parsedFileCount','parsedFileBytes','opaqueFileCount','opaqueFileBytes','failedFileCount','failedFileBytes','fileDiscoveryConflictFileCount','fileDiscoveryConflictFileBytes','notAttemptedContainerCount','notAttemptedContainerBytes','parsedContainerCount','parsedContainerBytes','opaqueContainerCount','opaqueContainerBytes','failedContainerCount','failedContainerBytes','fileDiscoveryConflictContainerCount','fileDiscoveryConflictContainerBytes')){$orderedCoverage[$name]=[long]$coverage[$name]}
+    $failed=$failures.Count -gt 0
+    [pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId=$InputFact.snapshotId;inputFingerprint=$InputFact.inputFingerprint;discoveryInputFingerprint=if($failed){$null}else{$InputFact.discoveryInputFingerprint};fileSubjects=[object[]]$subjects;resolvedFileResults=[object[]]$resolved;fileDiscoveryConflicts=[object[]]$conflicts;inputFailures=[object[]]$failures;coverage=[pscustomobject]$orderedCoverage;gateStatus=if($failed){'Failed'}else{'Passed'};outputsSuppressed=$failed}
+}
+
 function Get-C2ApprovalId {
     param($Approval)
     $text="C2ExclusionApprovalV1`n"+(ConvertTo-C2ScalarLine subjectKind $Approval.subjectKind)+(ConvertTo-C2ScalarLine subjectId $Approval.subjectId)+(ConvertTo-C2ScalarLine reasonCode $Approval.reasonCode)+(ConvertTo-C2ScalarLine reason $Approval.reason)+(ConvertTo-C2ScalarLine approvedBy $Approval.approvedBy)+(ConvertTo-C2ScalarLine approvedAt $Approval.approvedAt)+(Add-C2SetFrame evidence @($Approval.evidence))
@@ -469,8 +538,8 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     )
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
     if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
-    $context=[ordered]@{facts=$null;handoff=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
-    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$fixtureMutation=$FixtureMutator
+    $context=[ordered]@{facts=$null;handoff=$null;sp12=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
+    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$partitioner=${function:Invoke-C2FileDiscoveryPartitions};$fixtureMutation=$FixtureMutator
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
     $validation={param($bundle)
         try{
@@ -491,6 +560,10 @@ function Invoke-C2DiscoveryIntakeGateInternal {
             if($null -ne $fixtureMutation){$null=$fixtureMutation.Invoke([pscustomobject]@{documents=$documents})}
             $contractResult=@($fixtureValidator.Invoke($documents,$hashes))[0]
             if($contractResult.status -ne 'Passed'){return $contractResult}
+            $acceptedRows=for($i=0;$i -lt 4;$i++){[pscustomobject][ordered]@{rowIndex=$i;observation=$documents['AR-I07'].rows[$i]}}
+            $partitionInput=[pscustomobject][ordered]@{snapshotId=$documents['AR-I01'].snapshotId;inputFingerprint=$documents['AR-I01'].inputFingerprint;discoveryInputFingerprint=$null;c1Files=@($documents['AR-I02'].files);objectObservationArtifact=[pscustomobject][ordered]@{artifactPath=$registry[6].path;artifactSha256=$hashes['AR-I07'];acceptedRows=@($acceptedRows)};fileDiscoveryArtifact=[pscustomobject][ordered]@{artifactPath=$registry[7].path;artifactSha256=$hashes['AR-I08'];documentReadStatus='Parsed';document=$documents['AR-I08']}}
+            $context.sp12=@($partitioner.Invoke($partitionInput))[0]
+            if($context.sp12.gateStatus -ne 'Passed'){$first=@($context.sp12.inputFailures)[0];return [pscustomobject]@{status='Failed';owner=($first.attribution.Split(':')[0]);reason=$first.reasonCode;subjectId=$first.subjectId;message='SP-01/SP-02 failed'}}
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
         }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
     }.GetNewClosure()
