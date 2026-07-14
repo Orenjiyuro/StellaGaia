@@ -1,12 +1,12 @@
 # StellaSora C2 Phase A Intake And Freshness Plan
 
-> **Status:** APPROVED. Task 1 fixture creation and staging are authorized; its fixture commit still requires a new explicit confirmation. Task 2, Unity, extraction, import, and Phase B remain unauthorized.
+> **Status:** APPROVED AS AMENDED. Task 1 completed and passed independent review at commit `b635059689d7a7b67ed715e8fcdf2cf8267d7664`. The former oversized Task 2 is replaced by Tasks 2A, 2B, and 2C below. Each requires separate explicit authorization. Unity, extraction, import, real assets, C3-C6, G5, and Phase B remain unauthorized.
 
 **Goal:** Define the smallest fixture-only C2 slice that can later prove AR-I01–I11 intake and freshness against one frozen Git commit, recompute HI-13b, and fail closed without touching real assets.
 
-**Selected sequence:** Intake/freshness precedes SP-01/SP-02. Because a manifest cannot prove its own uncommitted bytes, a future fixture-freeze Task and a later implementation Task remain separate. Neither Task may begin until this plan and the amended upstream C2 spec pass read-only review and receive explicit authorization.
+**Selected sequence:** Intake/freshness precedes SP-01/SP-02. Task 1 froze the reviewed fixture authority. Task 2A adds a pure in-memory model, Task 2B adds the audited Git adapter, and Task 2C integrates fixture reads plus the complete O1/O2 and failure matrix. No Task may leave an intentional RED state for a later Task.
 
-**Task containment rule:** This one plan intentionally contains two sequential Tasks so their dependency and contracts can be reviewed together. Containment does not authorize combined execution: default execution is exactly one explicitly approved Task per round; Task 2 requires Task 1's reviewed commit and a new authorization.
+**Task containment rule:** This plan contains four sequential Tasks so their dependency, file boundaries, verification, and stop checkpoints can be reviewed together. Task 1 is complete. Containment does not authorize combined execution: the default remains exactly one explicitly approved Task per round. Tasks 2A, 2B, and 2C are separately reviewable, separately GREEN, and separately reversible commits.
 
 ---
 
@@ -402,11 +402,13 @@ Static probes must cover command grammar mutations, extra arguments, alternate r
 
 ---
 
-## 8. Future Task Decomposition — Not Authorized
+## 8. Completed Task Record And Future Decomposition
 
 ### Task 1: Freeze AR-I07, AR-I10, And AR-I11
 
-**Duration:** 20–30 minutes. Execute only after separate explicit authorization.
+> **Completion:** COMPLETE and independently reviewed at `b635059689d7a7b67ed715e8fcdf2cf8267d7664`. Do not recreate, amend, or recommit these fixtures as part of Tasks 2A-2C.
+
+**Historical duration:** 20–30 minutes. Execution is complete; this section remains the reviewed fixture acceptance record.
 
 **File scope:**
 
@@ -478,11 +480,13 @@ git diff --cached --name-only
 
 - [ ] Commit only after a separate explicit human confirmation of the exact cached three-file diff.
 
-**Stop checkpoint:** Report the commit (if separately authorized), exact three paths, AR-I07/10/11 SHA values, r1–r6 identities/partitions, r6 approvalId/evidence, validation output, forbidden-directory state, and user-state status. Stop; do not start Task 2.
+**Completed checkpoint:** The reviewed Task 1 report and commit are the prerequisite for Task 2A. Do not recreate these fixtures or begin Task 2A without its separate authorization.
 
-### Task 2: Implement Intake/Freshness
+### Reference: Former Task 2 Checklist — Superseded, Do Not Execute
 
-**Duration:** 20–30 minutes. Prerequisite is an independently reviewed Task 1 commit at current HEAD. Execute only after separate explicit authorization.
+> This checklist is retained only as the complete acceptance inventory for the intake/freshness slice. It is not one executable Task. Its requirements are redistributed across Tasks 2A, 2B, and 2C below so each increment can finish GREEN within 20–30 minutes.
+
+**Historical combined estimate:** 20–30 minutes was not credible for this acceptance surface; this mismatch is why the combined Task is superseded.
 
 **File scope:**
 
@@ -537,7 +541,7 @@ pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1
 
 #### Step 6 — Completion and exact commit gate (3–5 minutes)
 
-**References:** Task 2 script artifacts/O2; NP-01–NP-05; FT-13.
+**References:** Former combined intake script artifacts/O2; NP-01–NP-05; FT-13.
 
 ```powershell
 pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1
@@ -551,7 +555,87 @@ Test-Path -LiteralPath Assets/StellaGaia/Imported
 - [ ] Verify fixtures/contracts/docs/minimal slice unchanged and the diff contains exactly two scripts.
 - [ ] Stage the two exact paths, run cached check/name verification, and commit only after separate explicit confirmation.
 
-**Stop checkpoint:** Report commit (if authorized), exact two paths, P0/D9, complete O1/O2 output, all failure-matrix call counts/OID states, AST/runtime audit evidence, safety counters, forbidden-directory state, and deferred SP-01/SP-02. Stop; do not begin SP-01/SP-02.
+**Historical checkpoint:** Do not execute or commit this former combined Task. Use the three checkpoints below.
+
+### Task 2A: Pure Intake Model And HI-13
+
+**Duration:** 20–30 minutes. Requires separate explicit authorization.
+
+**File scope:**
+
+- Create `Tools/AssetImport/C2DiscoveryIntakeGate.psm1`.
+- Create `Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1`.
+- Read no repository artifact at runtime and launch no process in this Task.
+- Do not modify Task 1 fixtures, C0/C1 artifacts, schemas, vocabulary, plans, specs, minimal-slice files, or user state.
+
+**Acceptance:** P0 produces the registered HI-13b digest from six injected in-memory pairs; the pure validator builds all 11 artifact-state slots, five contract-check slots, NP-01–NP-05 partitions, and O1/O2 from injected accepted/failure facts; representative FT-01/02/04/15 vectors fail closed; the focused test finishes GREEN with zero filesystem/process operations.
+
+#### Step 1 — RED for P0 framing (2–5 minutes)
+
+- [ ] Assert domain tags, byte lengths, final LF, Ordinal ordering, and exact P0 digest.
+- [ ] Run the focused test; RED may be caused only by the absent pure implementation.
+
+#### Step 2 — Implement pure HI-13 and registry slots (3–5 minutes)
+
+- [ ] Accept only parsed/in-memory values; accept no path, callback, process, or filesystem object.
+- [ ] Build exact AR-I01–I11 slot identities and reject missing, duplicate, or reordered registry identities.
+
+#### Step 3 — Implement pure NP/O1/O2 derivation (5 minutes)
+
+- [ ] Derive NP-01–NP-05 sets and conservation from injected facts.
+- [ ] Construct the registered O1/O2 field order and suppress the fingerprint on a direct failure.
+
+#### Step 4 — GREEN and safety proof (3–5 minutes)
+
+```powershell
+pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1 -Case Pure
+```
+
+- [ ] Require exact positive output plus representative FT-01/02/04/15 vectors.
+- [ ] Parse the complete module/harness AST and require zero filesystem/process invocation.
+
+#### Step 5 — Narrow commit gate (2–5 minutes)
+
+- [ ] Verify only the two scripts changed; run `git diff --check`; verify both forbidden directories remain absent.
+- [ ] Stage the two exact paths only and commit only after review.
+
+**Stop checkpoint:** Report the Task 2A commit, P0 digest, pure O1/O2 vector, representative failures, AST evidence, exact two-file scope, and forbidden-directory state. Stop; do not begin Task 2B.
+
+### Task 2B: Audited Git Freshness Adapter
+
+**Duration:** 20–30 minutes. Prerequisite is an independently reviewed Task 2A commit. Requires separate explicit authorization.
+
+**File scope:** modify only the same module and focused test. All fixture and contract files remain read-only.
+
+**Acceptance:** implement only the frozen Git executable resolution, sanitized environment, ArgumentList grammar, raw blob capture, exact positive six-call trace, actual launched-process counting, and start/end HEAD equality. Exact adapter failures map only to FT-03 or FT-13. The full focused suite remains GREEN.
+
+#### Steps
+
+1. **RED adapter grammar probes (3–5 minutes):** freeze exact commands, environment, raw-byte capture, and prelaunch rejections.
+2. **Implement adapter (5 minutes):** no shell, no text-decoded blob read, no mutable parent environment.
+3. **Freeze lifecycle failures (5 minutes):** cover start failure, one intermediate failure with final revalidation, final failure, and changed HEAD; derive actual call counts/nullability.
+4. **GREEN (3–5 minutes):** run `Test-C2DiscoveryIntakeGate.ps1 -Case GitAdapter`, then the complete focused script.
+5. **Narrow commit (2–5 minutes):** exact two-file diff, `diff --check`, forbidden-directory and protected-input checks.
+
+**Stop checkpoint:** Report the Task 2B commit, six-call trace, sanitized-environment proof, selected failure vectors, actual process counts, protected-input state, and full focused GREEN. Stop; do not begin Task 2C.
+
+### Task 2C: Fixture Integration And Complete Matrix
+
+**Duration:** 20–30 minutes. Prerequisite is an independently reviewed Task 2B commit. Requires separate explicit authorization.
+
+**File scope:** modify only the same module and focused test; read AR-I01–I11 strictly through audited readers; do not modify any input artifact.
+
+**Acceptance:** integrate the reviewed Task 1 blobs, required-byte registry, audited worktree reads, Git facts, HI-13b, exact O1/O2 positive vector, all remaining failure-matrix rows, complete AST/runtime safety, and end-HEAD validation. Positive output has 11 registered slots, 9 reads, 2 absent optionals, 5 checks with 3 Accepted/2 NotEvaluated, six Git inspections, and all heavy/real-asset/created-directory counters zero.
+
+#### Steps
+
+1. **Integrate audited readers (3–5 minutes):** allow only exact registry paths and bind every read to its slot.
+2. **Complete matrix (5 minutes):** add every omitted FT-02/03/04/13/15 and adapter lifecycle vector without double ownership.
+3. **Exact O1/O2 GREEN (5 minutes):** assert every field, row, count, fingerprint, OID, decision, and suppression.
+4. **Regression and safety (3–5 minutes):** run the complete focused test, minimal-object gate, and necessary C1 compatibility regressions.
+5. **Narrow commit gate (2–5 minutes):** exact two scripts, protected inputs unchanged, `diff --check`, no forbidden artifacts, AGENTS untracked/unstaged.
+
+**Stop checkpoint:** Report the Task 2C commit, P0/D9, complete O1/O2, full failure matrix, AST/runtime audit, regression evidence, and forbidden-directory state. Stop; SP-01/SP-02 requires a new plan and authorization.
 
 ---
 
