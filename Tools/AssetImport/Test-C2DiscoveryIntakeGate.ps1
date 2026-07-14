@@ -1,0 +1,158 @@
+[CmdletBinding()]
+param(
+    [ValidateSet('Pure')]
+    [string]$Case = 'Pure'
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$modulePath = Join-Path $PSScriptRoot 'C2DiscoveryIntakeGate.psm1'
+$loadedModule = Import-Module $modulePath -Force -PassThru
+
+$p0Entries = @(
+    [pscustomobject]@{ path = 'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c2-source-corpus-handoff.json'; sha256 = '548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac' }
+    [pscustomobject]@{ path = 'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json'; sha256 = 'acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462' }
+    [pscustomobject]@{ path = 'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json'; sha256 = 'c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1' }
+    [pscustomobject]@{ path = 'docs/asset-migration/schemas/source-corpus-ledger.schema.json'; sha256 = 'b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c' }
+    [pscustomobject]@{ path = 'docs/asset-migration/schemas/status-vocabulary.json'; sha256 = '88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444' }
+    [pscustomobject]@{ path = 'docs/asset-migration/schemas/root-gate-summary.schema.json'; sha256 = '45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449' }
+)
+
+$actual = Get-C2DiscoveryInputFingerprint -Entries $p0Entries
+$expected = '01de12cfc14c5779aaa6b2827f73ae76a5e750d2d28cc0e856f685eb5bbd4c3d'
+if ($actual -cne $expected) {
+    throw "P0 digest mismatch: expected=$expected actual=$actual"
+}
+
+function Assert-Equal {
+    param($Actual, $Expected, [string]$Label)
+    if (($Actual -is [string]) -or ($Expected -is [string])) {
+        if ([string]$Actual -cne [string]$Expected) { throw "$Label expected=<$Expected> actual=<$Actual>" }
+    } elseif ($Actual -ne $Expected) { throw "$Label expected=<$Expected> actual=<$Actual>" }
+}
+
+function Copy-MemoryValue { param($Value) $Value | ConvertTo-Json -Depth 20 | ConvertFrom-Json -Depth 20 }
+
+$paths = @(
+    'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c2-source-corpus-handoff.json',
+    'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-c1-source-corpus-ledger.json',
+    'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json',
+    'docs/asset-migration/schemas/source-corpus-ledger.schema.json',
+    'docs/asset-migration/schemas/status-vocabulary.json',
+    'docs/asset-migration/schemas/root-gate-summary.schema.json',
+    'Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json',
+    'Tools/AssetImport/Fixtures/DiscoveryGate/file-discovery-observations.json',
+    'Tools/AssetImport/Fixtures/DiscoveryGate/file-configuration-observations.json',
+    'Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json',
+    'Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json'
+)
+$requirements = @('Required','Required','Required','Required','Required','Required','ConditionalInput','ConditionalInput','ConditionalInput','ConditionalAuthority','ConditionalApproval')
+$ids = 1..11 | ForEach-Object { 'AR-I{0:d2}' -f $_ }
+$shaValues = @($p0Entries.sha256) + @(
+    '39dfad072afb8316c47be545dbeed872e1c2f9bd6bd7b56365dd391f77ca244f',
+    $null,
+    $null,
+    '5ddb3da1cc346ca673c6f24df7d9b7c8ea321e21416d7320f4890456b3668a3e',
+    'e8e531a31fcf50891eaf9564aa0f9c86c816b883bc7f67635a21f7b7c97aa7f8'
+)
+$facts = for ($i=0; $i -lt 11; $i++) {
+    $present = $i -notin @(7,8)
+    [pscustomobject][ordered]@{
+        artifactId=$ids[$i]; path=$paths[$i]; requirement=$requirements[$i]; presence=if($present){'Present'}else{'Absent'}
+        worktreeSha256=if($present){$shaValues[$i]}else{$null}
+        commitBlobSha256=if($i -in @(6,9,10)){$shaValues[$i]}else{$null}
+        manifestSha256=if($i -in @(6,10)){$shaValues[$i]}else{$null}
+        identityValid=$true; freshnessValid=$true
+    }
+}
+$handoff = [pscustomobject][ordered]@{ snapshotId='snapshot-pc-install-001'; ledgerPath=$paths[1]; summaryPath=$paths[2] }
+$oid = '49f2426b19d27d7e3a503ff7e52c7cca5e1ef393'
+$positive = Invoke-C2PureDiscoveryIntake -ArtifactFacts $facts -HandoffFact $handoff -StartCommitOid $oid -EndCommitOid $oid
+
+$o1Order = 'schemaVersion,snapshotId,startCommitOid,endCommitOid,headStable,discoveryInputFingerprint,artifactStates,contractChecks,inputFailures,inputExclusions,inputSuppressions,decision'
+$o2Order = 'status,issueCount,registeredArtifactCount,readArtifactCount,requiredArtifactCount,presentOptionalArtifactCount,absentOptionalArtifactCount,failedRegistrySlotCount,acceptedArtifactCount,failedArtifactCount,contractCheckCount,acceptedCheckCount,failedCheckCount,notEvaluatedCheckCount,inputSubjectCount,acceptedInputSubjectCount,inputFailureCount,excludedInputSubjectCount,notEvaluatedInputSubjectCount,gitInspectionProcessCount,heavyProcessCount,realAssetReadCount,createdExtractedCount,createdImportedCount,startCommitOid,endCommitOid,headStable,discoveryInputFingerprint,nextAllowedAction'
+Assert-Equal (@($positive.O1.PSObject.Properties.Name) -join ',') $o1Order 'O1 property order'
+Assert-Equal (@($positive.O2.PSObject.Properties.Name) -join ',') $o2Order 'O2 property order'
+Assert-Equal $positive.O2.status Passed 'positive status'
+foreach($pair in @(
+    @('registeredArtifactCount',11),@('readArtifactCount',9),@('requiredArtifactCount',6),@('presentOptionalArtifactCount',3),@('absentOptionalArtifactCount',2),@('failedRegistrySlotCount',0),
+    @('acceptedArtifactCount',9),@('failedArtifactCount',0),@('contractCheckCount',5),@('acceptedCheckCount',3),@('failedCheckCount',0),@('notEvaluatedCheckCount',2),
+    @('inputSubjectCount',14),@('acceptedInputSubjectCount',12),@('inputFailureCount',0),@('excludedInputSubjectCount',0),@('notEvaluatedInputSubjectCount',2),
+    @('gitInspectionProcessCount',0),@('heavyProcessCount',0),@('realAssetReadCount',0),@('createdExtractedCount',0),@('createdImportedCount',0)
+)) { Assert-Equal $positive.O2.($pair[0]) $pair[1] "positive $($pair[0])" }
+Assert-Equal ($positive.O1.artifactStates.Count) 11 'artifact slot count'
+Assert-Equal ($positive.O1.contractChecks.Count) 5 'check slot count'
+Assert-Equal (($positive.O1.artifactStates.artifactId) -join ',') ($ids -join ',') 'artifact slot order'
+Assert-Equal (($positive.O1.contractChecks.status) -join ',') 'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated' 'check states'
+Assert-Equal $positive.O1.inputSuppressions[0].recordId 'accounting-sha256:6d540e7fefd265ddef57b835e7bfb8894085d609419b3ac98b2268876f006e1c' 'Conservation suppression identity'
+Assert-Equal $positive.O1.inputSuppressions[1].recordId 'accounting-sha256:212ec1d5b7ffc164817068a9227f8c7d847dc091c517c41db4b4270236294016' 'Projection suppression identity'
+Assert-Equal $positive.O2.registeredArtifactCount ($positive.O2.readArtifactCount+$positive.O2.absentOptionalArtifactCount+$positive.O2.failedRegistrySlotCount) 'NP-01'
+Assert-Equal $positive.O2.readArtifactCount ($positive.O2.acceptedArtifactCount+$positive.O2.failedArtifactCount) 'NP-02'
+Assert-Equal $positive.O2.contractCheckCount ($positive.O2.acceptedCheckCount+$positive.O2.failedCheckCount+$positive.O2.notEvaluatedCheckCount) 'NP-03'
+Assert-Equal $positive.O2.inputSubjectCount ($positive.O2.acceptedInputSubjectCount+$positive.O2.inputFailureCount+$positive.O2.excludedInputSubjectCount+$positive.O2.notEvaluatedInputSubjectCount) 'NP-04'
+Assert-Equal $positive.O2.issueCount $positive.O2.inputFailureCount 'NP-05'
+
+$badHandoff = Copy-MemoryValue $handoff; $badHandoff.ledgerPath='wrong/path.json'
+$ft01=Invoke-C2PureDiscoveryIntake $facts $badHandoff $oid $oid
+Assert-Equal $ft01.O1.inputFailures[0].attribution 'FT-01:C2Check:C1Handoff' 'FT-01 owner'
+Assert-Equal $ft01.O1.contractChecks[2].status NotEvaluated 'FT-01 freshness suppression'
+Assert-Equal $ft01.O1.discoveryInputFingerprint $null 'FT-01 fingerprint suppression'
+
+$badShape=Copy-MemoryValue $facts; $badShape[9].PSObject.Properties.Remove('manifestSha256')
+$ft02=Invoke-C2PureDiscoveryIntake $badShape $handoff $oid $oid
+Assert-Equal $ft02.O1.inputFailures[0].attribution 'FT-02:AR-I10' 'FT-02 owner'
+Assert-Equal $ft02.O1.discoveryInputFingerprint $null 'FT-02 fingerprint suppression'
+
+$badPath=Copy-MemoryValue $facts; $badPath[6].path='../object-observations.json'
+$ft04=Invoke-C2PureDiscoveryIntake $badPath $handoff $oid $oid
+Assert-Equal $ft04.O1.inputFailures[0].attribution 'FT-04:AR-I07' 'FT-04 owner'
+Assert-Equal $ft04.O1.discoveryInputFingerprint $null 'FT-04 fingerprint suppression'
+
+$ft15=Invoke-C2PureDiscoveryIntake $facts $handoff $oid $oid -FreshnessPrerequisiteAvailable:$false
+Assert-Equal $ft15.O2.issueCount 0 'FT-15 issue count'
+Assert-Equal $ft15.O2.inputFailureCount 0 'FT-15 failure count'
+Assert-Equal $ft15.O1.contractChecks[2].status NotEvaluated 'FT-15 freshness status'
+Assert-Equal $ft15.O1.inputSuppressions.Count 3 'FT-15 suppression count'
+
+function Get-AstViolations {
+    param([Management.Automation.Language.Ast]$Ast)
+    $forbiddenCommands = @('Get-Content','Set-Content','Add-Content','Clear-Content','New-Item','Copy-Item','Move-Item','Remove-Item','Out-File','Get-ChildItem','Test-Path','Get-Item','Get-FileHash','Start-Process','Invoke-Item')
+    $violations=[Collections.Generic.List[string]]::new()
+    foreach($command in $Ast.FindAll({param($n) $n -is [Management.Automation.Language.CommandAst]},$true)){
+        $name=$command.GetCommandName()
+        if($null -eq $name){$violations.Add('dynamic-command')} elseif($forbiddenCommands -contains $name){$violations.Add("command:$name")}
+    }
+    foreach($member in $Ast.FindAll({param($n) $n -is [Management.Automation.Language.InvokeMemberExpressionAst]},$true)){
+        $text=$member.Extent.Text
+        if($text -match '(?i)\b(System\.)?IO\.|\[IO\.|FileSystem|Process(StartInfo)?|Native|Unity|Extract|ImportAsset'){$violations.Add("api:$text")}
+    }
+    return [string[]]$violations
+}
+$tokens=$null;$errors=$null
+$moduleAst=[Management.Automation.Language.Parser]::ParseInput($loadedModule.Definition,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw "module AST syntax errors=$($errors.Count)"}
+$moduleViolations=@(Get-AstViolations $moduleAst)
+$harnessViolations=@(Get-AstViolations $MyInvocation.MyCommand.ScriptBlock.Ast)
+if($moduleViolations.Count -or $harnessViolations.Count){throw "AST violations: module=$($moduleViolations -join '|') harness=$($harnessViolations -join '|')"}
+
+"status=Passed"
+"p0Digest=$actual"
+"observationArtifactSlotCount=$($positive.O1.artifactStates.Count)"
+"contractCheckCount=$($positive.O2.contractCheckCount)"
+"acceptedCheckCount=$($positive.O2.acceptedCheckCount)"
+"notEvaluatedCheckCount=$($positive.O2.notEvaluatedCheckCount)"
+"inputSubjectCount=$($positive.O2.inputSubjectCount)"
+"acceptedInputSubjectCount=$($positive.O2.acceptedInputSubjectCount)"
+"inputFailureCount=$($positive.O2.inputFailureCount)"
+"ft01=Passed"
+"ft02=Passed"
+"ft04=Passed"
+"ft15=Passed"
+"moduleAstViolationCount=$($moduleViolations.Count)"
+"harnessAstViolationCount=$($harnessViolations.Count)"
+"gitInspectionProcessCount=$($positive.O2.gitInspectionProcessCount)"
+"heavyProcessCount=$($positive.O2.heavyProcessCount)"
+"realAssetReadCount=$($positive.O2.realAssetReadCount)"
+"createdExtractedCount=$($positive.O2.createdExtractedCount)"
+"createdImportedCount=$($positive.O2.createdImportedCount)"
