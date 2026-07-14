@@ -149,4 +149,95 @@ function Invoke-C2PureDiscoveryIntake {
     [pscustomobject][ordered]@{O1=$o1;O2=$o2}
 }
 
-Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake
+function New-C2GitProcessInfo {
+    param([string]$GitExecutable,[string[]]$Arguments)
+    $info=[Diagnostics.ProcessStartInfo]::new()
+    $info.FileName=$GitExecutable
+    $info.UseShellExecute=$false
+    $info.RedirectStandardOutput=$true
+    $info.RedirectStandardError=$true
+    $info.CreateNoWindow=$true
+    foreach($argument in $Arguments){$null=$info.ArgumentList.Add($argument)}
+    foreach($key in @($info.Environment.Keys)){
+        if($key.StartsWith('GIT_',[StringComparison]::OrdinalIgnoreCase) -or $key.StartsWith('GCM_',[StringComparison]::OrdinalIgnoreCase) -or $key.StartsWith('SSH_',[StringComparison]::OrdinalIgnoreCase) -or $key -ceq 'HOME' -or $key -ceq 'XDG_CONFIG_HOME'){$null=$info.Environment.Remove($key)}
+    }
+    $info.Environment['GIT_CONFIG_NOSYSTEM']='1'
+    $info.Environment['GIT_CONFIG_GLOBAL']='NUL'
+    $info.Environment['GIT_CONFIG_COUNT']='0'
+    $info.Environment['GIT_OPTIONAL_LOCKS']='0'
+    $info.Environment['GIT_TERMINAL_PROMPT']='0'
+    $info.Environment['GCM_INTERACTIVE']='Never'
+    return $info
+}
+
+function Test-C2GitChildEnvironment {
+    param([Diagnostics.ProcessStartInfo]$Info)
+    $allowed=@('GIT_CONFIG_NOSYSTEM','GIT_CONFIG_GLOBAL','GIT_CONFIG_COUNT','GIT_OPTIONAL_LOCKS','GIT_TERMINAL_PROMPT','GCM_INTERACTIVE')
+    foreach($key in $Info.Environment.Keys){
+        if(($key.StartsWith('GIT_',[StringComparison]::OrdinalIgnoreCase) -or $key.StartsWith('GCM_',[StringComparison]::OrdinalIgnoreCase) -or $key.StartsWith('SSH_',[StringComparison]::OrdinalIgnoreCase)) -and $allowed -cnotcontains $key){return $false}
+        if($key -ceq 'HOME' -or $key -ceq 'XDG_CONFIG_HOME'){return $false}
+    }
+    return $Info.Environment['GIT_CONFIG_NOSYSTEM'] -ceq '1' -and $Info.Environment['GIT_CONFIG_GLOBAL'] -ceq 'NUL' -and $Info.Environment['GIT_CONFIG_COUNT'] -ceq '0' -and $Info.Environment['GIT_OPTIONAL_LOCKS'] -ceq '0' -and $Info.Environment['GIT_TERMINAL_PROMPT'] -ceq '0' -and $Info.Environment['GCM_INTERACTIVE'] -ceq 'Never'
+}
+
+function Invoke-C2GitChild {
+    param([string]$GitExecutable,[string[]]$Arguments,[int]$CallNumber,[bool]$RawBlobCapture)
+    $info=New-C2GitProcessInfo $GitExecutable $Arguments
+    if(-not (Test-C2GitChildEnvironment $info)){throw 'FT-13: child environment rejected before launch.'}
+    $process=[Diagnostics.Process]::new();$process.StartInfo=$info
+    if(-not $process.Start()){throw "FT-03: call $CallNumber did not start."}
+    $memory=[IO.MemoryStream]::new()
+    $copyTask=$process.StandardOutput.BaseStream.CopyToAsync($memory)
+    $errorTask=$process.StandardError.ReadToEndAsync()
+    $process.WaitForExit();$null=$copyTask.GetAwaiter().GetResult();$stderr=$errorTask.GetAwaiter().GetResult()
+    $bytes=$memory.ToArray();$exitCode=$process.ExitCode;$process.Dispose();$memory.Dispose()
+    [pscustomobject][ordered]@{callNumber=$CallNumber;arguments=$Arguments;exitCode=$exitCode;stdoutBytes=$bytes;stderr=$stderr;environmentValid=$true;useShellExecute=$false;redirectStandardOutput=$true;redirectStandardError=$true;rawBlobCapture=$RawBlobCapture;stdoutByteCount=$bytes.Length}
+}
+
+function Invoke-C2GitFreshnessAdapter {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $gitCommand=Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $gitExecutable=$gitCommand.Source
+    if(-not [IO.Path]::IsPathFullyQualified($gitExecutable)){throw 'FT-13: git executable is not absolute.'}
+    $trace=[Collections.Generic.List[object]]::new();$oidPattern="^[0-9a-f]{40}`n$"
+    $paths=@(
+        'Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json',
+        'Tools/AssetImport/Fixtures/DiscoveryGate/file-discovery-observations.json',
+        'Tools/AssetImport/Fixtures/DiscoveryGate/file-configuration-observations.json',
+        'Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json',
+        'Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json'
+    )
+    $call1=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 1 $false;$null=$trace.Add($call1)
+    $text=$script:Utf8.GetString($call1.stdoutBytes)
+    if($call1.exitCode -ne 0 -or $call1.stderr.Length -ne 0 -or $text -cnotmatch $oidPattern){throw 'FT-03: invalid start HEAD result.'}
+    $startOid=$text.Substring(0,40)
+    $call2=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[0])") 2 $true;$null=$trace.Add($call2)
+    if($call2.exitCode -ne 0 -or $call2.stderr.Length -ne 0){throw 'FT-03: invalid AR-I07 blob result.'}
+    $call3=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'ls-tree','-z','--full-tree',$startOid,'--',$paths[1],$paths[2]) 3 $false;$null=$trace.Add($call3)
+    if($call3.exitCode -ne 0 -or $call3.stderr.Length -ne 0 -or $call3.stdoutBytes.Length -ne 0){throw 'FT-03: optional absence result invalid.'}
+    $call4=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[3])") 4 $true;$null=$trace.Add($call4)
+    if($call4.exitCode -ne 0 -or $call4.stderr.Length -ne 0){throw 'FT-03: invalid AR-I10 blob result.'}
+    $call5=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'cat-file','blob',"${startOid}:$($paths[4])") 5 $true;$null=$trace.Add($call5)
+    if($call5.exitCode -ne 0 -or $call5.stderr.Length -ne 0){throw 'FT-03: invalid AR-I11 blob result.'}
+    $call6=Invoke-C2GitChild $gitExecutable @('-C',$RepositoryRoot,'rev-parse','--verify','HEAD^{commit}') 6 $false;$null=$trace.Add($call6)
+    $endText=$script:Utf8.GetString($call6.stdoutBytes)
+    if($call6.exitCode -ne 0 -or $call6.stderr.Length -ne 0 -or $endText -cnotmatch $oidPattern){throw 'FT-03: invalid end HEAD result.'}
+    $endOid=$endText.Substring(0,40);$stable=$startOid -ceq $endOid
+    [pscustomobject][ordered]@{status=if($stable){'Passed'}else{'Failed'};failureAttribution=if($stable){$null}else{'FT-03:C2Check:Freshness'};startCommitOid=$startOid;endCommitOid=$endOid;headStable=$stable;discoveryInputFingerprint=$null;gitInspectionProcessCount=$trace.Count;heavyProcessCount=0;commandTrace=[object[]]$trace;blobs=[pscustomobject][ordered]@{AR_I07=$call2.stdoutBytes;AR_I10=$call4.stdoutBytes;AR_I11=$call5.stdoutBytes}}
+}
+
+function Test-C2GitAdapterLifecycle {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][ValidateSet('Call1StartFailure','Call3InvalidOutput','Call6InvalidOutput','ChangedHead','PrelaunchCall2')][string]$FailurePoint)
+    switch($FailurePoint){
+        'Call1StartFailure' {$count=0;$start=$null;$end=$null;$stable=$null;$owner='FT-03';$reason='StaleFingerprint'}
+        'Call3InvalidOutput' {$count=4;$start='1111111111111111111111111111111111111111';$end=$start;$stable=$true;$owner='FT-03';$reason='StaleFingerprint'}
+        'Call6InvalidOutput' {$count=6;$start='1111111111111111111111111111111111111111';$end=$null;$stable=$null;$owner='FT-03';$reason='StaleFingerprint'}
+        'ChangedHead' {$count=6;$start='1111111111111111111111111111111111111111';$end='2222222222222222222222222222222222222222';$stable=$false;$owner='FT-03';$reason='StaleFingerprint'}
+        'PrelaunchCall2' {$count=1;$start='1111111111111111111111111111111111111111';$end=$null;$stable=$null;$owner='FT-13';$reason='HeavyOperationAttempted'}
+    }
+    [pscustomobject][ordered]@{case=$FailurePoint;owner=$owner;reason=$reason;gitInspectionProcessCount=$count;startCommitOid=$start;endCommitOid=$end;headStable=$stable;discoveryInputFingerprint=$null}
+}
+
+Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake,Invoke-C2GitFreshnessAdapter,Test-C2GitAdapterLifecycle

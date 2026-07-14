@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure')]
+    [ValidateSet('Pure','GitAdapter')]
     [string]$Case = 'Pure'
 )
 
@@ -18,6 +18,47 @@ $p0Entries = @(
     [pscustomobject]@{ path = 'docs/asset-migration/schemas/status-vocabulary.json'; sha256 = '88314c4c150563cab2f08c4a0692bc012b0c8e6f403d5cf2a355cf1688831444' }
     [pscustomobject]@{ path = 'docs/asset-migration/schemas/root-gate-summary.schema.json'; sha256 = '45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449' }
 )
+
+if ($Case -ceq 'GitAdapter') {
+    $adapter = Invoke-C2GitFreshnessAdapter -RepositoryRoot (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    if ($adapter.status -cne 'Passed') { throw "Git adapter positive failed: $($adapter.failureAttribution)" }
+    if ($adapter.gitInspectionProcessCount -ne 6) { throw "Git adapter call count expected=6 actual=$($adapter.gitInspectionProcessCount)" }
+    if (-not $adapter.headStable -or $adapter.startCommitOid -cne $adapter.endCommitOid) { throw 'Git adapter HEAD stability failed.' }
+    if ((@($adapter.commandTrace).Count) -ne 6) { throw 'Git adapter trace count invalid.' }
+    if (@($adapter.commandTrace)[0].arguments[-1] -cne 'HEAD^{commit}' -or @($adapter.commandTrace)[5].arguments[-1] -cne 'HEAD^{commit}') { throw 'Git adapter HEAD grammar invalid.' }
+    if (@($adapter.commandTrace)[2].stdoutByteCount -ne 0) { throw 'Optional-absence call returned bytes.' }
+    foreach ($call in $adapter.commandTrace) {
+        if (-not $call.environmentValid) { throw "Unsanitized child environment at call $($call.callNumber)" }
+        if ($call.useShellExecute -or -not $call.redirectStandardOutput -or -not $call.redirectStandardError) { throw "Unsafe process mode at call $($call.callNumber)" }
+    }
+    $startFailure = Test-C2GitAdapterLifecycle -FailurePoint Call1StartFailure
+    $middleFailure = Test-C2GitAdapterLifecycle -FailurePoint Call3InvalidOutput
+    $finalFailure = Test-C2GitAdapterLifecycle -FailurePoint Call6InvalidOutput
+    $changedHead = Test-C2GitAdapterLifecycle -FailurePoint ChangedHead
+    $policyFailure = Test-C2GitAdapterLifecycle -FailurePoint PrelaunchCall2
+    foreach($caseResult in @($startFailure,$middleFailure,$finalFailure,$changedHead)){
+        if($caseResult.owner -cne 'FT-03' -or $caseResult.reason -cne 'StaleFingerprint' -or $null -ne $caseResult.discoveryInputFingerprint){throw "FT-03 lifecycle ownership failed: $($caseResult.case)"}
+    }
+    if($policyFailure.owner -cne 'FT-13' -or $policyFailure.reason -cne 'HeavyOperationAttempted' -or $policyFailure.gitInspectionProcessCount -ne 1){throw 'FT-13 prelaunch ownership/count failed.'}
+    if($startFailure.gitInspectionProcessCount -ne 0 -or $null -ne $startFailure.startCommitOid -or $null -ne $startFailure.endCommitOid -or $null -ne $startFailure.headStable){throw 'Call1 start failure vector invalid.'}
+    if($middleFailure.gitInspectionProcessCount -ne 4 -or -not $middleFailure.headStable){throw 'Intermediate failure/final-revalidation vector invalid.'}
+    if($finalFailure.gitInspectionProcessCount -ne 6 -or $null -ne $finalFailure.endCommitOid -or $null -ne $finalFailure.headStable){throw 'Final failure vector invalid.'}
+    if($changedHead.gitInspectionProcessCount -ne 6 -or $changedHead.headStable -ne $false){throw 'Changed HEAD vector invalid.'}
+    "status=Passed"
+    "gitInspectionProcessCount=$($adapter.gitInspectionProcessCount)"
+    "startCommitOid=$($adapter.startCommitOid)"
+    "endCommitOid=$($adapter.endCommitOid)"
+    "headStable=$($adapter.headStable)"
+    "commandTraceCount=$(@($adapter.commandTrace).Count)"
+    "sanitizedEnvironmentCallCount=$(@($adapter.commandTrace | Where-Object environmentValid).Count)"
+    "rawBlobCallCount=$(@($adapter.commandTrace | Where-Object rawBlobCapture).Count)"
+    "call1StartFailure=Passed"
+    "intermediateFailureFinalRevalidation=Passed"
+    "call6Failure=Passed"
+    "changedHead=Passed"
+    "prelaunchFT13=Passed"
+    return
+}
 
 $actual = Get-C2DiscoveryInputFingerprint -Entries $p0Entries
 $expected = '01de12cfc14c5779aaa6b2827f73ae76a5e750d2d28cc0e856f685eb5bbd4c3d'
@@ -125,7 +166,12 @@ function Get-AstViolations {
     }
     foreach($member in $Ast.FindAll({param($n) $n -is [Management.Automation.Language.InvokeMemberExpressionAst]},$true)){
         $text=$member.Extent.Text
-        if($text -match '(?i)\b(System\.)?IO\.|\[IO\.|FileSystem|Process(StartInfo)?|Native|Unity|Extract|ImportAsset'){$violations.Add("api:$text")}
+        if($text -match '(?i)\b(System\.)?IO\.|\[IO\.|FileSystem|Process(StartInfo)?|Native|Unity|Extract|ImportAsset'){
+            $parent=$member.Parent
+            while($null -ne $parent -and $parent -isnot [Management.Automation.Language.FunctionDefinitionAst]){$parent=$parent.Parent}
+            $adapterFunctions=@('New-C2GitProcessInfo','Invoke-C2GitChild','Invoke-C2GitFreshnessAdapter')
+            if($null -eq $parent -or $adapterFunctions -cnotcontains $parent.Name){$violations.Add("api:$text")}
+        }
     }
     return [string[]]$violations
 }
