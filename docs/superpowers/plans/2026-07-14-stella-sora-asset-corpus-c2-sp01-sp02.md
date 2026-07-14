@@ -1,8 +1,8 @@
 # StellaSora C2 SP-01/SP-02 Minimal File Partition Plan
 
 **Date:** 2026-07-14
-**Status:** Proposed; read-only review required before execution
-**Baseline:** `codex/asset-corpus-integration` at `ec5cb9df114639de471a1b82fe8050b7affa3acf`
+**Status:** Task 1 implemented at `eabb850c9f877c87e552a97da915b27662978bc7`; Task 2 blocked pending read-only approval of this amendment
+**Baseline:** `codex/asset-corpus-integration` at `eabb850c9f877c87e552a97da915b27662978bc7`
 **Scope:** fixture-only C1 file classification and file-discovery partitioning. No real StellaSora assets, extraction, Unity, import, C3-C6, G5, SP-03-SP-09, AR-O01-AR-O05 publication, canonical work, or Phase B.
 
 This plan contains two Tasks. That is intentional: Task 1 atomically makes AR-I08 reviewed authority available without breaking the intake gate; Task 2 implements SP-01/SP-02. Execution remains one Task per explicit authorization, and neither Task may leave an intentional RED state.
@@ -137,9 +137,27 @@ The exact premises for those vectors are:
 | NotAttempted | empty | empty | NotAttempted/NotAttempted |
 | Parsed single-tool | empty | exact ToolA Readable row | Parsed/ExtractedReadable |
 | Parsed cross-tool | implied r1+r2 | empty | Parsed/CrossToolVerified |
-| Opaque | empty | one valid ToolA Opaque row | Opaque/Opaque |
-| Failed | empty | one valid ToolA Failed row | Failed/Failed |
-| Conflict | implied r1 | one valid ToolA Opaque row | FileDiscoveryConflict/no projection |
+| Opaque | empty | exact `fOpaque` row/index 0 below | Opaque/Opaque |
+| Failed | empty | exact `fFailed` row/index 0 below | Failed/Failed |
+| Conflict | implied r1/index 0 | exact `fOpaque` row/index 0 below | FileDiscoveryConflict/no projection |
+
+`fOpaque` and `fFailed` are complete one-row AR-S03 documents with the normal top-level `schemaVersion=1.0.0`, `snapshotId=snapshot-pc-install-001`, and 64 `a` input fingerprint. Each row is at original `rowIndex=0` and has the exact row field order frozen by AR-S03:
+
+| alias | fileDiscoveryObservationId | toolName | toolVersion | sourceId | relativePath | outcome | evidence | document raw SHA / bytes |
+|---|---|---|---|---|---|---|---|---|
+| fOpaque | `file-discovery-observation-sha256:8b2dfa70202ca30066a055c944b1b8d47c5f8dd628afaec24bcc7a7d317401cb` | ToolA | 1.0.0 | pc-install-primary | `SourceCorpus/PcInstall/game-data.bundle` | Opaque | `[Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/f-opaque.json]` | `ecdf3effe9c47d69cd79ac185fcd6e13e44cc0408bb75c19980b0ade28b25650` / 622 |
+| fFailed | `file-discovery-observation-sha256:bb657295c846a7155565cdb57444a13f7ddcc395147f016b36ad93544623848b` | ToolA | 1.0.0 | pc-install-primary | `SourceCorpus/PcInstall/game-data.bundle` | Failed | `[Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/f-failed.json]` | `e658cdcfd57b5cf40f95c70a28c8676f6308b489e132988f53ba1c37b69d8a4a` / 622 |
+
+The conflict vector combines implied r1 Readable with fOpaque. Its exact Ordinal sets are:
+
+```text
+observationIds=[file-discovery-observation-sha256:7e376293c4338ca5f1c3290bcc72a4284c2834168c3e90654684e447682296af, file-discovery-observation-sha256:8b2dfa70202ca30066a055c944b1b8d47c5f8dd628afaec24bcc7a7d317401cb]
+outcomes=[Opaque, Readable]
+evidence=[Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/f-opaque.json, Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r1.json]
+fileDiscoveryConflictId=file-discovery-conflict-sha256:5367efe2882b3fadbaebff107f0ba8178cd441cdd48397a4307b908106935645
+```
+
+Its sole FT-06 AR-S10 row is exact: `recordId=accounting-sha256:fa159cbe41427024ebb1a3bd486a6246a240c16c2811df8c74afa392c0c3ce98`, `subjectKind=FileDiscoveryConflict`, `subjectId` equal to the HI-11a ID above, `reasonCode=ConflictDetected`, `attribution=FT-06:<subjectId>`, and the exact two-path evidence set above. It contributes `fileDiscoveryConflictRecordCount=1`, `inputFailureCount=1`, `issueCount=1`, zero resolved/projected file rows, `gateStatus=Failed`, and `outputsSuppressed=true`.
 
 The integrated positive uses implied r1-r4 plus both exact AR-I08 rows. Its exact Ordinal observation-ID set is:
 
@@ -163,11 +181,21 @@ snapshotId
 inputFingerprint
 discoveryInputFingerprint
 c1Files
-acceptedObjectObservations
+objectObservationArtifact
 fileDiscoveryArtifact
 ```
 
-`snapshotId`, `inputFingerprint`, and `discoveryInputFingerprint` are already-audited scalar facts. `c1Files` is the complete AR-I02 `files` array with its exact C1 row shape and original order; the model independently rejects duplicate/case-colliding identities and derives its own Ordinal subject order. `acceptedObjectObservations` contains complete AR-S02 rows only after upstream AR-I07/AR-I11 validation: for the integrated vector it is exactly r1-r4, while rejected r5 and excluded r6 are absent. This boundary does not accept caller-supplied `accepted=true` flags.
+`snapshotId`, `inputFingerprint`, and `discoveryInputFingerprint` are already-audited scalar facts. `c1Files` is the complete AR-I02 `files` array with its exact C1 row shape and original order; the model independently rejects duplicate/case-colliding identities and derives its own Ordinal subject order.
+
+`objectObservationArtifact` is exactly:
+
+```text
+artifactPath
+artifactSha256
+acceptedRows
+```
+
+`artifactPath` is exactly `Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json`; `artifactSha256` is the audited AR-I07 raw SHA `50616dd29ec968121675658ba8aa1c8ba78d038034ad3824453f64fd5050d63c`. Each `acceptedRows` member is exactly `rowIndex`, then `observation`, where `rowIndex` is the original zero-based AR-I07 rows-array index and `observation` is the complete accepted AR-S02 row. The integrated vector is exactly `(0,r1),(1,r2),(2,r3),(3,r4)`; rejected r5/index 4 and excluded r6/index 5 are absent. The model receives no caller-supplied acceptance boolean, but retains enough immutable provenance to construct HI-02 if target validation fails.
 
 `fileDiscoveryArtifact` is exactly:
 
@@ -362,6 +390,22 @@ Row-level FT-04 is one AR-S10 `inputFailures` row with `subjectKind=FileDiscover
 
 If JSON parsing fails or top-level/rows shape prevents a stable row index, there is no HI-02 subject. Exactly one document-level FT-05 row replaces AR-I08's Accepted artifact state: `subjectKind=ObservationDocument`, `subjectId=AR-I08`, `reasonCode=InvalidObservation`, `attribution=FT-05:AR-I08`, evidence exactly the AR-I08 registry path. Document and row ownership are mutually exclusive; one malformed input is never counted as both an artifact failure and a raw-row failure.
 
+### 4.2 AR-I07 unknown-target provenance vector
+
+Target validation remains in this pure stage because the target universe is the complete C1 file set. The vector changes only r1 `containerRelativePath` to `SourceCorpus/PcInstall/missing.bundle`, preserves its original `rowIndex=0`, and serializes the complete six-row AR-I07 document with the same LF/final-LF rules. The mutated raw artifact is 6214 bytes with SHA-256:
+
+```text
+48a9fa5d4097e7050f57024e141d0b3e61fea9302dbdc628c82e377932fa9bc7
+```
+
+Using exact AR-I07 path, that SHA, and decimal row index `0`, HI-02 is:
+
+```text
+raw-row-sha256:f71bd05130b39d6bfb20c8e1348638adf82e926bf35ccbcc8c746d2e13b82946
+```
+
+The failure is exactly one AR-S10 `inputFailures` row: `subjectKind=ObjectObservation`, `subjectId` equal to that HI-02, `reasonCode=InvalidObservation`, `attribution=FT-05:<HI-02>`, and evidence `[Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json]`. It contributes one rejected input observation, one input failure, one issue, no implied Readable observation, no new file subject, `gateStatus=Failed`, and `outputsSuppressed=true`. AR-I07 remains the one read artifact subject; no document-level AR-I07 failure or second fallback subject is added.
+
 ## 5. Task 1 — Materialize AR-I08 Authority And Intake Binding (20-30 minutes)
 
 **Files, exact scope:**
@@ -407,9 +451,9 @@ No fixture or document changes are allowed in Task 2.
 
 1. **RED: complete C1 universe/SP-01 (2-5 min).** Add `-Case FilePartitions`; inject the exact AR-I02 file array and assert subject identity, arbitrary-nonempty-kind classification, Container/NonContainer sets, and count/byte conservation.
 2. **Implement pure SP-01 (2-5 min).** Accept parsed in-memory rows only; reject caller-supplied totals/final partitions; use Ordinal identity/path rules.
-3. **RED: six SP-02 vectors (2-5 min).** Freeze each vector's exact accepted AR-I07/AR-I08 premises, NotAttempted, both Parsed projections, Opaque, Failed, and FileDiscoveryConflict with exact rows/counts/bytes.
+3. **RED: six SP-02 vectors (2-5 min).** Encode each vector's exact AR-I07 provenance/AR-I08 document premises, NotAttempted, both Parsed projections, exact fOpaque/fFailed, and the frozen HI-11a/HI-12 conflict vector with exact rows/counts/bytes.
 4. **Implement pure SP-02 and HI-11a (2-5 min).** Derive AR-I07 implied HI-06 rows, exact four-tuple deduplication, outcomes, Ordinal observation/evidence sets, conflicts, and public extraction from accepted facts.
-5. **Projection/fail-closed vectors (2-5 min).** Assert complete result/row/coverage shape, dual-field equality, unknown target, duplicate/case collision, HI-02 row fallback, document-level AR-I08 ownership, FT-06 single ownership, and zero public output on every failure.
+5. **Projection/fail-closed vectors (2-5 min).** Assert complete result/row/coverage shape, dual-field equality, the exact AR-I07 unknown-target provenance/HI-02 vector, duplicate/case collision, AR-I08 HI-02 row fallback, document-level AR-I08 ownership, FT-06 exact single ownership, and zero public output on every failure.
 6. **Integrate and GREEN (2-5 min).** Feed the already-audited AR-I02/AR-I08 parsed values into the pure model; do not add filesystem/process entry points or change O1/O2 top-level shape.
 
 **Focused command:**
@@ -424,7 +468,7 @@ pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1 -Case Fil
 pwsh -NoProfile -File Tools/AssetImport/Test-MinimalObjectDiscoveryGate.ps1
 ```
 
-**Acceptance:** exact C1 universe; arbitrary nonempty kind maps Container; all SP-01/SP-02 count and byte equations; six state/projection vectors with frozen AR-I07/08 premises; integrated six-ID/evidence union projects `CrossToolVerified` to both public fields; exact pure result/AR-S05/coverage shapes; HI-02 and document ownership vectors; all failures suppress outputs; module/harness AST safety counts zero; cached scope exactly two scripts.
+**Acceptance:** exact C1 universe; arbitrary nonempty kind maps Container; all SP-01/SP-02 count and byte equations; six state/projection vectors with exact AR-I07 provenance and AR-I08 document SHA/index premises; integrated six-ID/evidence union projects `CrossToolVerified` to both public fields; exact fOpaque/fFailed HI-06, conflict HI-11a and AR-S10 recordId; exact pure result/AR-S05/coverage shapes; AR-I07 unknown-target and AR-I08 row/document ownership vectors; all failures suppress outputs; module/harness AST safety counts zero; cached scope exactly two scripts.
 
 **Stop checkpoint:** commit Task 2 independently and stop. SP-03+, output publication, Unity, extraction, real assets, C3-C6, G5, and Phase B remain unauthorized.
 
