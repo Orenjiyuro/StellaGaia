@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter')]
+    [ValidateSet('Pure','GitAdapter','Integration')]
     [string]$Case = 'Pure'
 )
 
@@ -57,6 +57,46 @@ if ($Case -ceq 'GitAdapter') {
     "call6Failure=Passed"
     "changedHead=Passed"
     "prelaunchFT13=Passed"
+    return
+}
+
+if ($Case -ceq 'Integration') {
+    $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $result = Invoke-C2DiscoveryIntakeGate -RepositoryRoot $repositoryRoot
+    if ($result.O2.status -cne 'Passed') { throw "Integration expected Passed: $($result.O1.decision.failureAttribution)" }
+    $expectedCounts = [ordered]@{
+        registeredArtifactCount=11; readArtifactCount=9; requiredArtifactCount=6; presentOptionalArtifactCount=3; absentOptionalArtifactCount=2
+        failedRegistrySlotCount=0; acceptedArtifactCount=9; failedArtifactCount=0; contractCheckCount=5; acceptedCheckCount=3
+        failedCheckCount=0; notEvaluatedCheckCount=2; inputSubjectCount=14; acceptedInputSubjectCount=12; inputFailureCount=0
+        excludedInputSubjectCount=0; notEvaluatedInputSubjectCount=2; gitInspectionProcessCount=6; heavyProcessCount=0
+        realAssetReadCount=0; createdExtractedCount=0; createdImportedCount=0
+    }
+    foreach($entry in $expectedCounts.GetEnumerator()) { if($result.O2.($entry.Key) -ne $entry.Value){throw "$($entry.Key) expected=$($entry.Value) actual=$($result.O2.($entry.Key))"} }
+    if($result.O1.artifactStates.Count -ne 11 -or $result.O1.contractChecks.Count -ne 5 -or $result.O1.inputSuppressions.Count -ne 2){throw 'Integration O1 row counts invalid.'}
+    if($result.O2.discoveryInputFingerprint -cnotmatch '^[0-9a-f]{64}$'){throw 'D9 missing or invalid.'}
+    if($result.O2.startCommitOid -cne $result.O2.endCommitOid -or -not $result.O2.headStable){throw 'Integration HEAD stability failed.'}
+    if(($result.O1.contractChecks.status -join ',') -cne 'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated'){throw 'Integration check vector invalid.'}
+    "status=Passed"
+    "issueCount=$($result.O2.issueCount)"
+    "registeredArtifactCount=$($result.O2.registeredArtifactCount)"
+    "readArtifactCount=$($result.O2.readArtifactCount)"
+    "absentOptionalArtifactCount=$($result.O2.absentOptionalArtifactCount)"
+    "acceptedArtifactCount=$($result.O2.acceptedArtifactCount)"
+    "contractCheckCount=$($result.O2.contractCheckCount)"
+    "acceptedCheckCount=$($result.O2.acceptedCheckCount)"
+    "notEvaluatedCheckCount=$($result.O2.notEvaluatedCheckCount)"
+    "inputSubjectCount=$($result.O2.inputSubjectCount)"
+    "acceptedInputSubjectCount=$($result.O2.acceptedInputSubjectCount)"
+    "inputFailureCount=$($result.O2.inputFailureCount)"
+    "gitInspectionProcessCount=$($result.O2.gitInspectionProcessCount)"
+    "heavyProcessCount=$($result.O2.heavyProcessCount)"
+    "realAssetReadCount=$($result.O2.realAssetReadCount)"
+    "createdExtractedCount=$($result.O2.createdExtractedCount)"
+    "createdImportedCount=$($result.O2.createdImportedCount)"
+    "startCommitOid=$($result.O2.startCommitOid)"
+    "endCommitOid=$($result.O2.endCommitOid)"
+    "headStable=$($result.O2.headStable)"
+    "discoveryInputFingerprint=$($result.O2.discoveryInputFingerprint)"
     return
 }
 
@@ -169,7 +209,7 @@ function Get-AstViolations {
         if($text -match '(?i)\b(System\.)?IO\.|\[IO\.|FileSystem|Process(StartInfo)?|Native|Unity|Extract|ImportAsset'){
             $parent=$member.Parent
             while($null -ne $parent -and $parent -isnot [Management.Automation.Language.FunctionDefinitionAst]){$parent=$parent.Parent}
-            $adapterFunctions=@('New-C2GitProcessInfo','Invoke-C2GitChild','Invoke-C2GitFreshnessAdapter')
+            $adapterFunctions=@('New-C2GitProcessInfo','Invoke-C2GitChild','Invoke-C2GitFreshnessAdapter','Read-C2AuditedArtifactBytes','Invoke-C2DiscoveryIntakeGate')
             if($null -eq $parent -or $adapterFunctions -cnotcontains $parent.Name){$violations.Add("api:$text")}
         }
     }
