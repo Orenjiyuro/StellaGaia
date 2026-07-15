@@ -1,0 +1,28 @@
+{
+  "rows": [
+    {
+      "factId": "lane-fact-sha256:8888888888888888888888888888888888888888888888888888888888888888",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "factKind": "ActorRole",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "Player",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "factKind": "ActorRole",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "Enemy",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    }
+  ]
+}

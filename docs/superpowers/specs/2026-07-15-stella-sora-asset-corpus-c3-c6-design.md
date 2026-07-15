@@ -64,7 +64,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I10 | C7/G4 evidence packages | paths listed exactly by LC-I09 | C7/G4 | C5 | Each package must match manifest path/SHA and requirement identity |
 | LC-I11 | Decision/capability registry | `docs/asset-migration/schemas/c3-c6-decision-policy-registry.json` | C0 contract Task | C6 | Required exact bytes and fingerprint; currently absent |
 | LC-I12 | Repair-attempt history | `Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json` | Reviewed repair workflow | C6 | Required exact artifact; an empty attempts array means no attempt, absence never means zero |
-| LC-I13 | Typed lane-fact schema | `docs/asset-migration/schemas/c2-lane-fact-package.schema.json` | C2 contract-change Task | LC-I06/C3 | Required exact bytes; `factContractFingerprint` is its exact-byte SHA-256; currently absent |
+| LC-I13 | Typed lane-fact schema | `docs/asset-migration/schemas/c2-lane-fact-package.schema.json` | C0/C2 contract Task | LC-I06/C3 | Contract frozen with valid and negative fixture coverage; `factContractFingerprint` is its exact-byte SHA-256; LC-I06 producer remains absent |
 | C3-O01 | Family registry | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json` | C3 | C4-C6 | Passed only; suppressed on C3 contract failure |
 | C3-O02 | Family-member ledger | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json` | C3 | C4-C6 | Passed only; contains every LC-I04 subject exactly once |
 | C3-O03 | Cross-lane reference package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json` | C3 | C4-C6 | Passed only; references never create membership |
@@ -832,7 +832,7 @@ The report is never a machine consumer. Its content fingerprint remains part of 
 
 The current `authoring-reuse-ledger.schema.json` cannot represent member identities, bytes, representative partitions, pool isolation, capability projection, policy fingerprints, or complete direct input fingerprints. C6-O01 cannot be projected losslessly into it. A C0 contract change to authoring reuse ledger v2 is required before C6 implementation.
 
-The current C2 outputs cannot represent all frozen family-key facts listed in LC-I06. A reviewed C2 typed-fact projection contract and fixture are required before C3 implementation.
+The current C2 outputs cannot represent all frozen family-key facts listed in LC-I06. LC-I13 now freezes the package schema and carrier invariants, but a reviewed C2 typed-fact projection producer and fixture integration are still required before C3 implementation.
 
 The current status vocabulary lacks the exact `familyParentStatus`, `memberStaticStatus`, `representativeAssessment`, `authoringPoolStatus`, and `capabilityStatus` dimensions frozen above. C0 must add all five before implementation; component-local aliases are forbidden.
 
@@ -1171,11 +1171,11 @@ No refresh may launch Unity, extraction, import, or another stage unless its exa
 
 ## Phase A Implementation Preconditions And Sequence
 
-This design grants no implementation. Before C3 begins, separate reviewed Tasks must complete the LC-I13 typed-fact schema, LC-I06 typed C2 projection, LC-I07 strong lane policy schema/fixture, LC-I11 decision policy schema/fixture, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
+This design grants no C3-C6 implementation. LC-I13 is complete as a fixture-only schema contract. Before C3 begins, separate reviewed Tasks must still complete the LC-I06 typed C2 projection, LC-I07 strong lane policy schema/fixture, LC-I11 decision policy schema/fixture, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
 
 The later implementation sequence is:
 
-1. C0/C2 contract-change Task for LC-I13/LC-I06, LC-I07, LC-I11, LC-I12, vocabulary, and ledger v2; fixtures only.
+1. C0/C2 contract-change Tasks for LC-I06 against frozen LC-I13, LC-I07, LC-I11, LC-I12, vocabulary, and ledger v2; fixtures only.
 2. C3 family registry Task; prove SP-30/SP-31 and C3 output vector.
 3. C4 static qualification Task; prove every lane check matrix and SP-40.
 4. C5 requirement/evidence Task; prove all six statuses and SP-50 without C7/G4 execution.

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-15T12:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "c2GenerationFingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+  "factContractFingerprint": "b9cf901ff4897cc7bcecd4cf2ca4cf1f4801909a0fae5a723fc93af479c964da",
+  "inputFingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+  "rows": [
+    {
+      "factId": "lane-fact-sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Actor",
+      "factKind": "ActorRole",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "Player",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Audio",
+      "factKind": "SampleRate",
+      "factStatus": "Known",
+      "valueKind": "Integer",
+      "stringValue": null,
+      "integerValue": 48000,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "lane": "Environment",
+      "factKind": "ColliderMode",
+      "factStatus": "Known",
+      "valueKind": "Boolean",
+      "stringValue": null,
+      "integerValue": null,
+      "booleanValue": true,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "lane": "Effects",
+      "factKind": "AudioDependencyIds",
+      "factStatus": "Known",
+      "valueKind": "IdSet",
+      "stringValue": null,
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": ["sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "lane": "UI",
+      "factKind": "AtlasId",
+      "factStatus": "Unknown",
+      "valueKind": "String",
+      "stringValue": null,
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    },
+    {
+      "factId": "lane-fact-sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "assetObjectId": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "lane": "UI",
+      "factKind": "FontDependencyIds",
+      "factStatus": "NotApplicable",
+      "valueKind": "IdSet",
+      "stringValue": null,
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    }
+  ]
+}

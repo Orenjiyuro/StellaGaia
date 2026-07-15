@@ -647,6 +647,79 @@ function Add-NegativeFixtureIssue {
     }
 }
 
+function Get-LaneFactPackageSemanticIssues {
+    param(
+        [Parameter(Mandatory)]
+        [object] $Package,
+
+        [Parameter()]
+        [AllowNull()]
+        [string] $ExpectedContractFingerprint
+    )
+
+    $result = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedContractFingerprint)) {
+        $actualFingerprint = Get-ExactJsonPropertyByPath -Value $Package -Path 'factContractFingerprint'
+        if ($null -eq $actualFingerprint -or $actualFingerprint.Value -cne $ExpectedContractFingerprint) {
+            $result.Add('Lane fact contract fingerprint does not match schema bytes.')
+        }
+    }
+
+    $rowsProperty = Get-ExactJsonPropertyByPath -Value $Package -Path 'rows'
+    if ($null -eq $rowsProperty -or ($rowsProperty.Value -isnot [System.Array] -and $rowsProperty.Value -isnot [System.Collections.IList])) {
+        $result.Add('Lane fact package rows must be an array.')
+        return $result.ToArray()
+    }
+
+    $factIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $subjectKinds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($row in @($rowsProperty.Value)) {
+        $factId = [string](Get-ExactJsonPropertyByPath -Value $row -Path 'factId').Value
+        $assetObjectId = [string](Get-ExactJsonPropertyByPath -Value $row -Path 'assetObjectId').Value
+        $factKind = [string](Get-ExactJsonPropertyByPath -Value $row -Path 'factKind').Value
+        if (-not $factIds.Add($factId)) {
+            Add-NegativeFixtureIssue -IssueList $result -Message "Lane factId is duplicated: '$factId'."
+        }
+        if (-not $subjectKinds.Add("$assetObjectId`n$factKind")) {
+            Add-NegativeFixtureIssue -IssueList $result -Message "Lane fact subject/kind is duplicated: '$assetObjectId/$factKind'."
+        }
+
+        $factStatus = [string](Get-ExactJsonPropertyByPath -Value $row -Path 'factStatus').Value
+        $valueKind = [string](Get-ExactJsonPropertyByPath -Value $row -Path 'valueKind').Value
+        $stringValue = (Get-ExactJsonPropertyByPath -Value $row -Path 'stringValue').Value
+        $integerValue = (Get-ExactJsonPropertyByPath -Value $row -Path 'integerValue').Value
+        $booleanValue = (Get-ExactJsonPropertyByPath -Value $row -Path 'booleanValue').Value
+        $idValues = @((Get-ExactJsonPropertyByPath -Value $row -Path 'idValues').Value)
+        $carrierValid = $false
+        if ($factStatus -ceq 'Known') {
+            $carrierValid = switch ($valueKind) {
+                'String' { $stringValue -is [string] -and -not [string]::IsNullOrWhiteSpace($stringValue) -and $null -eq $integerValue -and $null -eq $booleanValue -and $idValues.Count -eq 0; break }
+                'Integer' { (Test-IsIntegerValue -Value $integerValue) -and $integerValue -ge 0 -and $null -eq $stringValue -and $null -eq $booleanValue -and $idValues.Count -eq 0; break }
+                'Boolean' { $booleanValue -is [bool] -and $null -eq $stringValue -and $null -eq $integerValue -and $idValues.Count -eq 0; break }
+                'IdSet' { $idValues.Count -gt 0 -and $null -eq $stringValue -and $null -eq $integerValue -and $null -eq $booleanValue; break }
+                default { $false }
+            }
+        }
+        elseif ($factStatus -cin @('Unknown', 'NotApplicable')) {
+            $carrierValid = $null -eq $stringValue -and $null -eq $integerValue -and $null -eq $booleanValue -and $idValues.Count -eq 0
+        }
+
+        if (-not $carrierValid) {
+            Add-NegativeFixtureIssue -IssueList $result -Message "Lane fact carrier invariant failed for '$factId'."
+        }
+
+        foreach ($setName in @('idValues', 'evidence')) {
+            $values = @((Get-ExactJsonPropertyByPath -Value $row -Path $setName).Value)
+            $sorted = @($values | Sort-Object -CaseSensitive)
+            if (($values -join "`n") -cne ($sorted -join "`n")) {
+                Add-NegativeFixtureIssue -IssueList $result -Message "Lane fact set '$setName' is not Ordinal sorted for '$factId'."
+            }
+        }
+    }
+
+    return $result.ToArray()
+}
+
 function Get-NegativeFixtureSemanticIssues {
     param(
         [Parameter(Mandatory)]
@@ -660,6 +733,13 @@ function Get-NegativeFixtureSemanticIssues {
     )
 
     $fixtureIssues = [System.Collections.Generic.List[string]]::new()
+
+    if ($PrimaryRule -cin @('LaneFactCarrier', 'LaneFactDuplicateSubjectKind')) {
+        foreach ($laneFactIssue in @(Get-LaneFactPackageSemanticIssues -Package $Fixture)) {
+            $fixtureIssues.Add($laneFactIssue)
+        }
+        return $fixtureIssues.ToArray()
+    }
 
     $sourceCountNames = @('sourceFileCount', 'catalogedFileCount', 'explicitlyExcludedFileCount')
     $sourceApplicable = $PrimaryRule -ceq 'SourceFileConservation'
@@ -1008,6 +1088,11 @@ $schemaContracts = @(
         Name = 'root-gate-summary.schema.json'
         Id = 'https://stellagaia.dev/schemas/root-gate-summary.schema.json'
         Required = @('schemaVersion', 'generatedAt', 'inputFingerprint', 'toolVersions', 'directGateSummaries', 'directGateReports', 'corpusSnapshotComplete', 'structuredObjectCoverage', 'originalAssetBatchCoverage', 'stellaSora2AuthoringReady')
+    },
+    [pscustomobject]@{
+        Name = 'c2-lane-fact-package.schema.json'
+        Id = 'https://stellagaia.dev/schemas/c2-lane-fact-package.schema.json'
+        Required = @('schemaVersion', 'generatedAt', 'snapshotId', 'c2GenerationFingerprint', 'factContractFingerprint', 'inputFingerprint', 'rows')
     }
 )
 
@@ -1023,6 +1108,10 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-root-gate-summary.json'
         SchemaName = 'root-gate-summary.schema.json'
+    },
+    [pscustomobject]@{
+        Name = 'valid-c2-lane-fact-package.json'
+        SchemaName = 'c2-lane-fact-package.schema.json'
     }
 )
 
@@ -1051,6 +1140,16 @@ $negativeFixtureContracts = @(
         Name = 'invalid-original-project-restored.json'
         Rule = 'OriginalProjectRestored'
         ExpectedIssue = "Forbidden original project restoration property found in 'originalUnityProjectRestored'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-fact-carrier.json'
+        Rule = 'LaneFactCarrier'
+        ExpectedIssue = "Lane fact carrier invariant failed for 'lane-fact-sha256:7777777777777777777777777777777777777777777777777777777777777777'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-fact-duplicate-subject-kind.json'
+        Rule = 'LaneFactDuplicateSubjectKind'
+        ExpectedIssue = "Lane fact subject/kind is duplicated: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ActorRole'."
     }
 )
 
@@ -1143,6 +1242,18 @@ if ($schemas.ContainsKey('root-gate-summary.schema.json')) {
     Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.stellaSora2AuthoringReady.required' -Expected @('value', 'requiredCapabilities', 'satisfiedCapabilities', 'isolatedFailedMemberCount')
 }
 
+if ($schemas.ContainsKey('c2-lane-fact-package.schema.json')) {
+    $schema = $schemas['c2-lane-fact-package.schema.json']
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c2-lane-fact-package.schema.json' -Path 'properties.rows.items.required' -Expected @('factId', 'assetObjectId', 'lane', 'factKind', 'factStatus', 'valueKind', 'stringValue', 'integerValue', 'booleanValue', 'idValues', 'evidence')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c2-lane-fact-package.schema.json' -Path 'properties.rows.items.properties.lane.enum' -Expected @('Audio', 'Environment', 'Actor', 'UI', 'Effects')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c2-lane-fact-package.schema.json' -Path 'properties.rows.items.properties.factKind.enum' -Expected @('ObjectType', 'ClassId', 'CanonicalAssetId', 'PlatformVariant', 'DependencyObjectIds', 'AudioEncoding', 'BankStructureId', 'EventStructureId', 'LoopMode', 'ChannelLayout', 'SampleRate', 'EnvironmentThemeId', 'EnvironmentModuleType', 'RendererType', 'ShaderFamilyIds', 'PrefabDependencyShapeId', 'MeshTopologyId', 'LightmapMode', 'ColliderMode', 'NavMeshMode', 'ActorRole', 'SkeletonId', 'AvatarId', 'AnimationSetShapeId', 'ControllerReferenceState', 'UiRouteKind', 'AtlasId', 'FontDependencyIds', 'TextureFormat', 'EffectSystemKind', 'AudioDependencyIds')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c2-lane-fact-package.schema.json' -Path 'properties.rows.items.properties.factStatus.enum' -Expected @('Known', 'Unknown', 'NotApplicable')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c2-lane-fact-package.schema.json' -Path 'properties.rows.items.properties.valueKind.enum' -Expected @('String', 'Integer', 'Boolean', 'IdSet')
+    if (@(Get-PropertyByPath -Value $schema -Path 'properties.rows.items.oneOf').Count -ne 6) {
+        $issues.Add("Schema 'c2-lane-fact-package.schema.json' must define exactly six carrier branches.")
+    }
+}
+
 $fixtures = @{}
 foreach ($contract in $fixtureContracts) {
     $fixturePath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot $contract.Name))
@@ -1200,6 +1311,15 @@ if ($null -ne $authoringFixture) {
     foreach ($family in @(Get-PropertyByPath -Value $authoringFixture -Path 'families')) {
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $family -Path 'decision') -Dimension 'decision' -VocabularyDimension 'disposition' -FixtureName 'valid-authoring-reuse-ledger.json'
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $family -Path 'staticOutcome') -Dimension 'staticOutcome' -VocabularyDimension 'familyStaticOutcome' -FixtureName 'valid-authoring-reuse-ledger.json'
+    }
+}
+
+$laneFactFixture = $fixtures['valid-c2-lane-fact-package.json']
+if ($null -ne $laneFactFixture) {
+    $laneFactSchemaPath = [System.IO.Path]::GetFullPath((Join-Path $ContractRoot 'c2-lane-fact-package.schema.json'))
+    $expectedLaneFactSchemaFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($laneFactSchemaPath))).ToLowerInvariant()
+    foreach ($laneFactIssue in @(Get-LaneFactPackageSemanticIssues -Package $laneFactFixture -ExpectedContractFingerprint $expectedLaneFactSchemaFingerprint)) {
+        $issues.Add("Fixture 'valid-c2-lane-fact-package.json' semantic contract failed: $laneFactIssue")
     }
 }
 

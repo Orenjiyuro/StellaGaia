@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/c2-lane-fact-package.schema.json",
+  "title": "StellaSora C2 Typed Lane-Fact Package",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "snapshotId",
+    "c2GenerationFingerprint",
+    "factContractFingerprint",
+    "inputFingerprint",
+    "rows"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "c2GenerationFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "factContractFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inputFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "factId",
+          "assetObjectId",
+          "lane",
+          "factKind",
+          "factStatus",
+          "valueKind",
+          "stringValue",
+          "integerValue",
+          "booleanValue",
+          "idValues",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "factId": {
+            "type": "string",
+            "pattern": "^lane-fact-sha256:[0-9a-f]{64}$"
+          },
+          "assetObjectId": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "lane": {
+            "type": "string",
+            "enum": [
+              "Audio",
+              "Environment",
+              "Actor",
+              "UI",
+              "Effects"
+            ]
+          },
+          "factKind": {
+            "type": "string",
+            "enum": [
+              "ObjectType",
+              "ClassId",
+              "CanonicalAssetId",
+              "PlatformVariant",
+              "DependencyObjectIds",
+              "AudioEncoding",
+              "BankStructureId",
+              "EventStructureId",
+              "LoopMode",
+              "ChannelLayout",
+              "SampleRate",
+              "EnvironmentThemeId",
+              "EnvironmentModuleType",
+              "RendererType",
+              "ShaderFamilyIds",
+              "PrefabDependencyShapeId",
+              "MeshTopologyId",
+              "LightmapMode",
+              "ColliderMode",
+              "NavMeshMode",
+              "ActorRole",
+              "SkeletonId",
+              "AvatarId",
+              "AnimationSetShapeId",
+              "ControllerReferenceState",
+              "UiRouteKind",
+              "AtlasId",
+              "FontDependencyIds",
+              "TextureFormat",
+              "EffectSystemKind",
+              "AudioDependencyIds"
+            ]
+          },
+          "factStatus": {
+            "type": "string",
+            "enum": [
+              "Known",
+              "Unknown",
+              "NotApplicable"
+            ]
+          },
+          "valueKind": {
+            "type": "string",
+            "enum": [
+              "String",
+              "Integer",
+              "Boolean",
+              "IdSet"
+            ]
+          },
+          "stringValue": {
+            "$ref": "#/$defs/nullableString"
+          },
+          "integerValue": {
+            "$ref": "#/$defs/nullableNonNegativeInteger"
+          },
+          "booleanValue": {
+            "$ref": "#/$defs/nullableBoolean"
+          },
+          "idValues": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/repositoryPath"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "factStatus": { "const": "Known" },
+              "valueKind": { "const": "String" },
+              "stringValue": { "type": "string", "minLength": 1 },
+              "integerValue": { "type": "null" },
+              "booleanValue": { "type": "null" },
+              "idValues": { "maxItems": 0 }
+            }
+          },
+          {
+            "properties": {
+              "factStatus": { "const": "Known" },
+              "valueKind": { "const": "Integer" },
+              "stringValue": { "type": "null" },
+              "integerValue": { "type": "integer", "minimum": 0 },
+              "booleanValue": { "type": "null" },
+              "idValues": { "maxItems": 0 }
+            }
+          },
+          {
+            "properties": {
+              "factStatus": { "const": "Known" },
+              "valueKind": { "const": "Boolean" },
+              "stringValue": { "type": "null" },
+              "integerValue": { "type": "null" },
+              "booleanValue": { "type": "boolean" },
+              "idValues": { "maxItems": 0 }
+            }
+          },
+          {
+            "properties": {
+              "factStatus": { "const": "Known" },
+              "valueKind": { "const": "IdSet" },
+              "stringValue": { "type": "null" },
+              "integerValue": { "type": "null" },
+              "booleanValue": { "type": "null" },
+              "idValues": { "minItems": 1 }
+            }
+          },
+          {
+            "properties": {
+              "factStatus": { "const": "Unknown" },
+              "stringValue": { "type": "null" },
+              "integerValue": { "type": "null" },
+              "booleanValue": { "type": "null" },
+              "idValues": { "maxItems": 0 }
+            }
+          },
+          {
+            "properties": {
+              "factStatus": { "const": "NotApplicable" },
+              "stringValue": { "type": "null" },
+              "integerValue": { "type": "null" },
+              "booleanValue": { "type": "null" },
+              "idValues": { "maxItems": 0 }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "nullableString": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ]
+    },
+    "nullableNonNegativeInteger": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "nullableBoolean": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!\\.{1,2}(?:[\\\\/]|$))(?!.*[\\\\/]\\.{1,2}(?:[\\\\/]|$)).+$"
+    }
+  }
+}

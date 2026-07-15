@@ -1,0 +1,16 @@
+{
+  "rows": [
+    {
+      "factId": "lane-fact-sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "factKind": "ActorRole",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "Player",
+      "integerValue": 1,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": ["Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"]
+    }
+  ]
+}
