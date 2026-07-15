@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-15T12:30:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "c2GenerationFingerprint": "3333333333333333333333333333333333333333333333333333333333333333",
+  "factContractFingerprint": "b9cf901ff4897cc7bcecd4cf2ca4cf1f4801909a0fae5a723fc93af479c964da",
+  "inputFingerprint": "2833a5125c69dcb947b46d981dee142197bfe5834ec7a91bf90332196aba5720",
+  "rows": [
+    {
+      "factId": "lane-fact-sha256:6819ca5e1bc46923ae0dc5ce9e5047ca98990b2bfbf791814fdd3d698420cc2f",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Audio",
+      "factKind": "CanonicalAssetId",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "canonical-sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "factId": "lane-fact-sha256:8da31d10f44c4b063a4280f17bb7c0946c5c092e47b3778551f089d154b3f76f",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Audio",
+      "factKind": "ObjectType",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "AudioClip",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "factId": "lane-fact-sha256:b0c771e8af9096b56f83293179eda588e280514031ebd0b0cd978ec7eafdc84c",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Audio",
+      "factKind": "PlatformVariant",
+      "factStatus": "Known",
+      "valueKind": "String",
+      "stringValue": "Pc",
+      "integerValue": null,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "factId": "lane-fact-sha256:efe79dd841e71be3823aaf0c064789aa72c476c84bf4836057024003ecb4526b",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lane": "Audio",
+      "factKind": "ClassId",
+      "factStatus": "Known",
+      "valueKind": "Integer",
+      "stringValue": null,
+      "integerValue": 100,
+      "booleanValue": null,
+      "idValues": [],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}

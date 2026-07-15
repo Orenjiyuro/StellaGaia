@@ -88,6 +88,8 @@ Completion record: `2026-07-15-stella-sora-asset-corpus-c3-c6-design.md` freezes
 
 Implement the reviewed component map one small lane/risk-family Task at a time. Each Task must prove full member conservation, fail-closed static qualification, representative selection, and lossless authoring-ledger projection using fixture or already-reviewed evidence only.
 
+Enabling checkpoint: the pure LC-I06 adapter now projects only the five approved structured AR-O04 selector facts, binds the exact AR-O04/AR-O05/LC-I13 bytes, terminally accounts Assigned/RetainedForDiagnosis/ConfigurationOnly subjects, and byte-compares a checked-in schema-valid fixture. Focused five-lane, mutation, determinism, conservation, C2 safety, and minimal-object regressions pass. This does not publish LC-I06, start C3, or authorize Phase B, real assets, extraction, import, or Unity.
+
 ### R5 — C0 Contract Change And Lightweight G5
 
 Resolve the exact C2/C3–C6 projection gap through one reviewed C0 contract change. Implement G5 as a freshness-validating aggregator only; it must not refresh snapshots, extraction, static gates, or Unity.
@@ -160,6 +162,6 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The LC-I06 fixture-projection sub-contract now also freezes its three direct inputs, fingerprint derivations, dispatch subject partition, no-fact Unassigned handling, five provable selector mappings, zero-dependency semantics, failure suppression, and SP-09 non-publication boundary. Neither contract creates or authorizes the LC-I06 producer.
+LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The pure LC-I06 fixture-only producer is now implemented against the frozen three-input sub-contract, including fingerprint derivations, dispatch subject conservation, no-fact Unassigned handling, five selector mappings, dependency-set semantics, failure suppression, deterministic identities/bytes, and the SP-09 non-publication boundary.
 
-The next normal Task is **implement the LC-I06 fixture-only C2 typed lane-fact projection against frozen LC-I13**. It requires separate explicit authorization and must not access real assets or infer facts absent from approved C2 structured inputs. LC-I07, LC-I11, LC-I12, the required vocabulary dimensions, authoring reuse ledger v2, C2 Phase B execution, real assets, extraction, Unity, import, C3–C6 implementation, G5, and release work remain unauthorized.
+The next normal Task is **freeze the LC-I07 strong lane-policy schema and fixture** as a separate 20-30 minute checkpoint. LC-I11, LC-I12, the required vocabulary dimensions, authoring reuse ledger v2, any LC-I06 publication integration, C2 Phase B execution, real assets, extraction, Unity, import, C3-C6 implementation, G5, and release work remain unauthorized.

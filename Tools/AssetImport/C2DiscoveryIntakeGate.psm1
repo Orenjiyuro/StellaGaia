@@ -1072,6 +1072,67 @@ function Invoke-C2DispatchPartitions {
     [pscustomobject][ordered]@{dispatchInputFacts=[object[]]$facts;dispatchRows=[object[]]$rows;inputFailures=[object[]]$failures;coverage=$coverage;gateStatus=if($blocked){'Failed'}else{'Passed'};outputsSuppressed=$blocked}
 }
 
+function Get-C2LifecycleStageInputFingerprint {
+    param([Parameter(Mandatory)][object[]]$Entries)
+    $ordered=[Collections.Generic.List[object]]::new();$seen=[Collections.Generic.HashSet[string]]::new($script:Ordinal)
+    foreach($entry in $Entries){if(-not(Test-C2ExactShape $entry 'path,sha256')-or-not(Test-C2PortablePath $entry.path)-or$entry.sha256-cnotmatch'^[0-9a-f]{64}$'-or-not$seen.Add([string]$entry.path)){throw 'Invalid lifecycle input entry.'};$ordered.Add($entry)}
+    $ordered.Sort([Comparison[object]]{param($a,$b)$script:Ordinal.Compare([string]$a.path,[string]$b.path)})
+    $count=[string]$ordered.Count;$text="LifecycleStageInputV1`nentries.count:$($script:Utf8.GetByteCount($count)):$count`n"
+    for($i=0;$i-lt$ordered.Count;$i++){$nested=Get-C2ArtifactEntryBytes $ordered[$i].path $ordered[$i].sha256;$text+="entries[$i]:$($nested.Length):$($script:Utf8.GetString($nested))`n"}
+    Get-C2Sha256 $script:Utf8.GetBytes($text)
+}
+
+function Get-C2LaneFactId {
+    param([Parameter(Mandatory)][pscustomobject]$Row)
+    $booleanText=if($null-eq$Row.booleanValue){$null}elseif($Row.booleanValue){'true'}else{'false'}
+    $text="C3LaneFactV1`n"+(ConvertTo-C2ScalarLine assetObjectId $Row.assetObjectId)+(ConvertTo-C2ScalarLine lane $Row.lane)+(ConvertTo-C2ScalarLine factKind $Row.factKind)+(ConvertTo-C2ScalarLine factStatus $Row.factStatus)+(ConvertTo-C2ScalarLine valueKind $Row.valueKind)+(Add-C2NullableFrame stringValue $Row.stringValue)+(Add-C2NullableFrame integerValue $Row.integerValue)+(Add-C2NullableFrame booleanValue $booleanText)+(Add-C2SetFrame idValues @($Row.idValues))+(Add-C2SetFrame evidence @($Row.evidence))
+    "lane-fact-sha256:$(Get-C2Sha256 $script:Utf8.GetBytes($text))"
+}
+
+function New-C2LaneFactFailureResult {
+    param([string]$SubjectKind,[string]$SubjectId,[string]$ReasonCode,[string[]]$Evidence)
+    $row=New-C2AccountingRow inputFailures $SubjectKind $SubjectId $ReasonCode "LC-I06:$SubjectId" $Evidence
+    [pscustomobject][ordered]@{gateStatus='Failed';package=$null;subjectAccounting=@();inputFailures=[object[]]@($row);outputsSuppressed=$true}
+}
+
+function New-C2LaneFactRow {
+    param([string]$AssetObjectId,[string]$Lane,[string]$FactKind,[string]$ValueKind,$Value,[string[]]$IdValues,[string[]]$Evidence)
+    $row=[pscustomobject][ordered]@{factId='';assetObjectId=$AssetObjectId;lane=$Lane;factKind=$FactKind;factStatus='Known';valueKind=$ValueKind;stringValue=if($ValueKind-ceq'String'){[string]$Value}else{$null};integerValue=if($ValueKind-ceq'Integer'){[long]$Value}else{$null};booleanValue=if($ValueKind-ceq'Boolean'){[bool]$Value}else{$null};idValues=if($ValueKind-ceq'IdSet'){[string[]](Get-C2OrdinalUnique $IdValues)}else{,[string[]]@()};evidence=[string[]](Get-C2OrdinalUnique $Evidence)}
+    $row.factId=Get-C2LaneFactId $row;$row
+}
+
+function Invoke-C2TypedLaneFactProjection {
+    [CmdletBinding()]param(
+        [Parameter(Mandatory)][byte[]]$DispatchBytes,
+        [Parameter(Mandatory)][byte[]]$SummaryBytes,
+        [Parameter(Mandatory)][byte[]]$SchemaBytes
+    )
+    $dispatchPath='Tools/AssetImport/Fixtures/DiscoveryGate/valid-object-dispatch.json';$summaryPath='Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json';$schemaPath='docs/asset-migration/schemas/c2-lane-fact-package.schema.json';$strictUtf8=[Text.UTF8Encoding]::new($false,$true)
+    try{$dispatchText=$strictUtf8.GetString($DispatchBytes);$dispatch=$dispatchText|ConvertFrom-Json -Depth 100 -DateKind String;if((ConvertTo-C2CanonicalJson $dispatch)-cne$dispatchText){throw 'dispatch canonical bytes'}}catch{return New-C2LaneFactFailureResult Artifact AR-O04 InvalidSchema @($dispatchPath)}
+    try{$summaryText=$strictUtf8.GetString($SummaryBytes);$summary=$summaryText|ConvertFrom-Json -Depth 100 -DateKind String;if((ConvertTo-C2CanonicalJson $summary)-cne$summaryText){throw 'summary canonical bytes'}}catch{return New-C2LaneFactFailureResult Artifact AR-O05-Summary InvalidSchema @($summaryPath)}
+    try{$schemaText=$strictUtf8.GetString($SchemaBytes);$schema=$schemaText|ConvertFrom-Json -Depth 100 -DateKind String;$required=@($schema.properties.rows.items.required);if($schema.'$id'-cne'https://stellagaia.dev/schemas/c2-lane-fact-package.schema.json'-or$schema.properties.schemaVersion.const-cne'1.0.0'-or$required.Count-ne11-or@($schema.properties.rows.items.oneOf).Count-ne6){throw 'schema contract'}}catch{return New-C2LaneFactFailureResult Artifact LC-I13 InvalidSchema @($schemaPath)}
+    if(-not(Test-C2ExactShape $dispatch 'schemaVersion,generatedAt,snapshotId,inputFingerprint,discoveryInputFingerprint,sourceLedgerPath,rows')-or$dispatch.schemaVersion-cne'1.0.0'-or$dispatch.generatedAt-cnotmatch'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'-or[string]::IsNullOrWhiteSpace([string]$dispatch.snapshotId)-or$dispatch.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$dispatch.discoveryInputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or-not(Test-C2PortablePath $dispatch.sourceLedgerPath)) {return New-C2LaneFactFailureResult Artifact AR-O04 InvalidSchema @($dispatchPath)}
+    if(-not(Test-C2ExactShape $summary 'schemaVersion,identity,provenance,directEvidence,coverage,failureAccounting,decision')-or$summary.schemaVersion-cne'1.0.0'-or-not(Test-C2ExactShape $summary.identity 'generatedAt,snapshotId,inputFingerprint,ledgerInputFingerprint,discoveryInputFingerprint,discoveryArtifactFingerprint')-or$summary.failureAccounting.gateStatus-cne'Passed'-or$summary.identity.discoveryArtifactFingerprint-cnotmatch'^[0-9a-f]{64}$') {return New-C2LaneFactFailureResult Artifact AR-O05-Summary InvalidSchema @($summaryPath)}
+    if($dispatch.generatedAt-cne$summary.identity.generatedAt-or$dispatch.snapshotId-cne$summary.identity.snapshotId-or$dispatch.inputFingerprint-cne$summary.identity.inputFingerprint-or$dispatch.discoveryInputFingerprint-cne$summary.identity.discoveryInputFingerprint){return New-C2LaneFactFailureResult Artifact AR-O05-Summary IdentityMismatch @($dispatchPath,$summaryPath)}
+    $entries=@([pscustomobject][ordered]@{path=$dispatchPath;sha256=Get-C2Sha256 $DispatchBytes},[pscustomobject][ordered]@{path=$summaryPath;sha256=Get-C2Sha256 $SummaryBytes},[pscustomobject][ordered]@{path=$schemaPath;sha256=Get-C2Sha256 $SchemaBytes});$inputFingerprint=Get-C2LifecycleStageInputFingerprint $entries;$factContractFingerprint=Get-C2Sha256 $SchemaBytes
+    $facts=[Collections.Generic.List[object]]::new();$accounting=[Collections.Generic.List[object]]::new();$seenObjects=[Collections.Generic.HashSet[string]]::new($script:Ordinal);$previousObject=$null
+    foreach($row in @($dispatch.rows)){
+        $objectId=if($null-ne$row){[string]$row.assetObjectId}else{''};if(-not(Test-C2ExactShape $row 'assetObjectId,canonicalAssetId,sourceId,familyLane,memberSelectorInputs,configurationCandidateId,dispatchStatus,evidence')-or$objectId-cnotmatch'^sha256:[0-9a-f]{64}$'-or-not$seenObjects.Add($objectId)-or($null-ne$previousObject-and$script:Ordinal.Compare($previousObject,$objectId)-ge0)-or-not(Test-C2OrdinalPortableSet @($row.evidence) $true)){return New-C2LaneFactFailureResult DispatchObject $(if($objectId){$objectId}else{'LC-I06:Projection'}) ConservationMismatch @($dispatchPath)};$previousObject=$objectId
+        $terminal=$null;$factIds=@();if($row.dispatchStatus-ceq'Assigned'-and$row.familyLane-cin@('Audio','Environment','Actor','UI','Effects')-and$null-eq$row.configurationCandidateId){$terminal='AssignedFactsProjected'}elseif($row.dispatchStatus-ceq'RetainedForDiagnosis'-and$row.familyLane-ceq'Unassigned'-and$null-eq$row.configurationCandidateId){$terminal='RetainedNoLaneFacts'}elseif($row.dispatchStatus-ceq'ConfigurationOnly'-and$row.familyLane-ceq'Unassigned'-and$null-ne$row.configurationCandidateId){$terminal='ConfigurationNoLaneFacts'}else{return New-C2LaneFactFailureResult DispatchObject $objectId ConservationMismatch @($dispatchPath)}
+        if($terminal-ceq'AssignedFactsProjected'){
+            $selectors=@($row.memberSelectorInputs);$selectorKeys=[Collections.Generic.List[string]]::new();$selectorSeen=[Collections.Generic.HashSet[string]]::new($script:Ordinal);foreach($selector in $selectors){if(-not(Test-C2ExactShape $selector 'kind,value')-or[string]::IsNullOrWhiteSpace([string]$selector.kind)-or[string]::IsNullOrWhiteSpace([string]$selector.value)){return New-C2LaneFactFailureResult DispatchObject $objectId InvalidSchema @($dispatchPath)};$key="$($selector.kind)`n$($selector.value)";if(-not$selectorSeen.Add($key)) {return New-C2LaneFactFailureResult DispatchObject $objectId ConservationMismatch @($dispatchPath)};$selectorKeys.Add($key)};$orderedKeys=@($selectorKeys|Sort-Object -CaseSensitive);if(($selectorKeys-join"`n")-cne($orderedKeys-join"`n")){return New-C2LaneFactFailureResult DispatchObject $objectId ConservationMismatch @($dispatchPath)}
+            foreach($kind in @('ObjectType','ClassId','CanonicalAssetId','PlatformVariant')){if(@($selectors|Where-Object{$_.kind-ceq$kind}).Count-ne1){return New-C2LaneFactFailureResult DispatchObject $objectId ConservationMismatch @($dispatchPath)}};if(@($selectors|Where-Object{$_.kind-ceq'ToolObservation'}).Count-lt1-or@($selectors|Where-Object{$_.kind-cnotin@('ObjectType','ClassId','CanonicalAssetId','PlatformVariant','DependencyObjectId','ToolObservation')}).Count){return New-C2LaneFactFailureResult DispatchObject $objectId ConservationMismatch @($dispatchPath)}
+            $classText=[string]@($selectors|Where-Object{$_.kind-ceq'ClassId'})[0].value;$classValue=0L;if($classText-cnotmatch'^(0|[1-9][0-9]*)$'-or-not[long]::TryParse($classText,[Globalization.NumberStyles]::None,[Globalization.CultureInfo]::InvariantCulture,[ref]$classValue)){return New-C2LaneFactFailureResult DispatchObject $objectId InvalidSchema @($dispatchPath)}
+            $newFacts=[Collections.Generic.List[object]]::new();$newFacts.Add((New-C2LaneFactRow $objectId $row.familyLane ObjectType String ([string]@($selectors|Where-Object{$_.kind-ceq'ObjectType'})[0].value) @() @($row.evidence)));$newFacts.Add((New-C2LaneFactRow $objectId $row.familyLane ClassId Integer $classValue @() @($row.evidence)));$newFacts.Add((New-C2LaneFactRow $objectId $row.familyLane CanonicalAssetId String ([string]@($selectors|Where-Object{$_.kind-ceq'CanonicalAssetId'})[0].value) @() @($row.evidence)));$newFacts.Add((New-C2LaneFactRow $objectId $row.familyLane PlatformVariant String ([string]@($selectors|Where-Object{$_.kind-ceq'PlatformVariant'})[0].value) @() @($row.evidence)));$dependencies=@($selectors|Where-Object{$_.kind-ceq'DependencyObjectId'}|ForEach-Object{$_.value});if($dependencies.Count){if(@($dependencies|Where-Object{$_-cnotmatch'^sha256:[0-9a-f]{64}$'}).Count){return New-C2LaneFactFailureResult DispatchObject $objectId InvalidSchema @($dispatchPath)};$newFacts.Add((New-C2LaneFactRow $objectId $row.familyLane DependencyObjectIds IdSet $null $dependencies @($row.evidence)))}
+            foreach($fact in $newFacts){$facts.Add($fact)};$factIds=@($newFacts|ForEach-Object factId|Sort-Object -CaseSensitive)
+        }
+        $accounting.Add([pscustomobject][ordered]@{assetObjectId=$objectId;terminalStatus=$terminal;factIds=[string[]]$factIds;reasonCode=$terminal;evidence=[string[]](Get-C2OrdinalUnique @($row.evidence))})
+    }
+    $facts.Sort([Comparison[object]]{param($a,$b)$script:Ordinal.Compare([string]$a.factId,[string]$b.factId)});$factIds=@($facts|ForEach-Object{$_.factId});$accountingFactIds=@($accounting|ForEach-Object{@($_.factIds)}|ForEach-Object{$_}|Sort-Object -CaseSensitive);if(@(Get-C2OrdinalUnique $factIds).Count-ne$facts.Count-or($accountingFactIds-join"`n")-cne($factIds-join"`n")){return New-C2LaneFactFailureResult ProjectionCheck 'LC-I06:Projection' ProjectionInvalid @($dispatchPath,$summaryPath,$schemaPath)}
+    $package=[pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt=$dispatch.generatedAt;snapshotId=$dispatch.snapshotId;c2GenerationFingerprint=$summary.identity.discoveryArtifactFingerprint;factContractFingerprint=$factContractFingerprint;inputFingerprint=$inputFingerprint;rows=[object[]]$facts}
+    [pscustomobject][ordered]@{gateStatus='Passed';package=$package;subjectAccounting=[object[]]$accounting;inputFailures=@();outputsSuppressed=$false}
+}
+
 function Test-C2ContractChangeRequest {
     param([AllowNull()]$Request)
     try{
@@ -1475,4 +1536,4 @@ function Test-C2InjectedGateVector {
     Invoke-C2DiscoveryIntakeGateInternal -RepositoryRoot $RepositoryRoot -GitTransport $transport -FixtureMutator $mutation
 }
 
-Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake,Invoke-C2GitFreshnessAdapter,Test-C2GitAdapterLifecycle,Invoke-C2DiscoveryIntakeGate,Test-C2PublishedDiscoveryGeneration
+Export-ModuleMember -Function Get-C2DiscoveryInputFingerprint,Invoke-C2PureDiscoveryIntake,Invoke-C2GitFreshnessAdapter,Test-C2GitAdapterLifecycle,Invoke-C2DiscoveryIntakeGate,Test-C2PublishedDiscoveryGeneration,Invoke-C2TypedLaneFactProjection
