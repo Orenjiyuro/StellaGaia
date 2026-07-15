@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions','DispatchPartitions')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions','DispatchPartitions','InputAccounting')]
     [string]$Case = 'Pure'
 )
 
@@ -9,6 +9,75 @@ $ErrorActionPreference = 'Stop'
 
 $modulePath = Join-Path $PSScriptRoot 'C2DiscoveryIntakeGate.psm1'
 $loadedModule = Import-Module $modulePath -Force -PassThru
+
+if($Case -ceq 'InputAccounting'){
+    $artifactStates=@('AR-I01','AR-I02','AR-I03','AR-I04','AR-I05','AR-I06','AR-I07','AR-I08','AR-I10','AR-I11')|ForEach-Object{[pscustomobject][ordered]@{artifactId=$_;readStatus='Accepted'}}
+    $rawIds=@(
+        'observation-sha256:4854cc54de709e7419a003802f29f602da1ce4aeaddc3fef1085bbebe57e0180',
+        'observation-sha256:7a213fdda2a2eeecce2908215747a70211903ba19f2721984cf05375dfd8d98a',
+        'observation-sha256:6d653ff6e6e7b582843a2b8084364f14f32db83c6cbbba67cca6e1b738f63e2e',
+        'observation-sha256:546997444cbe327e4d9dd073c4dc067721557d559861b76a93262556209e8b77',
+        'raw-row-sha256:f1343fa48a1a370cf061818de05aa529ae846cebfb5b92360a29c2f0cd4280d6',
+        'observation-sha256:6ceeb8491c944325c2a038a56793b3fe062b41a694201e11b4f20302ea13c7e6',
+        'file-discovery-observation-sha256:195be146f0f08df54c160fbccf1c790bc1fbd535b6626976e1981344031b3e80',
+        'file-discovery-observation-sha256:19e7158715bf0dd0807da34dddfa744b9d205a3d3e1273ea5185f217b426b5c4'
+    )
+    $rawSubjects=[Collections.Generic.List[object]]::new();for($i=0;$i-lt6;$i++){$rawSubjects.Add([pscustomobject][ordered]@{subjectKind='ObjectObservation';subjectId=$rawIds[$i];partition=@('Accepted','Accepted','Accepted','Accepted','InputFailure','InputExclusion')[$i]})}
+    $rawSubjects.Add([pscustomobject][ordered]@{subjectKind='FileDiscoveryObservation';subjectId=$rawIds[6];partition='Accepted'})
+    $rawSubjects.Add([pscustomobject][ordered]@{subjectKind='FileDiscoveryObservation';subjectId=$rawIds[7];partition='Accepted'})
+    $conflictId='observation-conflict-sha256:a008931eff217b62b8d15ee99a06b095c4a68cfa01231abf0c0f2025d209a82d'
+    $conflicts=@([pscustomobject][ordered]@{subjectKind='ObservationConflict';subjectId=$conflictId})
+    $failures=@(
+        [pscustomobject][ordered]@{recordId='accounting-sha256:bb230135c98c6a67dbddad28cda99d0280161a4e5db2f0e3e0e197928e3d52b6';subjectKind='ObjectObservation';subjectId=$rawIds[4];reasonCode='InvalidObservation';attribution="FT-05:$($rawIds[4])";evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')},
+        [pscustomobject][ordered]@{recordId='accounting-sha256:fc9d5f9fceb8366a2f09580834f7d450246d015095706c97524cdc0adffe213b';subjectKind='ObservationConflict';subjectId=$conflictId;reasonCode='ConflictDetected';attribution="FT-07:$conflictId";evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r3.json','Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r4.json')}
+    )
+    $exclusions=@([pscustomobject][ordered]@{recordId='accounting-sha256:c7d038334823aee236a7d9871671cef610453a73780b7b38176c19dca533c3d1';subjectKind='ObjectObservation';subjectId=$rawIds[5];reasonCode='ApprovedInputExclusion';attribution="FT-14:$($rawIds[5])";evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r6-exclusion-approval.md','Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json','Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')})
+    $runtimeFacts=[pscustomobject][ordered]@{heavyProcessCount=0;realAssetReadCount=0;createdExtractedCount=0;createdImportedCount=0;astViolationCount=0;startCommitOid=('1'*40);endCommitOid=('1'*40);headStable=$true}
+    $stageSets=@(
+        [pscustomobject][ordered]@{stageId='SP-01';universeIds=@('f1');partitionIds=@('f1')},
+        [pscustomobject][ordered]@{stageId='SP-02';universeIds=@('f1');partitionIds=@('f1')},
+        [pscustomobject][ordered]@{stageId='SP-03';universeIds=@($rawIds);partitionIds=@($rawIds)},
+        [pscustomobject][ordered]@{stageId='SP-04';universeIds=@('o1');partitionIds=@('o1')},
+        [pscustomobject][ordered]@{stageId='SP-05';universeIds=@('c1');partitionIds=@('c1')},
+        [pscustomobject][ordered]@{stageId='SP-06';universeIds=@('o1');partitionIds=@('o1')},
+        [pscustomobject][ordered]@{stageId='SP-07';universeIds=@();partitionIds=@()}
+    )
+    $missingProjectionFields=@(
+        'structuredObjectCoverage.catalogedContainerCount','structuredObjectCoverage.catalogedContainerBytes','structuredObjectCoverage.nonContainerFileCount','structuredObjectCoverage.nonContainerFileBytes','structuredObjectCoverage.fileDiscoverySubjectCount','structuredObjectCoverage.fileDiscoverySubjectBytes','structuredObjectCoverage.notAttemptedFileCount','structuredObjectCoverage.notAttemptedFileBytes','structuredObjectCoverage.parsedFileCount','structuredObjectCoverage.parsedFileBytes','structuredObjectCoverage.opaqueFileCount','structuredObjectCoverage.opaqueFileBytes','structuredObjectCoverage.failedFileCount','structuredObjectCoverage.failedFileBytes','structuredObjectCoverage.fileDiscoveryConflictFileCount','structuredObjectCoverage.fileDiscoveryConflictFileBytes',
+        'structuredObjectCoverage.notAttemptedContainerCount','structuredObjectCoverage.notAttemptedContainerBytes','structuredObjectCoverage.opaqueContainerCount','structuredObjectCoverage.opaqueContainerBytes','structuredObjectCoverage.failedContainerCount','structuredObjectCoverage.failedContainerBytes','structuredObjectCoverage.fileDiscoveryConflictContainerCount','structuredObjectCoverage.fileDiscoveryConflictContainerBytes','structuredObjectCoverage.objectObservationRowCount','structuredObjectCoverage.acceptedObjectObservationRowCount','structuredObjectCoverage.rejectedObjectObservationRowCount','structuredObjectCoverage.excludedObjectObservationRowCount','structuredObjectCoverage.correlationGroupCount','structuredObjectCoverage.observationConflictObjectCount','structuredObjectCoverage.unresolvedDependencyCount',
+        'structuredObjectCoverage.configurationConflictCount','structuredObjectCoverage.discoveredOpaqueConfigurationCount','structuredObjectCoverage.encryptedConfigurationCount','structuredObjectCoverage.requiresRuntimeTypeConfigurationCount','structuredObjectCoverage.likelyServerDependentConfigurationCount','structuredObjectCoverage.notConfigurationCount','structuredObjectCoverage.canonicalizedObjectCount','structuredObjectCoverage.canonicalGroupCount','structuredObjectCoverage.canonicalConflictObjectCount','structuredObjectCoverage.exactDuplicateGroupCount','structuredObjectCoverage.platformVariantGroupCount','structuredObjectCoverage.unresolvedCanonicalGroupCount','structuredObjectCoverage.dispatchEligibleObjectCount','structuredObjectCoverage.assignedObjectCount','structuredObjectCoverage.retainedForDiagnosisObjectCount','structuredObjectCoverage.configurationOnlyObjectCount','structuredObjectCoverage.audioObjectCount','structuredObjectCoverage.environmentObjectCount','structuredObjectCoverage.actorObjectCount','structuredObjectCoverage.uiObjectCount','structuredObjectCoverage.effectsObjectCount','identity.discoveryInputFingerprint','identity.discoveryArtifactFingerprint','failureAccounting'
+    )
+    $contractChange=[pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-15T00:00:00Z';requestId='C0ContractChange:C2StructuredCoverage:1.0.0';reason='Current root-gate-summary schema cannot losslessly represent mandatory C2 structured coverage partitions.';nextAllowedAction='Continue C3-C6 Phase A; C0 must resolve this request before G5 can pass.';inputFingerprint=('a'*64);discoveryInputFingerprint=('b'*64);status='Required';missingProjectionFields=$missingProjectionFields;evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json','docs/asset-migration/schemas/root-gate-summary.schema.json')}
+    $input=[pscustomobject][ordered]@{artifactStates=@($artifactStates);rawObservationSubjects=@($rawSubjects);conflictSubjects=@($conflicts);inputFailures=@($failures);inputExclusions=@($exclusions);runtimeFacts=$runtimeFacts;contractChangeRequest=$contractChange;stageConservationSets=@($stageSets);discoveryInputFingerprint=('b'*64)}
+    $result=$loadedModule.Invoke({param($x)Invoke-C2InputAccounting $x},@($input))[0]
+    $a=$result.failureAccounting
+    if($a.inputSubjectCount-ne24-or$a.acceptedInputSubjectCount-ne21-or$a.inputFailureCount-ne2-or$a.excludedInputSubjectCount-ne1-or$a.notEvaluatedInputSubjectCount-ne0){throw 'SP-08 exact subject partition failed'}
+    if($a.inputObservationCount-ne8-or$a.acceptedInputObservationCount-ne6-or$a.rejectedInputObservationCount-ne1-or$a.excludedInputCount-ne1){throw 'SP-08 observation conservation failed'}
+    if($a.contractFailureRecordCount-ne0-or$a.fileDiscoveryConflictRecordCount-ne0-or$a.observationConflictRecordCount-ne1-or$a.configurationConflictRecordCount-ne0-or$a.canonicalConflictRecordCount-ne0){throw 'SP-08 failure conservation failed'}
+    if(($result.contractChecks.status-join',')-cne'Accepted,Accepted,Accepted,Accepted,Accepted'){throw 'SP-08 five-check positive vector failed'}
+    if(($result.contractChecks.subjectId-join',')-cne'C2Check:LightweightPolicy,C2Check:C1Handoff,C2Check:Freshness,C2Check:Conservation,C2Check:PublicProjection'){throw 'SP-08 five-check identity/order failed'}
+    if((@($a.PSObject.Properties.Name)-join',')-cne'inputSubjectCount,acceptedInputSubjectCount,notEvaluatedInputSubjectCount,inputObservationCount,acceptedInputObservationCount,rejectedInputObservationCount,inputFailureCount,excludedInputSubjectCount,excludedInputCount,contractFailureRecordCount,fileDiscoveryConflictRecordCount,observationConflictRecordCount,configurationConflictRecordCount,canonicalConflictRecordCount,issueCount,gateStatus'){throw 'SP-08 failureAccounting exact shape failed'}
+    foreach($row in @($result.contractChecks)){if((@($row.PSObject.Properties.Name)-join',')-cne'subjectId,status,attribution,evidence,prerequisites'){throw 'SP-08 check exact row shape failed'}}
+    foreach($row in @($result.inputFailures)+@($result.inputExclusions)){if((@($row.PSObject.Properties.Name)-join',')-cne'recordId,subjectKind,subjectId,reasonCode,attribution,evidence'-or$row.recordId-cnotmatch'^accounting-sha256:[0-9a-f]{64}$'){throw 'SP-08 accounting exact row shape failed'}}
+    if(($rawSubjects.subjectId-join',')-cne($rawIds-join',')){throw 'SP-08 exact raw subject identities failed'}
+    foreach($row in $rawSubjects){if((@($row.PSObject.Properties.Name)-join',')-cne'subjectKind,subjectId,partition'){throw 'SP-08 exact raw subject row shape failed'}}
+    if(@($rawSubjects|Where-Object subjectId -ceq $conflictId).Count-ne0){throw 'SP-08 duplicate conflict ownership failed'}
+    if($null-ne$result.discoveryInputFingerprint){throw 'SP-08 negative integration fingerprint not suppressed'}
+    function CloneAccounting($x){$x|ConvertTo-Json -Depth 40|ConvertFrom-Json -Depth 40 -DateKind String}
+    function RunAccounting($x){$loadedModule.Invoke({param($v)Invoke-C2InputAccounting $v},@($x))[0]}
+    $twoEquation=CloneAccounting $input;$twoEquation.stageConservationSets[0].partitionIds=@();$twoEquation.stageConservationSets[1].partitionIds=@('f1','f1');$ft10=RunAccounting $twoEquation
+    $ft10row=@($ft10.inputFailures|Where-Object subjectId -ceq 'C2Check:Conservation');if($ft10row.Count-ne1-or$ft10row[0].recordId-cne'accounting-sha256:99b22592adff48c273bdc79844085fdd2052dc5bc18766d8a6d8249cb7967985'-or$ft10.failureAccounting.issueCount-ne3-or($ft10.contractChecks.status-join',')-cne'Accepted,Accepted,Accepted,Failed,NotEvaluated'-or@($ft10.inputSuppressions|Where-Object subjectId -ceq 'C2Check:PublicProjection').Count-ne1){throw 'FT-10 unique multi-equation ownership failed'}
+    $clean=CloneAccounting $input;$clean.rawObservationSubjects=@($clean.rawObservationSubjects|Where-Object partition -ceq 'Accepted');$clean.conflictSubjects=@();$clean.inputFailures=@();$clean.inputExclusions=@();$clean.stageConservationSets[2].universeIds=@($clean.rawObservationSubjects.subjectId);$clean.stageConservationSets[2].partitionIds=@($clean.rawObservationSubjects.subjectId)
+    $badProjection=CloneAccounting $clean;$badProjection.contractChangeRequest.status='NotRequired';$ft11=RunAccounting $badProjection
+    if($ft11.inputFailures.Count-ne1-or$ft11.inputFailures[0].recordId-cne'accounting-sha256:2dd259cfa7c46d5dd0f49d28b41780214c6eea81274beaaee7457573a35d79b2'-or$ft11.inputFailures[0].attribution-cne'FT-11:C2Check:PublicProjection'-or($ft11.inputFailures[0].evidence-join',')-cne'Tools/AssetImport/Fixtures/DiscoveryGate/c0-contract-change-request.json,docs/asset-migration/schemas/root-gate-summary.schema.json'-or($ft11.contractChecks.status-join',')-cne'Accepted,Accepted,Accepted,Accepted,Failed'-or$null-ne$ft11.discoveryInputFingerprint){throw 'FT-11 exact projection failure failed'}
+    $freshnessUnavailable=CloneAccounting $clean;$i10=@($freshnessUnavailable.artifactStates|Where-Object artifactId -ceq 'AR-I10')[0];$i10.readStatus='Failed';$freshnessUnavailable.inputFailures=@([pscustomobject][ordered]@{recordId='accounting-sha256:c989486a5acfb0aca2daa0d30cd101e5fe444b5bc18b239042025d81c97c1d6c';subjectKind='ExpectedInputManifest';subjectId='AR-I10';reasonCode='InvalidSchema';attribution='FT-02:AR-I10';evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json')});$ft15=RunAccounting $freshnessUnavailable
+    if($ft15.inputFailures.Count-ne1-or$ft15.failureAccounting.issueCount-ne1-or$ft15.inputSuppressions.Count-ne1-or$ft15.inputSuppressions[0].recordId-cne'accounting-sha256:3b9db7f410d8f0d7e52f90d5cd7c4a1ea6b1c14710b014d97f5f8be2f97c662c'-or($ft15.contractChecks.status-join',')-cne'Accepted,Accepted,NotEvaluated,Accepted,Accepted'-or$ft15.failureAccounting.notEvaluatedInputSubjectCount-ne1){throw "FT-15 unique ownership/issue accounting failed failures=$($ft15.inputFailures.Count) issues=$($ft15.failureAccounting.issueCount) suppressions=$($ft15.inputSuppressions.Count) checks=$($ft15.contractChecks.status-join',') notEvaluated=$($ft15.failureAccounting.notEvaluatedInputSubjectCount)"}
+    $unparseable=CloneAccounting $clean;$i08=@($unparseable.artifactStates|Where-Object artifactId -ceq 'AR-I08')[0];$i08.readStatus='Failed';$unparseable.rawObservationSubjects=@($unparseable.rawObservationSubjects|Where-Object subjectKind -cne 'FileDiscoveryObservation');$unparseable.stageConservationSets[2].universeIds=@($unparseable.rawObservationSubjects.subjectId);$unparseable.stageConservationSets[2].partitionIds=@($unparseable.rawObservationSubjects.subjectId);$unparseable.inputFailures=@([pscustomobject][ordered]@{recordId='accounting-sha256:d48e97294f293a31e9feb36b9f0946b5ebd46c2911d176c704c9f30465485f31';subjectKind='ObservationDocument';subjectId='AR-I08';reasonCode='InvalidObservation';attribution='FT-05:AR-I08';evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/file-discovery-observations.json')});$documentFailure=RunAccounting $unparseable
+    if($documentFailure.failureAccounting.inputObservationCount-ne4-or$documentFailure.inputFailures.Count-ne1-or$documentFailure.inputFailures[0].subjectId-cne'AR-I08'-or($documentFailure.contractChecks.status-join',')-cne'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated'){throw 'AR-I08 document-level ownership failed'}
+    $extraCheck=CloneAccounting $clean;$extraCheck|Add-Member -NotePropertyName unexpectedCheck -NotePropertyValue ([pscustomobject]@{subjectId='C2Check:Unexpected'});$sixth=RunAccounting $extraCheck
+    if($sixth.contractChecks.Count-ne5-or@($sixth.inputFailures|Where-Object subjectId -ceq 'C2Check:Conservation').Count-ne1-or$sixth.failureAccounting.contractFailureRecordCount-ne1){throw 'implicit sixth check fail-closed failed'}
+    'status=Passed';return
+}
 
 if($Case -ceq 'DispatchPartitions'){
     $objectId='sha256:1770763b64b209f9a6e8da91770278c9eba4cd4d3253145dd0dcd2a68abd7f11'
@@ -250,16 +319,16 @@ if ($Case -in @('Integration','FileFixtureIntake')) {
     if ($result.O2.status -cne 'Failed' -or $result.O1.decision.failureAttribution -notlike 'FT-05:*') { throw "Integration SP-03a failure projection invalid: $($result.O1.decision.failureAttribution)" }
     $expectedCounts = [ordered]@{
         registeredArtifactCount=11; readArtifactCount=10; requiredArtifactCount=6; presentOptionalArtifactCount=4; absentOptionalArtifactCount=1
-        failedRegistrySlotCount=0; acceptedArtifactCount=10; failedArtifactCount=0; contractCheckCount=5; acceptedCheckCount=3
-        failedCheckCount=0; notEvaluatedCheckCount=2; inputSubjectCount=22; acceptedInputSubjectCount=17; inputFailureCount=2
-        excludedInputSubjectCount=1; notEvaluatedInputSubjectCount=2; gitInspectionProcessCount=7; heavyProcessCount=0
+        failedRegistrySlotCount=0; acceptedArtifactCount=10; failedArtifactCount=0; contractCheckCount=5; acceptedCheckCount=5
+        failedCheckCount=0; notEvaluatedCheckCount=0; inputSubjectCount=24; acceptedInputSubjectCount=21; inputFailureCount=2
+        excludedInputSubjectCount=1; notEvaluatedInputSubjectCount=0; gitInspectionProcessCount=7; heavyProcessCount=0
         realAssetReadCount=0; createdExtractedCount=0; createdImportedCount=0
     }
     foreach($entry in $expectedCounts.GetEnumerator()) { if($result.O2.($entry.Key) -ne $entry.Value){throw "$($entry.Key) expected=$($entry.Value) actual=$($result.O2.($entry.Key))"} }
-    if($result.O1.artifactStates.Count -ne 11 -or $result.O1.contractChecks.Count -ne 5 -or $result.O1.inputSuppressions.Count -ne 2){throw 'Integration O1 row counts invalid.'}
+    if($result.O1.artifactStates.Count -ne 11 -or $result.O1.contractChecks.Count -ne 5 -or $result.O1.inputSuppressions.Count -ne 0){throw 'Integration O1 row counts invalid.'}
     if($null -ne $result.O2.discoveryInputFingerprint){throw 'D9 not suppressed by SP-03a failure.'}
     if($result.O2.startCommitOid -cne $result.O2.endCommitOid -or -not $result.O2.headStable){throw 'Integration HEAD stability failed.'}
-    if(($result.O1.contractChecks.status -join ',') -cne 'Accepted,Accepted,Accepted,NotEvaluated,NotEvaluated'){throw 'Integration check vector invalid.'}
+    if(($result.O1.contractChecks.status -join ',') -cne 'Accepted,Accepted,Accepted,Accepted,Accepted'){throw 'Integration check vector invalid.'}
     $d9Entries=@($result.O1.artifactStates|Where-Object readStatus -eq Accepted|ForEach-Object{[pscustomobject][ordered]@{path=$_.path;sha256=$_.worktreeSha256}})
     $independentD9=Get-C2DiscoveryInputFingerprint -Entries $d9Entries
     if($independentD9 -cne 'f2360d25078bfd90ca88a85ea1e801cb583841d3ef4cfbad0c8c92d2d0ba3eab'){throw "Independent D9 mismatch: $independentD9"}
@@ -276,10 +345,10 @@ if ($Case -in @('Integration','FileFixtureIntake')) {
     $checkRowOrder='subjectId,status,attribution,evidence,prerequisites'
     foreach($row in $result.O1.contractChecks){if((@($row.PSObject.Properties.Name)-join ',') -cne $checkRowOrder){throw "Check row shape invalid: $($row.subjectId)"}}
     $freshness=$result.O1.contractChecks[2]
-    $expectedFreshnessEvidence=@($result.O1.artifactStates.path);[Array]::Sort($expectedFreshnessEvidence,[StringComparer]::Ordinal)
+    $expectedFreshnessEvidence=[Collections.Generic.List[string]]::new();foreach($state in @($result.O1.artifactStates|Where-Object readStatus -in @('Accepted','Failed'))){$expectedFreshnessEvidence.Add([string]$state.path)};$expectedFreshnessEvidence.Sort([StringComparer]::Ordinal)
     if(($freshness.evidence -join "`n") -cne ($expectedFreshnessEvidence -join "`n")){throw 'Freshness evidence vector invalid.'}
-    if(($freshness.prerequisites -join ',') -cne 'AR-I01,AR-I02,AR-I03,AR-I04,AR-I05,AR-I06,AR-I07,AR-I08,AR-I09,AR-I10,AR-I11,GitAdapter:EndHead,GitAdapter:StartCommitOid'){throw 'Freshness prerequisites invalid.'}
-    if($result.O1.inputSuppressions[0].recordId -cne 'accounting-sha256:6d540e7fefd265ddef57b835e7bfb8894085d609419b3ac98b2268876f006e1c' -or $result.O1.inputSuppressions[1].recordId -cne 'accounting-sha256:212ec1d5b7ffc164817068a9227f8c7d847dc091c517c41db4b4270236294016'){throw 'Integration suppression identities invalid.'}
+    if(($freshness.prerequisites -join ',') -cne 'AR-I01,AR-I02,AR-I03,AR-I04,AR-I05,AR-I06,AR-I07,AR-I08,AR-I10,AR-I11,GitAdapter:EndHead,GitAdapter:StartCommitOid'){throw 'Freshness prerequisites invalid.'}
+    if($result.O2.inputObservationCount-ne8-or$result.O2.acceptedInputObservationCount-ne6-or$result.O2.rejectedInputObservationCount-ne1-or$result.O2.excludedInputCount-ne1-or$result.O2.contractFailureRecordCount-ne0-or$result.O2.fileDiscoveryConflictRecordCount-ne0-or$result.O2.observationConflictRecordCount-ne1-or$result.O2.configurationConflictRecordCount-ne0-or$result.O2.canonicalConflictRecordCount-ne0){throw 'Integration SP-08 complete accounting vector invalid.'}
     "status=$($result.O2.status)"
     "issueCount=$($result.O2.issueCount)"
     "registeredArtifactCount=$($result.O2.registeredArtifactCount)"
