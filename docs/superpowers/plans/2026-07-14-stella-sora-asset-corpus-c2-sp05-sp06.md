@@ -1,8 +1,8 @@
 # StellaSora C2 SP-05/SP-06 Minimal Configuration And Canonical Plan
 
 **Date:** 2026-07-14
-**Status:** Task 0 superseded by Task 0B; Task 1/SP-05 complete at `12e89c8`; Task 2/SP-06 BLOCKED pending Task 0B read-only approval
-**Baseline:** `codex/asset-corpus-integration` at `12e89c80e21a03c13609623e8460e38065207eb3`
+**Status:** Task 0 superseded by Task 0B; Task 0B complete; Task 1/SP-05 implementation exists but its mutation oracle is BLOCKED pending Task 0C approval; Task 2/SP-06 implementation at `bd3b519` is under corrective review
+**Baseline:** `codex/asset-corpus-integration` at `bd3b51980b683c1679f643ccf7243de707dc49e4`
 **Scope:** fixture-only SP-05 configuration candidates/conflicts and SP-06 canonical groups/conflicts. No fixture creation or modification, output persistence, SP-07+, C3-C6, G5, Unity, extraction, import, real assets, or forbidden-path creation.
 
 ## 1. Slicing decision
@@ -91,7 +91,7 @@ The spec P1 pure vector and current integration vector are distinct authorities,
 - **P1 pure contract vector:** inject the spec-defined synthetic `fConfig` (`Config/table.json`, ConfigurationCandidate, 8 bytes, SHA 64 `5`, both extraction fields NotAttempted) plus `oResolved`; it must yield `2=2+0`, with fConfig DiscoveredOpaque when AR-I09 is Absent and oResolved Parsed.
 - **Current audited integration vector:** actual AR-I02 has no fConfig and AR-I09 is Absent; it yields only oResolved and `1=1+0`. This does not amend or replace the spec P1 vector.
 
-The exact synthetic-present AR-I09 positive is an in-memory AR-S04 document, UTF-8/no BOM/LF/final LF/two spaces, 1314 bytes, raw SHA `2fd0911f90c3c210d475db07e936995de9607e11542f8d27044ad1f381f6d919`. It has two rows in index order:
+The exact synthetic-present AR-I09 positive is an in-memory AR-S04 document serialized by CT-15 with top-level property order `schemaVersion,snapshotId,inputFingerprint,rows`, values `schemaVersion=1.0.0`, `snapshotId=snapshot-pc-install-001`, `inputFingerprint=` plus 64 lowercase `a` digits, and the two complete rows below. Its evidence paths are exactly `Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toola-config.json` and `Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toolb-config.json`; the ellipses in the display table are descriptive only and never serialized. The exact UTF-8/no-BOM/LF/final-LF/two-space document is 1346 bytes with raw SHA `2dbc475a471bf96dc3c4aae3dcc51e3dd9571a33048d81104085e7ba0e84b9ae`. It has two rows in index order:
 
 | index | ID | tool | path | content | disposition | observation | evidence |
 |---:|---|---|---|---|---|---|---|
@@ -100,7 +100,18 @@ The exact synthetic-present AR-I09 positive is an in-memory AR-S04 document, UTF
 
 The exact HI-09a is `config-sha256:af9d767ba7fa499898dbfb3315e54f9de3cc5dba438a6c0367619da6b3684b79`. Row shape/order is `configurationObservationId,toolName,toolVersion,sourceId,relativePath,contentFingerprint,configurationDisposition,observation,evidence`. Tests must hard-code these IDs/SHA/bytes and independently assert row indexes; they may not derive expected values with production helpers.
 
-Conflict vectors mutate one field in row 1 and recompute that document's raw SHA, HI-07 and HI-02 before implementation begins: content conflict freezes `conflictingFields=[contentFingerprint]`; disposition conflict freezes `[configurationDisposition]`; both use the same HI-09a candidate, exact two observation IDs/evidence, one HI-09c, one FT-08 AR-S10 record, and no candidate row. The RED commit must contain the literal mutated raw SHA, IDs, conflict ID and accounting recordId. A missing literal is a plan-gate failure, not work deferred to GREEN. Malformed-row vectors use the mutated artifact SHA plus original row index in HI-02; unparseable-document ownership is AR-I09 only.
+Every mutation below starts from that complete document, changes only the named row/value, recomputes HI-07 where its inputs remain valid, and serializes the complete mutated document with the same CT-15 rules. These literals are the harness oracle:
+
+| vector | complete rows | bytes | raw SHA | mutated HI-07 | fallback HI-02 |
+| --- | --- | ---: | --- | --- | --- |
+| disposition conflict | positive row 0; row 1 disposition `Encrypted` | 1349 | `1058a874db6f283672a6595682a018c17fb1185ff6843d656473ca259231e165` | `configuration-observation-sha256:19ac3011970cff65467f033a22e5fb9873f2e259c6ea816317e4876902973cd4` | not applicable |
+| content conflict | positive row 0; row 1 content 64 `7` | 1346 | `3c43c5f8709da8cac30ee15bdc84ec65c93daa772c49ac93deaf9cf71f9a2d0f` | `configuration-observation-sha256:dd1567900d725f6ce195a4c37f5e5dc21a1278f019725580d5bbe27684682693` | not applicable |
+| duplicate HI-07 | positive ToolA row repeated at indexes 0 and 1 | 1346 | `752b799d2ca83cb65b8a067be5bc6d817fe735b5df43e89f693ba4ebde1e4e74` | repeated `configuration-observation-sha256:e2eb4fc64d6e829aba513b46c3b236db1a046d8a859d067d37d9c4360fb5fda7` | index 1 `raw-row-sha256:058e1ab88a89586e6daa7262da730d590f85e92603887631ea72d719b9499594` |
+| unsafe path | one ToolA row, path `../table.json` | 762 | `e8e53522bf81a244b1027138cf20dd6267b3a2aa9b8ffcc0bfdbb0c22781d01a` | `configuration-observation-sha256:9d05b726a24cc38298bb2cb652ed32fdb5c64d6172fe4814364103b2e3055fcd` (identity appearance only; row is FT-04) | index 0 `raw-row-sha256:0dbbeb3bda4452f411a2e5d3481caea585364d67fe462afd4898b80303ef0c16` |
+| unknown target | one ToolA row, path `Config/missing.json` | 768 | `e93104b7230ddb08651aa74152c62a191b2cf568a42f9d44511798438a999225` | `configuration-observation-sha256:9dc8c86e5eed69f4a33a9114509c02966867c8921ccf21a99633da84acd67648` | index 0 `raw-row-sha256:7cf682a99940cf6234adde0690056efa044a04b2dac2dc20f0359450c24cce11` |
+| malformed row | one ToolA positive row with `toolName=""`; stored HI-07 remains the positive literal and is not recomputed | 761 | `e413a953c7b5947efb283f3e802a9f3c552f3376e4d7b8b57ef4fbf290875be1` | invalid/not derivable | index 0 `raw-row-sha256:2e113d54ada29b0d8c19d6468e9fdba1f1a67b2de9267caa7890bc10afca3ac5` |
+
+Disposition/content conflicts use the frozen HI-09a candidate, exact two observation IDs/evidence, one HI-09c, one FT-08 AR-S10 record, and no file candidate. Duplicate, unsafe, unknown-target, and malformed-row vectors must pass their exact mutated raw SHA into the pure input and assert the listed HI-02; using the positive document SHA is a test failure. Unparseable-document ownership remains AR-I09 only.
 
 Integrated conservation is:
 
@@ -277,6 +288,14 @@ The original amendment omitted resolved/missing member facts and incorrectly tre
 
 **Stop checkpoint:** Task 2 remains BLOCKED until Task 0B is independently approved.
 
+## 6B. Task 0C — Close AR-I09 Mutation Byte Authority (docs-only)
+
+**Exact file:** this plan only. No scripts, fixtures, schemas, or specs.
+
+Task 0C replaces the unreproducible 1314-byte positive claim with the complete CT-15 document identity and freezes every mutation's byte count, raw SHA, HI-07, and applicable HI-02 in Section 3.2. It does not change AR-S04, HI-02, HI-07, HI-09, FT-04, FT-05, or FT-08 semantics. After independent approval, the existing SP-05 harness must use these literals and may not reuse the positive artifact SHA for a mutated document.
+
+**Stop checkpoint:** commit this document alone and stop for read-only review; do not resume implementation corrections in the same Task.
+
 ## 7. Task 1 — SP-05 Configuration Partition (Complete at `12e89c8`)
 
 **Exact files:** modify only:
@@ -337,4 +356,4 @@ Test-Path -LiteralPath Assets/StellaGaia/Imported
 
 Both scripts must parse with zero syntax errors and the pure path AST audit must report zero filesystem/process/native/dynamic/Unity/extraction/import violations. Stage only the currently authorized exact files with explicit paths; never use `git add .`. `AGENTS.md` and unrelated plan documents remain unstaged unless separately authorized. Both forbidden paths remain `False`.
 
-Task 0B is the only authorized change now. Commit exactly the C2 spec and this plan, then stop for read-only review; do not execute Task 2 until Task 0B is separately approved.
+Task 0C is the only authorized change now. Commit exactly this plan and stop for read-only review; do not resume SP-05/SP-06 implementation corrections until Task 0C is separately approved.
