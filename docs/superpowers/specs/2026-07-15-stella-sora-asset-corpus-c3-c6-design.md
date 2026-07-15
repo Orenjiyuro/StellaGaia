@@ -58,7 +58,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I04 | C2 dispatch | C2 AR-O04 registered path | C2 | C3 | Required Passed locked C2 generation |
 | LC-I05 | C2 diagnostic summary | C2 AR-O05 registered summary | C2 | C3-C6 freshness | Must be Passed and bind LC-I01-I04 |
 | LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Pure fixture-only C2 typed projection | C3-C5 | Frozen projection is implemented and fixture-verified; it is not an SP-09 publication output, and remaining Phase A preconditions still block C3 implementation |
-| LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Required exact bytes and fingerprint; currently absent |
+| LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Runtime registry contract is closed below; exact registry/schema/fixtures remain unimplemented, and consumers compute its exact-byte fingerprint externally |
 | LC-I08 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json` | C0 | C3-C6 | Required exact accepted C0 artifact |
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
 | LC-I10 | C7/G4 evidence packages | paths listed exactly by LC-I09 | C7/G4 | C5 | Each package must match manifest path/SHA and requirement identity |
@@ -333,9 +333,12 @@ schemaVersion
 generatedAt
 policySetId
 policySetVersion
-policySetFingerprint
 policies
 ```
+
+For the first reviewed registry, `schemaVersion=1.0.0`, `generatedAt=2026-07-15T00:00:00Z`, `policySetId=StellaSoraLifecycleLanePolicySet`, and `policySetVersion=1.0.0`. These four values are part of the immutable versioned bytes. Reusing the same policySetId/policySetVersion with any changed byte is LF-03.
+
+LC-I07 does not store its own fingerprint. `policySetFingerprint` in C3-C6 lifecycle outputs is CT-04 SHA-256 over the exact complete LC-I07 bytes. This removes the impossible self-referential hash while preserving exact-byte freshness. The future JSON Schema authority is `docs/asset-migration/schemas/c3-c6-lane-policy-registry.schema.json`; the positive contract fixture is `Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-c3-c6-lane-policy-registry.json` and must be byte-identical to LC-I07. Neither schema nor contract-test fixtures are lifecycle direct inputs.
 
 There is exactly one policy row per lane. Each row is exactly:
 
@@ -362,7 +365,9 @@ Nested rows have these exact shapes:
 - capability projection rule: `capabilityId`, `applicableFamilyKinds`, `requiredRouteKinds`, `allowedFamilyDecisions`, `requiredEvidenceKinds`.
 - repair rule: `repairClass`, `applicableFamilyKinds`, `requiredFailureClasses`, `requiredInputKinds`, `expectedChangeMeasure`, `maxAttempts`.
 
-Every referenced ID must resolve within the same policy row or the LC-I11 capability registry. Lists are nonempty where semantically required, duplicate-free, and Ordinal sorted. `variantEncoding` is exactly `Scalar`, `OrdinalIdSet`, or `Tuple`. `outcomeOnMissingFact` is `Unchecked` or `StaticFailed`; it cannot be `StaticPassed`. `maxAttempts` is exactly `1` for every RepairOnce rule.
+Every familyKindId, factKind, checkId, riskAxisId, and evidenceRequirementId reference must resolve within the same policy row. Capability IDs must resolve in LC-I11 when that separately reviewed artifact exists. Evidence kinds, failure classes, route kinds, decisions, execution statuses, and repair input kinds resolve only through the frozen global vocabularies and artifact IDs; arbitrary local spellings are invalid. Lists are nonempty where semantically required, duplicate-free, and Ordinal sorted. `variantEncoding` is exactly `Scalar`, `OrdinalIdSet`, or `Tuple`. `outcomeOnMissingFact` is `Unchecked` or `StaticFailed`; it cannot be `StaticPassed`. `maxAttempts` is exactly `1` for every RepairOnce rule.
+
+Array order is exact: `policies` by lane; `familyKinds` by familyKindId; `factDefinitions` by factKind; `staticCheckDefinitions` by checkId; `riskAxisDefinitions` by riskAxisId; `evidenceRequirementDefinitions` by evidenceRequirementId; `capabilityProjectionRules` by capabilityId; and `repairRules` by repairClass, all Ordinal. Every collection inside a nested row is an Ordinal set except `sourceFactKinds`, whose declared order is positional. A validator rejects rather than repairs duplicate or misordered input.
 
 For enum-like String facts, `allowedValues` is nonempty and exhaustive. For stable identity String facts and every IdSet fact, `allowedValues` is empty and the value must satisfy the registered identity type. An empty allowedValues list never permits an arbitrary enum spelling.
 
@@ -395,6 +400,142 @@ Policy rows sort by lane Ordinally. Within a risk-axis definition, `sourceFactKi
 | Effects | ObjectType, EffectSystemKind, RendererType, ShaderFamilyIds, PrefabDependencyShapeId, AudioDependencyIds | EffectSystemReadability, MeshDependencyClosure, MaterialDependencyClosure, ShaderDependencyClosure, TextureDependencyClosure, AudioDependencyClosure, PrefabDependencyClosure | EffectSystem, RendererShaderCombination, PrefabDependencyShape, AudioCoupling | CombatEffectRoute | DependencyClosureRepair, MaterialMappingRepair, EffectBehaviorReconstruction |
 
 `ActorRole` allowed values are `Player`, `Enemy`, and `Other`. `UiRouteKind` allowed values are `OriginalPrefab` and `TextureRebuild`. An `Other` actor family cannot satisfy either required actor capability. A texture rebuild or reconstructed effect may satisfy authoring readiness only through a C6 PrototypeReplacement rule; it can never be counted as UseOriginalAsset coverage.
+
+#### 1.4a Exact LC-I07 registry rows
+
+The following tables are the only first-version registry content. They close the nested references that the summary table above intentionally names but does not expand. The common `memberSelectorKinds` set for every family kind is exactly `CanonicalAssetId`, `ClassId`, `DependencyObjectId`, `ObjectType`, `PlatformVariant`, `ToolObservation`. Each policy has exactly one family kind:
+
+| Lane | policyId | familyKindId | applicableObjectTypes | keyDimensionIds |
+|---|---|---|---|---|
+| Actor | ActorPolicyV1 | ActorRouteFamily | AnimationClip, AnimatorController, Avatar, SkinnedMeshRenderer | ActorRole, AnimationSetShapeId, AvatarId, ControllerReferenceState, ObjectType, RendererType, ShaderFamilyIds, SkeletonId |
+| Audio | AudioPolicyV1 | AudioRouteFamily | AudioClip, AudioMixer, WwiseBank, WwiseMedia | AudioEncoding, BankStructureId, ChannelLayout, EventStructureId, LoopMode, ObjectType, SampleRate |
+| Effects | EffectsPolicyV1 | EffectRouteFamily | ParticleSystem, TrailRenderer, VisualEffect | AudioDependencyIds, EffectSystemKind, ObjectType, PrefabDependencyShapeId, RendererType, ShaderFamilyIds |
+| Environment | EnvironmentPolicyV1 | EnvironmentModuleFamily | LightmapData, MeshRenderer, Scene, TerrainData | ColliderMode, EnvironmentModuleType, EnvironmentThemeId, LightmapMode, MeshTopologyId, NavMeshMode, ObjectType, PrefabDependencyShapeId, RendererType, ShaderFamilyIds |
+| UI | UiPolicyV1 | UiRouteFamily | Canvas, Font, Sprite, SpriteAtlas, TMP_FontAsset | AtlasId, FontDependencyIds, ObjectType, PrefabDependencyShapeId, ShaderFamilyIds, TextureFormat, UiRouteKind |
+
+Every fact definition has `requiredForFamilyKinds` equal to the lane's singleton familyKindId. `DependencyObjectIds` and `PlatformVariant` are required support facts but are not family-key dimensions. A required support fact must be Known before assignment; the Section 1.2a zero-dependency rule supplies the exact known-empty DependencyObjectIds value from AR-O04. In the table below, each entry is `factKind/valueKind/allowNotApplicable`. `allowedValues` is the exact ObjectType set above or the exact enum set in Section 1.2 when one exists; every other String/IdSet and every Integer has empty `allowedValues`.
+
+| Lane | Exact factDefinitions in factKind order |
+|---|---|
+| Actor | ActorRole/String/false; AnimationSetShapeId/String/true; AvatarId/String/true; ControllerReferenceState/String/true; DependencyObjectIds/IdSet/false; ObjectType/String/false; PlatformVariant/String/false; RendererType/String/true; ShaderFamilyIds/IdSet/true; SkeletonId/String/true |
+| Audio | AudioEncoding/String/true; BankStructureId/String/true; ChannelLayout/String/true; DependencyObjectIds/IdSet/false; EventStructureId/String/true; LoopMode/String/true; ObjectType/String/false; PlatformVariant/String/false; SampleRate/Integer/true |
+| Effects | AudioDependencyIds/IdSet/true; DependencyObjectIds/IdSet/false; EffectSystemKind/String/false; ObjectType/String/false; PlatformVariant/String/false; PrefabDependencyShapeId/String/true; RendererType/String/true; ShaderFamilyIds/IdSet/true |
+| Environment | ColliderMode/String/true; DependencyObjectIds/IdSet/false; EnvironmentModuleType/String/false; EnvironmentThemeId/String/false; LightmapMode/String/true; MeshTopologyId/String/true; NavMeshMode/String/true; ObjectType/String/false; PlatformVariant/String/false; PrefabDependencyShapeId/String/true; RendererType/String/true; ShaderFamilyIds/IdSet/true |
+| UI | AtlasId/String/true; DependencyObjectIds/IdSet/false; FontDependencyIds/IdSet/true; ObjectType/String/false; PlatformVariant/String/false; PrefabDependencyShapeId/String/true; ShaderFamilyIds/IdSet/true; TextureFormat/String/true; UiRouteKind/String/false |
+
+Stable-identity carriers are lexically exact even though their producer-owned derivation is outside LC-I07. String identities are lowercase hex with these prefixes: `AnimationSetShapeId=animation-set-shape-sha256:`, `AtlasId=atlas-sha256:`, `AvatarId=avatar-sha256:`, `BankStructureId=bank-structure-sha256:`, `EnvironmentModuleType=environment-module-type-sha256:`, `EnvironmentThemeId=environment-theme-sha256:`, `EventStructureId=event-structure-sha256:`, `MeshTopologyId=mesh-topology-sha256:`, `PrefabDependencyShapeId=prefab-dependency-shape-sha256:`, `RendererType=renderer-type-sha256:`, `SkeletonId=skeleton-sha256:`, and `TextureFormat=texture-format-sha256:`, each followed by exactly 64 lowercase hex digits. DependencyObjectIds, AudioDependencyIds, and FontDependencyIds contain `sha256:` object IDs; ShaderFamilyIds contains `shader-family-sha256:` IDs. A future producer for any currently absent fact must separately freeze its derivation framing before emission; LC-I07 never derives these identities.
+
+For the LC-I06 zero-dependency case, absent `DependencyObjectIds` plus the accepted AR-O04 selector set is the authoritative known-empty support value from Section 1.2a; it is not Unknown, NotApplicable, or a missing fact. Required facts gate family assignment: Known is accepted; policy-allowed NotApplicable is accepted only for a key dimension; Unknown, missing, a forbidden NotApplicable, or NotApplicable on a support fact retains the object for diagnosis. A key dimension retains its NotApplicable status/carriers in the family key.
+
+Every static check below has `applicableFamilyKinds` equal to its lane's singleton familyKindId and `outcomeOnMissingFact=Unchecked`. For one assigned member, a definition is a required check exactly when none of its required facts is NotApplicable. If any required fact is policy-allowed NotApplicable, that check is inapplicable to that member: no check row is emitted and it is absent from requiredCheckCount. If a required fact is unexpectedly missing/Unknown after C3, the check is required and emits Unchecked with MissingInputFact. All requiredEvidenceKinds are conjunctive; absence of any required evidence prevents Passed. The compact columns are the exact `requiredFactKinds` and `requiredEvidenceKinds` Ordinal sets.
+
+| Lane | checkId | requiredFactKinds | requiredEvidenceKinds |
+|---|---|---|---|
+| Actor | AnimationClipReadability | AnimationSetShapeId | FileReadability, ObjectReadability, SerializedMetadata |
+| Actor | AvatarClosure | AvatarId, SkeletonId | DependencyGraph, SerializedMetadata |
+| Actor | ControllerReferenceClassification | ControllerReferenceState | SerializedMetadata |
+| Actor | DependencyClosure | DependencyObjectIds | DependencyGraph |
+| Actor | MaterialDependencyClosure | RendererType, ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| Actor | MeshReadability | RendererType | FileReadability, ObjectReadability |
+| Actor | SkeletonClosure | SkeletonId | DependencyGraph, SerializedMetadata |
+| Actor | TextureDependencyClosure | ShaderFamilyIds | DependencyGraph, TextureMetadata |
+| Audio | BankProvenance | BankStructureId | SerializedMetadata |
+| Audio | ChannelLayoutValidity | ChannelLayout, SampleRate | AudioMetadata |
+| Audio | DecodeOutcome | AudioEncoding | DecoderProbe |
+| Audio | DependencyClosure | DependencyObjectIds | DependencyGraph |
+| Audio | EventRelationship | BankStructureId, EventStructureId | DependencyGraph, SerializedMetadata |
+| Audio | LoopValidity | LoopMode | AudioMetadata, LoopBehavior |
+| Audio | MediaReadability | ObjectType | FileReadability, ObjectReadability |
+| Effects | AudioDependencyClosure | AudioDependencyIds | AudioMetadata, DependencyGraph |
+| Effects | EffectSystemReadability | EffectSystemKind | FileReadability, ObjectReadability, SerializedMetadata |
+| Effects | MaterialDependencyClosure | RendererType, ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| Effects | MeshDependencyClosure | RendererType | DependencyGraph, ObjectReadability |
+| Effects | PrefabDependencyClosure | PrefabDependencyShapeId | DependencyGraph, PrefabYaml |
+| Effects | ShaderDependencyClosure | ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| Effects | TextureDependencyClosure | ShaderFamilyIds | DependencyGraph, TextureMetadata |
+| Environment | ColliderValidity | ColliderMode | SerializedMetadata |
+| Environment | LightmapValidity | LightmapMode | SerializedMetadata |
+| Environment | MaterialDependencyClosure | RendererType, ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| Environment | MeshReadability | MeshTopologyId, ObjectType | FileReadability, ObjectReadability |
+| Environment | NavMeshValidity | NavMeshMode | SerializedMetadata |
+| Environment | PrefabDependencyClosure | PrefabDependencyShapeId | DependencyGraph, PrefabYaml |
+| Environment | ShaderDependencyClosure | ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| Environment | TextureDependencyClosure | ShaderFamilyIds | DependencyGraph, TextureMetadata |
+| UI | FontDependencyClosure | FontDependencyIds | DependencyGraph, SerializedMetadata |
+| UI | MaterialDependencyClosure | ShaderFamilyIds | DependencyGraph, MaterialShaderGraph |
+| UI | PrefabDependencyClosure | PrefabDependencyShapeId | DependencyGraph, PrefabYaml |
+| UI | SpriteAtlasClosure | AtlasId | DependencyGraph, TextureMetadata |
+| UI | TextureReadability | TextureFormat | FileReadability, ObjectReadability, TextureMetadata |
+| UI | UiRouteValidity | UiRouteKind | SerializedMetadata |
+
+All first-version risk axes use `variantEncoding=Tuple`; `sourceFactKinds` below is the exact positional list and is not sorted by a producer. PlatformVariant is included in every tuple so a representative on one platform never silently covers another platform variant. A member contributes a risk variant exactly when every source fact is Known. A policy-allowed NotApplicable source makes that axis inapplicable to that member and emits no variant; Unknown, missing, or forbidden NotApplicable is a contract/assignment contradiction and never creates a sentinel variant.
+
+| Lane | riskAxisId | sourceFactKinds in positional order |
+|---|---|---|
+| Actor | ActorRole | ActorRole, PlatformVariant |
+| Actor | AnimationSetShape | AnimationSetShapeId, PlatformVariant |
+| Actor | ControllerRoute | ControllerReferenceState, PlatformVariant |
+| Actor | RendererShaderCombination | RendererType, ShaderFamilyIds, PlatformVariant |
+| Actor | SkeletonAvatar | SkeletonId, AvatarId, PlatformVariant |
+| Audio | BankEventStructure | BankStructureId, EventStructureId, PlatformVariant |
+| Audio | ChannelLayout | ChannelLayout, SampleRate, PlatformVariant |
+| Audio | Encoding | AudioEncoding, PlatformVariant |
+| Audio | LoopRoute | LoopMode, PlatformVariant |
+| Effects | AudioCoupling | AudioDependencyIds, PlatformVariant |
+| Effects | EffectSystem | EffectSystemKind, PlatformVariant |
+| Effects | PrefabDependencyShape | PrefabDependencyShapeId, PlatformVariant |
+| Effects | RendererShaderCombination | RendererType, ShaderFamilyIds, PlatformVariant |
+| Environment | PhysicsNavigationShape | ColliderMode, NavMeshMode, PlatformVariant |
+| Environment | PrefabDependencyShape | PrefabDependencyShapeId, PlatformVariant |
+| Environment | RendererShaderCombination | RendererType, ShaderFamilyIds, PlatformVariant |
+| Environment | ThemeModule | EnvironmentThemeId, EnvironmentModuleType, PlatformVariant |
+| UI | AtlasFontCombination | AtlasId, FontDependencyIds, PlatformVariant |
+| UI | PrefabDependencyRisk | PrefabDependencyShapeId, ShaderFamilyIds, PlatformVariant |
+| UI | TextureFormat | TextureFormat, PlatformVariant |
+| UI | UiRoute | UiRouteKind, PlatformVariant |
+
+Each policy has exactly one evidence requirement row. `acceptedExecutionStatuses` is exactly `Completed`; Unavailable and Failed can produce C5 assessment states but can never satisfy a requirement.
+
+| Lane | evidenceRequirementId | applicableRiskAxisIds | requiredEvidenceKinds |
+|---|---|---|---|
+| Actor | ActorRouteEvidence | ActorRole, AnimationSetShape, ControllerRoute, RendererShaderCombination, SkeletonAvatar | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender |
+| Audio | AudioRouteEvidence | BankEventStructure, ChannelLayout, Encoding, LoopRoute | AudioPlayback, HumanListening, LoopBehavior |
+| Effects | EffectRouteEvidence | AudioCoupling, EffectSystem, PrefabDependencyShape, RendererShaderCombination | AudioPlayback, EffectBehavior, MaterialFidelity, UnityImport, VisibleRender |
+| Environment | EnvironmentRouteEvidence | PhysicsNavigationShape, PrefabDependencyShape, RendererShaderCombination, ThemeModule | MaterialFidelity, UnityImport, VisibleRender |
+| UI | UiRouteEvidence | AtlasFontCombination, PrefabDependencyRisk, TextureFormat, UiRoute | MaterialFidelity, UiConstruction, UnityImport, VisibleRender |
+
+Capability rules below have the lane's singleton `applicableFamilyKinds`. ActorRole eligibility remains an LC-I11 predicate, so the two Actor candidates do not authorize Other. A single current routeKind must be a member of `requiredRouteKinds`; the set is an allowed-route disjunction, not a requirement to materialize every route. The current decision must be a member of allowedFamilyDecisions and every requiredEvidenceKind is conjunctive. No RepairOnce, NeedsDiagnosis, RetainForLater, DiagnosticOnly, or Stop row can satisfy a capability.
+
+| Lane | capabilityId | requiredRouteKinds | allowedFamilyDecisions | requiredEvidenceKinds |
+|---|---|---|---|---|
+| Actor | EnemyModelSkeletonAnimationSet | OriginalAsset, PrototypeController | PrototypeReplacement, UseOriginalAsset | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender |
+| Actor | PlayerModelSkeletonAnimationSet | OriginalAsset, PrototypeController | PrototypeReplacement, UseOriginalAsset | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender |
+| Audio | PlayableBgmRoute | DecodedAudio, OriginalAsset | PrototypeReplacement, UseOriginalAsset | AudioPlayback, HumanListening, LoopBehavior |
+| Audio | PlayableCombatSfx | DecodedAudio, OriginalAsset | PrototypeReplacement, UseOriginalAsset | AudioPlayback, HumanListening |
+| Effects | CombatEffectRoute | EffectBehaviorReconstructed, OriginalAsset | PrototypeReplacement, UseOriginalAsset | EffectBehavior, MaterialFidelity, UnityImport, VisibleRender |
+| Environment | RecognizableEnvironmentOrMapModules | OriginalAsset | UseOriginalAsset | MaterialFidelity, UnityImport, VisibleRender |
+| UI | ReusableUiGraphicsAndConstructionRoute | OriginalAsset, TextureOnlyRebuild | PrototypeReplacement, UseOriginalAsset | MaterialFidelity, UiConstruction, UnityImport, VisibleRender |
+
+Repair rules are only candidates for the C6 RepairOnceRule. A repairClass spelling that resembles a replacement route does not authorize PrototypeReplacement; LC-I11 must define a separate exact replacement rule. Every row has the lane's singleton `applicableFamilyKinds` and `maxAttempts=1`. A rule matches failure classes only when the current actionable failure-class set is nonempty and is a subset of requiredFailureClasses; requiredInputKinds are conjunctive. Mixed failures outside the set do not partially match, and two matching rules remain LF-17.
+
+| Lane | repairClass | requiredFailureClasses | requiredInputKinds | expectedChangeMeasure |
+|---|---|---|---|---|
+| Actor | DependencyClosureRepair | MissingDependency, PrefabDependencyMissing | DependencyGraph, DependencyObjectIds, PrefabDependencyShapeId | MissingDependencyCount |
+| Actor | MaterialMappingRepair | MaterialMismatch, ShaderMismatch | MaterialShaderGraph, RendererType, ShaderFamilyIds | FailedCheckCount |
+| Actor | PrototypeControllerRepair | ControllerMissing | ControllerReferenceState, SerializedMetadata | FailedCheckCount |
+| Audio | AudioDecodeRepair | DecodeFailure | AudioEncoding, DecoderProbe | DecodeFailureCount |
+| Audio | AudioSemanticRepair | SemanticUnknown | EventStructureId, SerializedMetadata | SemanticUnknownCount |
+| Effects | DependencyClosureRepair | MissingDependency, PrefabDependencyMissing | DependencyGraph, DependencyObjectIds, PrefabDependencyShapeId | MissingDependencyCount |
+| Effects | EffectBehaviorReconstruction | EffectBehaviorMissing | EffectBehavior, PrefabYaml | VisibleIssueCount |
+| Effects | MaterialMappingRepair | MaterialMismatch, ShaderMismatch | MaterialShaderGraph, RendererType, ShaderFamilyIds | FailedCheckCount |
+| Environment | DependencyClosureRepair | MissingDependency, PrefabDependencyMissing | DependencyGraph, DependencyObjectIds, PrefabDependencyShapeId | MissingDependencyCount |
+| Environment | ImportSettingsRepair | ImportSettingMismatch | SerializedMetadata, TextureMetadata | FailedCheckCount |
+| Environment | MaterialMappingRepair | MaterialMismatch, ShaderMismatch | MaterialShaderGraph, RendererType, ShaderFamilyIds | FailedCheckCount |
+| UI | DependencyClosureRepair | MissingDependency, PrefabDependencyMissing | DependencyGraph, DependencyObjectIds, PrefabDependencyShapeId | MissingDependencyCount |
+| UI | FontAtlasRepair | FontAtlasMissing | FontDependencyIds, SerializedMetadata | MissingDependencyCount |
+| UI | TextureOnlyRebuild | ImportSettingMismatch, ReadFailure | TextureFormat, TextureMetadata | FailedCheckCount |
+
+The implementation Task must reject at least these LF-03 vectors: stored `policySetFingerprint` or any other additional property; wrong top-level constant; missing/duplicate/misordered lane; changed bytes with reused policySetId/policySetVersion; missing/duplicate/misordered nested row or set; reordered Tuple sourceFactKinds; unresolved fact/family/risk/capability/input ID; an enum with empty or extra allowedValues; NotApplicable where the exact row forbids it; `StaticPassed` on missing fact; accepted execution status other than Completed; `maxAttempts` other than one; and any metadata, payload, expression, regex, callback, ScriptBlock, or executable operation. The Passed vector must also prove exact-byte equality between LC-I07 and its positive fixture and must compute, never read, policySetFingerprint.
 
 ### 1.5 C3 output shapes
 
@@ -498,7 +639,7 @@ observedFingerprint
 evidence
 ```
 
-`outcome` is `Passed`, `Failed`, or `Unchecked`. `observedFingerprint` is non-null only when evidence bytes were actually read. `uncheckedReasonCodes` values are `InputFactMissing`, `PrerequisiteFailed`, `ToolUnavailable`, `UnsupportedFormat`, or `EvidenceUnavailable`. Unchecked is never Passed.
+`outcome` is `Passed`, `Failed`, or `Unchecked`. `observedFingerprint` is non-null only when evidence bytes were actually read. `uncheckedReasonCodes` values are `MissingInputFact`, `PrerequisiteFailed`, `ToolUnavailable`, `UnsupportedFormat`, or `EvidenceUnavailable`. Unchecked is never Passed.
 
 `staticStatus` is `StaticPassed` only when every required check Passed, `StaticFailed` when at least one required check Failed, and `Unchecked` otherwise. These member-level terms are deliberately distinct from the existing family-level `familyStaticOutcome` vocabulary.
 
@@ -889,7 +1030,11 @@ The report is never a machine consumer. Its content fingerprint remains part of 
 
 The current `authoring-reuse-ledger.schema.json` cannot represent member identities, bytes, representative partitions, pool isolation, capability projection, policy fingerprints, or complete direct input fingerprints. C6-O01 cannot be projected losslessly into it. A C0 contract change to authoring reuse ledger v2 is required before C6 implementation.
 
-The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. LC-I07, LC-I11, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
+The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. The physical LC-I07 artifacts, LC-I11, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
+
+LC-I07's logical registry contract is now closed: its non-self-referential fingerprint boundary, exact first-version identity, five policy rows, nested reference sets, NotApplicable/check/axis semantics, capability predicates, repair predicates, ordering, and LF-03 vectors are unique. The physical LC-I07 registry, its JSON Schema, positive/negative fixtures, and executable validator remain absent and require the next separately authorized fixture-only Task.
+
+LC-I11 still stores `decisionPolicyFingerprint` while defining it over the exact LC-I11 bytes, so its fingerprint boundary remains self-referential and unclosed. The later LC-I11 contract Task must explicitly remove the stored self-hash or obtain separate approval for another non-self-referential encoding; no C6 implementation may infer a rule here.
 
 The current status vocabulary lacks the exact `familyParentStatus`, `memberStaticStatus`, `representativeAssessment`, `authoringPoolStatus`, and `capabilityStatus` dimensions frozen above. C0 must add all five before implementation; component-local aliases are forbidden.
 
@@ -922,7 +1067,7 @@ All derived IDs use the exact C2 HI-01 framed UTF-8 byte encoding, including dom
 | LX-HI-17 accounting row | `lifecycle-accounting-sha256:` / `LifecycleAccountingV1` | owningArray, stageId, subjectKind, subjectId, reasonCode, attribution, evidence set |
 | LX-HI-18 residual issue | `residual-issue-sha256:` / `C6ResidualIssueV1` | familyId, issueClass, subjectIds set, failureAttribution, evidence set |
 
-`factContractFingerprint`, `policySetFingerprint`, and `decisionPolicyFingerprint` are CT-04 SHA-256 over the exact bytes of LC-I13, LC-I07, and LC-I11 respectively. Content changes always change the fingerprint even when version text is unchanged; version reuse with different bytes is invalid.
+`factContractFingerprint`, `policySetFingerprint`, and `decisionPolicyFingerprint` are CT-04 SHA-256 over the exact bytes of LC-I13, LC-I07, and LC-I11 respectively. LC-I07 does not contain policySetFingerprint; C3-C6 compute it externally from the complete accepted registry bytes. Content changes always change the fingerprint even when version text is unchanged; version reuse with different bytes is invalid.
 
 `inputStaticFingerprint` is LX-HI-14 over the exact current C4-O01, C4-O02, and C4-O03 summary/report artifact set for the generation. `inputEvidenceFingerprint` is LX-HI-14 over the exact current C5-O01, C5-O02, and C5-O04 summary/report artifact set. `repairHistoryFingerprint` is CT-04 SHA-256 over the exact LC-I12 bytes; the exact empty-attempts artifact therefore has a real non-null fingerprint. These three fingerprints are calculated from registered bytes and cannot be display constants.
 
@@ -947,7 +1092,7 @@ dispatchEligibleObjectCount
 
 The same equation applies to `serializedSizeBytes` joined exactly from LC-I01.
 
-- AssignedFamilyMember requires exactly one lane policy, one family kind, every required family-key fact Known or policy-allowed NotApplicable, and one LX-HI-03 family.
+- AssignedFamilyMember requires exactly one lane policy, one family kind, every required support fact Known, every required family-key fact Known or policy-allowed NotApplicable, and one LX-HI-03 family.
 - RetainedForDiagnosis covers Unassigned dispatch, missing/Unknown key facts, zero/multiple family kinds, unresolved policy identity, or unresolved family-key contradiction.
 - ConfigurationOnly copies the C2 configuration-only partition and never enters a family.
 
@@ -1232,7 +1377,7 @@ This design grants no C3-C6 implementation. LC-I13 and the pure LC-I06 fixture-o
 
 The later implementation sequence is:
 
-1. Remaining fixture-only contract Tasks for LC-I07, LC-I11, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 is complete but remains outside SP-09 publication.
+1. Remaining fixture-only artifact Tasks for the closed LC-I07 contract, LC-I11, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 is complete but remains outside SP-09 publication.
 2. C3 family registry Task; prove SP-30/SP-31 and C3 output vector.
 3. C4 static qualification Task; prove every lane check matrix and SP-40.
 4. C5 requirement/evidence Task; prove all six statuses and SP-50 without C7/G4 execution.
