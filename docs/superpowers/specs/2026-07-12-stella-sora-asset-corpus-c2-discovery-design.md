@@ -1,7 +1,7 @@
 # StellaSora Asset Corpus C2 Discovery Design
 
 **Date:** 2026-07-12
-**Status:** APPROVED as amended; Task 1 fixture authority is authorized, while Task 2 implementation, Unity, extraction, import, and Phase B remain unauthorized
+**Status:** SP-01 through SP-08 implemented through `c40a6b7fe1dc8368945d9fc802c166fa12c9d587`; SP-09 implementation is BLOCKED pending approval of the publication amendment and plan
 **Authority order:** repository `AGENTS.md`, the 2026-07-10 corpus design, C0 contracts, C1 handoff, then this C2 spec
 
 ## Scope And Authorization
@@ -110,7 +110,7 @@ For every artifact, stable artifact identity is its registry ID plus exact porta
 
 Each approval row is exactly HI-15 `approvalId`, CT-02 `subjectKind/subjectId/reasonCode/reason/approvedBy`, CT-03 `approvedAt`, and nonempty CT-07 `evidence`. `subjectKind` is exactly `ObjectObservation`; `subjectId` is the non-null, independently recomputed HI-03 of one structurally and semantically valid AR-I07 row; `reasonCode` is exactly `ApprovedInputExclusion`. Approval rows are unique by `subjectId` and Ordinal sorted by `subjectId`. An approval for a missing, rejected, duplicate-approved, or HI-03-mismatched row is FT-02 on AR-I11, never FT-14. Approval evidence is opaque and never opened by C2.
 
-**AR-S05 private workset:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint/discoveryInputFingerprint`, and list fields `resolvedFileResults`, `mergedObjectCandidates`, `canonicalProposalProvenance`, `dispatchInputFacts`, `fileDiscoveryConflicts`, `observationConflicts`, `configurationCandidates`, `configurationConflicts`, `canonicalGroups`, `canonicalConflicts`, `inputFailures`, `inputExclusions`, `inputSuppressions`, `outputFailures`, `outputExclusions`.
+**AR-S05 private workset:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint`, nullable CT-04 `discoveryInputFingerprint`, and list fields `resolvedFileResults`, `mergedObjectCandidates`, `canonicalProposalProvenance`, `dispatchInputFacts`, `fileDiscoveryConflicts`, `observationConflicts`, `configurationCandidates`, `configurationConflicts`, `canonicalGroups`, `canonicalConflicts`, `inputFailures`, `inputExclusions`, `inputSuppressions`, `outputFailures`, `outputExclusions`. `discoveryInputFingerprint` is present and non-null on Passed and is present with JSON null on ordinary Failed; it is never missing or empty.
 
 - resolved file row: exactly CT-02 `sourceId`, CT-05 `relativePath`, public extraction enum `parseStatus`, Ordinal HI-ID set `observationIds`, CT-07 `evidence`.
 - merged object row: exactly HI `assetObjectId/correlationId`, Ordinal HI-ID set `observationIds`, CT-11 `resolutionStatus`, object `resolvedValues`, CT-07 `evidence`. `resolvedValues` exactly CT-02 `sourceId/objectType/objectName`, CT-05 `containerRelativePath`, CT-06 `pathId/classId/serializedSizeBytes`, Ordinal HI-ID set `dependencyObjectIds`, CT-04 `contentFingerprint`, nullable CT-10 `configurationDisposition`, CT-09 `memberPlatform`.
@@ -150,7 +150,7 @@ C1 `schemaVersion/snapshotId/inputFingerprint` and source rows remain exact. Fil
 **AR-S11 diagnostic bundle (AR-O05):**
 
 - JSON top level exactly `schemaVersion`, `identity`, `provenance`, `directEvidence`, `coverage`, `failureAccounting`, `decision`.
-- identity exactly CT-03 `generatedAt`, CT-02 `snapshotId`, and CT-04 `inputFingerprint/ledgerInputFingerprint/discoveryInputFingerprint/discoveryArtifactFingerprint`.
+- identity exactly CT-03 `generatedAt`, CT-02 `snapshotId`, CT-04 `inputFingerprint/ledgerInputFingerprint`, nullable CT-04 `discoveryInputFingerprint`, and CT-04 `discoveryArtifactFingerprint`, in that order. `discoveryInputFingerprint` is present and non-null on Passed and is present with JSON null on ordinary Failed; it is never missing or empty. `discoveryArtifactFingerprint` remains non-null for either successfully constructed diagnostic generation because it hashes the current run's actually produced non-summary artifacts.
 - provenance exactly CT-08 list `toolVersions`, CT-02 constant `operationIdentity` from CT-02.
 - directEvidence exactly lists `discoveryInputs`, `directChildSummaries`, `directChildReports`; every entry exactly CT-05 `path`, CT-04 `sha256`; each list is Ordinal path sorted and paths are unique across all three. `discoveryInputs` is every actually read AR-I artifact. On Passed, child summaries are exactly AR-O01-O04 and child reports are exactly report, sidecar, and AR-S12; on ordinary Failed, child summaries are empty and child reports are those same three diagnostic components.
 - coverage exactly nested:
@@ -162,7 +162,7 @@ C1 `schemaVersion/snapshotId/inputFingerprint` and source rows remain exact. Fil
   - `dispatch`: `dispatchEligibleObjectCount`, `assignedObjectCount`, `retainedForDiagnosisObjectCount`, `configurationOnlyObjectCount`, `audioObjectCount`, `environmentObjectCount`, `actorObjectCount`, `uiObjectCount`, `effectsObjectCount`.
 - failureAccounting exactly `inputSubjectCount`, `acceptedInputSubjectCount`, `notEvaluatedInputSubjectCount`, `inputObservationCount`, `acceptedInputObservationCount`, `rejectedInputObservationCount`, `inputFailureCount`, `excludedInputSubjectCount`, `excludedInputCount`, `contractFailureRecordCount`, `fileDiscoveryConflictRecordCount`, `observationConflictRecordCount`, `configurationConflictRecordCount`, `canonicalConflictRecordCount`, `outputCandidateCount`, `projectedOutputCount`, `outputFailureCount`, `excludedOutputCount`, `issueCount`, `gateStatus`.
 - decision exactly CT-02 `failureAttribution`, `nextAllowedAction`.
-- report is the exact UTF-8-without-BOM, LF-only template below, with exactly one final LF. Each placeholder is replaced by the corresponding pre-artifact-fingerprint JSON scalar rendered as CT-02/CT-04/CT-06 text; placeholder braces are not emitted. The two decision values cannot contain LF by CT-02. The report never contains `discoveryArtifactFingerprint` and no additional heading, whitespace, field, or localization is allowed.
+- report is the exact UTF-8-without-BOM, LF-only template below, with exactly one final LF. Each placeholder is replaced by the corresponding pre-artifact-fingerprint JSON scalar rendered as CT-02/CT-04/CT-06 text; the nullable `identity.discoveryInputFingerprint` placeholder renders its 64-hex CT-04 value on Passed and the lowercase literal `null` on ordinary Failed. Placeholder braces are not emitted. The two decision values cannot contain LF by CT-02. The report never contains `discoveryArtifactFingerprint` and no additional heading, whitespace, field, or localization is allowed.
 
 ```text
 # C2 Discovery Gate Report
@@ -186,7 +186,7 @@ nextAllowedAction: {decision.nextAllowedAction}
 ```
 - diagnostic sidecar is AR-S05.
 
-**AR-S12 C0 contract-change component of AR-O05:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `requestId/reason/nextAllowedAction`, CT-04 `inputFingerprint/discoveryInputFingerprint`, `status`, and lists `missingProjectionFields/evidence`.
+**AR-S12 C0 contract-change component of AR-O05:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `requestId/reason/nextAllowedAction`, CT-04 `inputFingerprint`, nullable CT-04 `discoveryInputFingerprint`, `status`, and lists `missingProjectionFields/evidence`, in that order. `discoveryInputFingerprint` is present and non-null on Passed and is present with JSON null on ordinary Failed; it is never missing or empty.
 
 For the registered AR-I06 hash, values are fixed: `requestId=C0ContractChange:C2StructuredCoverage:1.0.0`; `status=Required`; `reason=Current root-gate-summary schema cannot losslessly represent mandatory C2 structured coverage partitions.`; `nextAllowedAction=Continue C3-C6 Phase A; C0 must resolve this request before G5 can pass.` Evidence is exactly the Ordinal-sorted paths of AR-I06 and AR-O05 summary. `missingProjectionFields` is a duplicate-free list with exactly the following members in the displayed order:
 
@@ -258,6 +258,61 @@ On Passed, the complete generation is published. On ordinary Failed, the staged 
 
 `discoveryInputFingerprint` hashes every actually read artifact among AR-I01 through AR-I11, including AR-I10 whenever optional inputs exist and AR-I11 whenever exclusions exist. P0 is only the six-entry AR-I01-I06 HI-13b unit vector and omits AR-I07 through AR-I11. `discoveryArtifactFingerprint` hashes exactly the non-summary artifacts actually produced in the current run: on Passed, AR-O01 through AR-O04 plus report, sidecar, and AR-S12; on ordinary Failed, only report, sidecar, and AR-S12. It never reads suppressed or stale AR-O01-O04 bytes and never hashes the summary JSON itself. On AR-O05 atomic failure no summary exists and no discoveryArtifactFingerprint is claimed. Any add/remove/path/content change changes the relevant fingerprint. G5 projection that cannot preserve a mandatory C2 value requires AR-S12 status Required; missing/non-exact request triggers FT-11.
 
+### SP-09 publication transaction subregistry
+
+SP-09 is a journaled in-place publication. The eight consumer paths, in fixed transaction order, are AR-O01, AR-O02, AR-O03, AR-O04, AR-O05 report, AR-O05 sidecar, AR-S12, and AR-O05 summary. The summary is always installed and verified last. A consumer must acquire the same publication lock before reading the summary or any child; a Passed summary is consumable only when every named child exists and its exact SHA participates in the summary's current fingerprints. A Failed summary is diagnostic-only and never authorizes AR-O01 through AR-O04.
+
+Operational state is confined to the already-ignored repository-relative root `Temp/C2DiscoveryPublication/`. The lock is `Temp/C2DiscoveryPublication/publication.lock` and is acquired by opening or creating it with read/write access and `FileShare.None`; lock acquisition failure is FT-12 and is never bypassed by deleting the lock path. The active journal is `Temp/C2DiscoveryPublication/active-journal.json`. Transaction data is under `Temp/C2DiscoveryPublication/transactions/<digest>/` with exact children `stage`, `backup`, and `quarantine`, where `<digest>` is the 64 lowercase-hex suffix of the full HI-16 and therefore contains no Windows-invalid prefix colon. The journal retains the complete prefixed HI-16. These paths are machine-local operational state, never evidence paths, never input/output artifacts, and never committed.
+
+HI-16 uses HI-01 with nullable `discoveryInputFingerprint`. A pre-existing transaction directory for the same HI-16 is reusable only when its journal bytes validate exactly against the same transaction facts; any other collision is FT-12.
+
+The active journal uses CT-15 bytes and has exact top-level order:
+
+```text
+schemaVersion
+transactionId
+phase
+gateStatus
+generatedAt
+expectedPaths
+entries
+```
+
+`phase` is exactly `Prepared`, `BackingUp`, `Installing`, `Verifying`, `Committed`, `RollingBack`, or `Quarantined`. `expectedPaths` is the complete fixed eight-path list in transaction order. Each entry has exact order:
+
+```text
+artifactId
+path
+desiredState
+stagedSha256
+priorState
+priorSha256
+backupRelativePath
+installState
+```
+
+`desiredState` is `Present` or `Absent`; `priorState` is `Present` or `Absent`; `installState` is `Pending`, `BackedUp`, `Installed`, `Verified`, `Restored`, or `Quarantined`. `stagedSha256` is CT-04 exactly when desired state is Present and otherwise null. `priorSha256` and `backupRelativePath` are non-null exactly when prior state is Present. Backup paths are transaction-relative `backup/00` through `backup/07` in entry order. Entries are always eight rows and preserve transaction order.
+
+Journal replacement is itself transactional: serialize to `active-journal.json.next`, flush file content to stable storage, then replace the active journal when it exists or rename the new file when it does not. A `.next` write/flush/replace failure is FT-12. Recovery ignores no file: if both journal forms exist, exact journal validation and consumer/stage/backup hashes determine the one valid newest state; ambiguity quarantines the complete known generation.
+
+At lock acquisition, the producer scans `transactions` before reading or creating the active journal. At most one directory may match the journal's HI-16 digest. A transaction directory without either journal form is a pre-Prepared orphan and may be deleted only when it contains `stage` alone and no consumer, backup, or quarantine state could have changed; any other orphan or extra transaction directory is ambiguous and is quarantined under its own digest before FT-12 is returned. No orphan is silently ignored.
+
+The only legal producer sequence while holding the lock is:
+
+1. Recover or quarantine any active journal before creating a new transaction.
+2. Serialize all desired files into `stage`, verify CT-15/registered shapes, and compute exact SHA values. Passed stages eight files. Ordinary Failed stages only report, sidecar, AR-S12, and summary; AR-O01 through AR-O04 entries have desired state Absent and four `SuppressedByGate` rows already present in the staged diagnostic state.
+3. Write phase `Prepared`; record the exact pre-transaction state and hashes of all eight consumer paths.
+4. Set `BackingUp`; move every prior Present consumer path to its numbered backup, persisting the journal around each move.
+5. Set `Installing`; install desired Present children in transaction order except summary. Desired Absent paths remain absent. Install summary last.
+6. Set `Verifying`; reread every desired Present consumer byte and require its staged SHA, require every desired Absent path absent, then validate all cross-artifact fingerprints and the SP-09 equation.
+7. Set `Committed`; only then delete stage, backups, journal forms, and the transaction directory. The lock file may remain empty after its handle closes.
+
+Any caught failure before `Committed` first enters `RollingBack`. Recovery and rollback derive state from journal plus exact hashes, not from the last recorded phase alone: staged SHA at a consumer path means installed; prior SHA at a consumer path means restored; prior SHA at its backup means backed up. Rollback removes a verified staged generation and restores every prior Present path. If every prior state is restored exactly, the failed attempt reports FT-12 terminally and leaves the prior generation historical and consumer-invalid for the failed run. Any missing, extra, or unknown byte makes restoration unprovable: move every extant consumer/stage/backup/journal component into the transaction quarantine, set `Quarantined`, retain quarantine for diagnosis, and expose no consumer path. No best-effort partial generation is allowed.
+
+Output accounting is derived only after transaction outcome. Passed is `5=5+0+0`. Ordinary Failed with a successfully committed diagnostic is `5=1+4+0`; AR-O05 is the sole ProjectedOutput and AR-O01 through AR-O04 each have one `SuppressedByGate` row. FT-12 is `5=0+5+0`; because AR-O05 did not commit, all five `ProjectionInvalid` rows are terminal-only and no persisted artifact may claim them. Output exclusions are always empty.
+
+The public `Invoke-C2DiscoveryIntakeGate` entry always uses the registered consumer paths and attempts SP-09; it exposes no arbitrary writer callback, filesystem object, fault injector, or alternate public output root. Focused tests may call a private enum-only seam rooted at `Temp/C2DiscoveryPublicationTests/<case>` and must remove a fully restored sandbox in `finally`. Production and test publisher code paths are otherwise identical. No test may touch `Extracted`, `Assets/StellaGaia/Imported`, Unity, real assets, or third-party tools.
+
 ---
 
 ## Hash And Identity Registry
@@ -304,6 +359,7 @@ A list/set with decimal item count `C` first emits `fieldName.count:D:C\n`, wher
 | HI-13c output artifact-set fingerprint | no prefix / `C2DiscoveryArtifactV1` | same entry encoding/order/count as HI-13b for the current run's actually produced non-summary artifacts: Passed has AR-O01-O04+report+sidecar+AR-S12; ordinary Failed has report+sidecar+AR-S12 |
 | HI-14 diagnostic bundle fingerprint | no prefix / `C2DiagnosticBundleV1` | `entries` set encoded exactly as HI-13b, containing summary JSON, report, sidecar, and AR-S12 component |
 | HI-15 exclusion approval | `exclusion-approval-sha256:` / `C2ExclusionApprovalV1` | `subjectKind`, `subjectId`, `reasonCode`, `reason`, `approvedBy`, `approvedAt`, `evidence` set |
+| HI-16 publication transaction | `publication-sha256:` / `C2PublicationTransactionV1` | `snapshotId`, `generatedAt`, `inputFingerprint`, nullable `discoveryInputFingerprint`, `gateStatus` |
 
 For HI-13a the literal scalar field names are `path` then `sha256`. For HI-13b/HI-13c the literal set field name is `entries`; nested item labels are `entries[0]`, `entries[1]`, and so on after Ordinal path sorting. The nested HI-13a record includes its `C2ArtifactEntryV1` domain line and final LF inside the item's encoded byte length; the outer item adds its own final LF. These literal names and boundaries produce the registered P0 digest and no alternative labels are allowed. PowerShell `Sort-Object` is forbidden for this ordering because it is culture-sensitive; implementations must use `System.StringComparer.Ordinal` or an equivalent ordinal comparator.
 
@@ -559,7 +615,7 @@ Keyword scans are not acceptance evidence. Design review must instantiate the se
 
 ## Planned Implementation Decomposition
 
-After this spec is approved, one implementation plan **may contain two or more sequential Tasks** when it must freeze their dependency, file boundaries, verification, and stop checkpoints together. Plan containment is not execution authorization: only one Task may be authorized and executed per review round unless the user explicitly grants continuous multi-Task execution. Every Task remains 20–30 minutes, every Step 2–5 minutes, and every Step cites the Artifact, Subject, and Failure IDs it exercises.
+An implementation plan **may contain two or more sequential Tasks** when it must freeze their dependency, file boundaries, verification, and stop checkpoints together. Plan containment is not execution authorization: only one Task may be authorized and executed per review round unless the user explicitly grants continuous multi-Task execution. Every Task remains 20–30 minutes, every Step 2–5 minutes, and every Step cites the Artifact, Subject, and Failure IDs it exercises.
 
 The authoritative sequence is:
 
@@ -569,7 +625,8 @@ The authoritative sequence is:
 4. Implement SP-03/SP-04 object resolution and public projection.
 5. Implement SP-05 configuration discovery.
 6. Implement SP-06 canonical grouping.
-7. Implement SP-07 dispatch, AR-O01-O05, acquisition evidence integration, and G5 contract-change handoff.
-8. Write the C2 Phase B runbook without executing it.
+7. Implement SP-07 dispatch and SP-08 accounting; complete through `c40a6b7fe1dc8368945d9fc802c166fa12c9d587`.
+8. Implement SP-09 deterministic output construction, journaled publication/recovery, and locked consumer validation through the separately reviewed SP-09 plan.
+9. Write the C2 Phase B runbook without executing it.
 
-Until all three central registries and fixed counterexamples pass independent review, status remains `BLOCKED` and no implementation plan or code may begin.
+SP-09 remains `BLOCKED` until its publication amendment and plan pass independent read-only review. Approval then authorizes only the specifically named SP-09 Task; it never authorizes C3-C6, G5, Unity, extraction, import, real assets, or Phase B.
