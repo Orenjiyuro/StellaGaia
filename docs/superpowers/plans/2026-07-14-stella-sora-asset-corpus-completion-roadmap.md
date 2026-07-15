@@ -160,6 +160,6 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-LC-I13 is now frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. This does not create or authorize the LC-I06 producer.
+LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The LC-I06 fixture-projection sub-contract now also freezes its three direct inputs, fingerprint derivations, dispatch subject partition, no-fact Unassigned handling, five provable selector mappings, zero-dependency semantics, failure suppression, and SP-09 non-publication boundary. Neither contract creates or authorizes the LC-I06 producer.
 
 The next normal Task is **implement the LC-I06 fixture-only C2 typed lane-fact projection against frozen LC-I13**. It requires separate explicit authorization and must not access real assets or infer facts absent from approved C2 structured inputs. LC-I07, LC-I11, LC-I12, the required vocabulary dimensions, authoring reuse ledger v2, C2 Phase B execution, real assets, extraction, Unity, import, C3–C6 implementation, G5, and release work remain unauthorized.

@@ -57,7 +57,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I03 | C2 canonical package | C2 AR-O03 registered path | C2 | C3/C4 | Required Passed locked C2 generation |
 | LC-I04 | C2 dispatch | C2 AR-O04 registered path | C2 | C3 | Required Passed locked C2 generation |
 | LC-I05 | C2 diagnostic summary | C2 AR-O05 registered summary | C2 | C3-C6 freshness | Must be Passed and bind LC-I01-I04 |
-| LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Future reviewed C2 typed projection | C3-C5 | Required; current C2 does not produce it, so implementation is BLOCKED pending C2 contract change |
+| LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Future reviewed C2 typed projection | C3-C5 | Fixture-projection sub-contract frozen below; producer remains absent, so C3 implementation is BLOCKED |
 | LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Required exact bytes and fingerprint; currently absent |
 | LC-I08 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json` | C0 | C3-C6 | Required exact accepted C0 artifact |
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
@@ -176,6 +176,63 @@ AudioDependencyIds
 ```
 
 Adding or renaming a fact kind requires a reviewed LC-I06 and LC-I07 contract revision. An arbitrary fact name is invalid.
+
+#### 1.2a LC-I06 fixture-projection sub-contract
+
+Phase A uses one pure `FixtureProjection` adapter. It creates the expected LC-I06 bytes in memory and compares them with the checked-in LC-I06 fixture. It does not write a registered C2 consumer path, alter AR-O01 through AR-O05, acquire the SP-09 publication lock, or change the eight-file SP-09 transaction. Any future published or real-generation LC-I06 requires a separate reviewed publication contract.
+
+The adapter has exactly three byte inputs:
+
+1. C2 AR-O04 at `Tools/AssetImport/Fixtures/DiscoveryGate/valid-object-dispatch.json` from one already accepted, lock-validated C2 generation;
+2. the matching C2 AR-O05 summary at `Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json`;
+3. LC-I13 at `docs/asset-migration/schemas/c2-lane-fact-package.schema.json`.
+
+No AR-O01/02/03 bytes, observation document, raw asset, lane policy, filename, object name, path heuristic, Unity result, or real source is an adapter input. The accepted AR-O05 summary must be Passed and its current generation must bind AR-O04 through the existing C2 consumer-validation contract. The adapter never treats bare path existence as acceptance.
+
+LC-I06 top-level identity is exact:
+
+- `schemaVersion` is `1.0.0`;
+- `generatedAt` and `snapshotId` equal both accepted AR-O04 and AR-O05 values;
+- `c2GenerationFingerprint` equals AR-O05 `identity.discoveryArtifactFingerprint` exactly;
+- `factContractFingerprint` is CT-04 SHA-256 over exact LC-I13 bytes;
+- `inputFingerprint` is LX-HI-14 over exactly the three path/SHA entries above, with no fourth entry and no display constant.
+
+The dispatch subject universe is every AR-O04 row. It partitions exactly:
+
+```text
+dispatchSubjectCount
+= projectedAssignedObjectCount
+ + retainedNoLaneFactObjectCount
+ + configurationNoLaneFactObjectCount
+```
+
+- `projectedAssignedObjectCount`: `dispatchStatus=Assigned`, `familyLane` is one of the five LC-I06 lanes, and `configurationCandidateId=null`.
+- `retainedNoLaneFactObjectCount`: `dispatchStatus=RetainedForDiagnosis`, `familyLane=Unassigned`, and `configurationCandidateId=null`.
+- `configurationNoLaneFactObjectCount`: `dispatchStatus=ConfigurationOnly`, `familyLane=Unassigned`, and `configurationCandidateId` is non-null.
+
+Only ProjectedAssigned subjects produce lane-fact rows. The other two partitions remain terminally accounted by AR-O04 and produce zero LC-I06 rows; `Unassigned` is never coerced to a business lane. Duplicate object IDs, any other status/lane/configuration combination, or an AR-O04 row not owned by exactly one partition is a contract failure and suppresses the complete LC-I06 package.
+
+For each ProjectedAssigned subject, the adapter accepts exactly one `ObjectType`, one `ClassId`, one `CanonicalAssetId`, one `PlatformVariant`, zero or more `DependencyObjectId`, and one or more `ToolObservation` selector rows. Selector pairs are already duplicate-free and Ordinal sorted by AR-S09; the adapter revalidates rather than repairs them. It projects only these registered facts:
+
+| AR-O04 selector input | LC-I06 factKind | Exact carrier |
+|---|---|---|
+| one ObjectType | ObjectType | Known/String, exact selector value |
+| one ClassId | ClassId | Known/Integer, selector must be canonical nonnegative base-10 and parse losslessly as Int64 |
+| one CanonicalAssetId | CanonicalAssetId | Known/String, exact selector value |
+| one PlatformVariant | PlatformVariant | Known/String, exact selector value |
+| one or more DependencyObjectId | DependencyObjectIds | one Known/IdSet row containing the distinct Ordinal selector values |
+
+Zero DependencyObjectId selectors produce no DependencyObjectIds row because LC-I13 deliberately forbids an empty Known/IdSet. For this one fact kind, absence plus the accepted AR-O04 selector set means known empty; it is not Unknown or NotApplicable. C3 already consumes AR-O04 directly and must use that authoritative empty set when constructing references. ToolObservation remains AR-O04 evidence/selector input and has no LC-I06 factKind, so it produces no fact row.
+
+Every projected row copies `assetObjectId`, `familyLane`, and the complete AR-O04 evidence set; uses the carrier above; computes `factId` by LX-HI-01; and is sorted Ordinal by `factId`. The adapter emits no Unknown or NotApplicable row and emits none of the remaining registered fact kinds. Missing is not silently converted into either status; later LC-I07 consumers must treat a missing required fact as unproven.
+
+The pure adapter result is exactly `gateStatus`, nullable `package`, `subjectAccounting`, `inputFailures`, `outputsSuppressed`. Each subject-accounting row is exactly `assetObjectId`, `terminalStatus`, `factIds`, `reasonCode`, `evidence`, sorted by assetObjectId. `terminalStatus` is `AssignedFactsProjected`, `RetainedNoLaneFacts`, or `ConfigurationNoLaneFacts` on Passed. `reasonCode` equals the terminal status. Fact IDs are the subject's complete Ordinal LC-I06 ID set and are empty for both no-fact partitions.
+
+Each inputFailures row reuses C2 AR-S10 exactly: `recordId`, `subjectKind`, `subjectId`, `reasonCode`, `attribution`, `evidence`; `recordId` is existing C2 HI-12 with owningArray `inputFailures`. SubjectKind is exactly `Artifact`, `DispatchObject`, or `ProjectionCheck`. Artifact subject IDs are AR-O04, AR-O05-Summary, or LC-I13; DispatchObject uses the exact assetObjectId; ProjectionCheck uses `LC-I06:Projection`. ReasonCode is exactly `InvalidSchema`, `IdentityMismatch`, `ConservationMismatch`, or `ProjectionInvalid`. Predicate ownership is fixed: missing/shape/schema/carrier -> InvalidSchema; accepted-generation or fingerprint mismatch -> IdentityMismatch; dispatch partition/selector/duplicate/order equation -> ConservationMismatch; fact identity/canonical bytes/fixture comparison -> ProjectionInvalid. Attribution is `LC-I06:` plus subjectId. Evidence is the distinct Ordinal set of available direct-input paths supporting that failure.
+
+On any input identity/freshness/schema/shape failure, invalid dispatch partition, selector contradiction, carrier failure, duplicate `(assetObjectId,factKind)`, identity mismatch, nondeterministic order, or fixture-byte mismatch, `gateStatus=Failed`, `package=null`, `outputsSuppressed=true`, and one or more exact inputFailures identify the artifact, object, or output check. There is no partial package and subjectAccounting is empty on Failed. On Passed, inputFailures is empty, outputsSuppressed is false, every dispatch subject has one accounting row, the partition equation holds, and the union of accounting factIds equals LC-I06 rows exactly.
+
+The producer Task must prove at least: all three direct inputs affect `inputFingerprint`; schema byte changes affect `factContractFingerprint`; AR-O05 fingerprint changes affect `c2GenerationFingerprint`; each of the five lanes projects without heuristics; zero/multiple required selectors fail closed; zero/one/multiple dependencies follow the rule above; RetainedForDiagnosis and ConfigurationOnly produce terminal zero-fact rows; fact IDs and canonical bytes are stable across repeated runs with identical accepted bytes; an input permutation that violates AR-S09 fails instead of being repaired; and Failed projection writes no fixture or publication state.
 
 The common evidence-kind vocabulary is exactly:
 
