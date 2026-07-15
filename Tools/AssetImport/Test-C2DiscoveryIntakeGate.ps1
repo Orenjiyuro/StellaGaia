@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions','DispatchPartitions','InputAccounting','OutputSerialization')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions','DispatchPartitions','InputAccounting','OutputSerialization','PublicationTransaction')]
     [string]$Case = 'Pure'
 )
 
@@ -9,6 +9,23 @@ $ErrorActionPreference = 'Stop'
 
 $modulePath = Join-Path $PSScriptRoot 'C2DiscoveryIntakeGate.psm1'
 $loadedModule = Import-Module $modulePath -Force -PassThru
+
+if($Case -ceq 'PublicationTransaction'){
+    $repositoryRoot=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+    function Run-PublicationVector([string]$vector){$loadedModule.Invoke({param($root,$name)Test-C2PublicationTransactionVector -RepositoryRoot $root -Vector $name},@($repositoryRoot,$vector))[0]}
+    $results=@{};foreach($vector in @('EmptyPassed','PriorReplacement','OrdinaryFailed','PrePreparedOrphan','CrashAfterBackup','CrashAfterInstall','BothJournalForms','CommittedCleanup','UnknownRecoveryBytes','LockContention','LockOpen','Stage05Write','JournalPreparedReplace','Backup02Move','Install04Move','Install07Move','Verify06Hash','Rollback01Restore','RecoveryAmbiguous')){$results[$vector]=Run-PublicationVector $vector;if(-not$results[$vector].sandboxRemoved){throw"publication sandbox leaked: $vector"}}
+    $empty=$results.EmptyPassed;if($empty.status-cne'Committed'-or$empty.outputAccounting.projectedOutputCount-ne5-or$empty.outputAccounting.outputFailureCount-ne0-or@($empty.consumerStates|Where-Object present).Count-ne8-or@($empty.consumerStates|Where-Object{$_.sha256-cne$_.desiredSha256}).Count-ne0-or$empty.journalPresent-or$empty.nextJournalPresent-or$empty.transactionDirectoryCount-ne0-or-not$empty.lockFilePresent){throw'empty Passed publication vector failed.'}
+    $replacement=$results.PriorReplacement;if($replacement.status-cne'Committed'-or@($replacement.consumerStates|Where-Object{$_.sha256-cne$_.desiredSha256-or$_.sha256-ceq$_.priorSha256}).Count-ne0-or$replacement.transactionDirectoryCount-ne0){throw'complete prior replacement vector failed.'}
+    $ordinary=$results.OrdinaryFailed;if($ordinary.status-cne'Committed'-or$ordinary.outputAccounting.projectedOutputCount-ne1-or$ordinary.outputAccounting.outputFailureCount-ne4-or(@($ordinary.consumerStates.present)-join',')-cne'False,False,False,False,True,True,True,True'-or@($ordinary.consumerStates|Where-Object{$_.present-and$_.sha256-cne$_.desiredSha256}).Count){throw'ordinary Failed diagnostic publication vector failed.'}
+    $orphan=$results.PrePreparedOrphan;if($orphan.status-cne'Committed'-or$orphan.transactionDirectoryCount-ne0-or@($orphan.consumerStates|Where-Object present).Count-ne8){throw'pre-Prepared stage-only orphan cleanup failed.'}
+    foreach($vector in @('CrashAfterBackup','CrashAfterInstall','BothJournalForms')){$result=$results[$vector];if($result.status-cne'Committed'-or$result.recoveryPriorRestored-cne$true-or@($result.consumerStates|Where-Object{$_.sha256-cne$_.desiredSha256}).Count-ne0-or$result.journalPresent-or$result.nextJournalPresent-or$result.transactionDirectoryCount-ne0){throw"crash recovery vector failed: $vector"}}
+    $committed=$results.CommittedCleanup;if($committed.status-cne'Committed'-or$committed.committedCleanupRecovered-cne$true-or@($committed.consumerStates|Where-Object{$_.sha256-cne$_.desiredSha256}).Count-ne0-or$committed.journalPresent-or$committed.nextJournalPresent-or$committed.transactionDirectoryCount-ne0){throw'Committed cleanup recovery failed.'}
+    foreach($vector in @('LockContention','LockOpen','Stage05Write','JournalPreparedReplace')){$result=$results[$vector];if($result.status-cne'Failed'-or$result.outputAccounting.projectedOutputCount-ne0-or$result.outputAccounting.outputFailureCount-ne5-or$result.outputFailureCount-ne5-or@($result.consumerStates|Where-Object{(-not$_.present)-or$_.sha256-cne$_.priorSha256}).Count-ne0-or$result.journalPresent-or$result.nextJournalPresent-or$result.transactionDirectoryCount-ne0){throw"early FT-12 vector failed: $vector"}}
+    foreach($vector in @('Backup02Move','Install04Move','Install07Move','Verify06Hash')){$result=$results[$vector];if($result.status-cne'Failed'-or$result.outputAccounting.projectedOutputCount-ne0-or$result.outputAccounting.outputFailureCount-ne5-or@($result.consumerStates|Where-Object{(-not$_.present)-or$_.sha256-cne$_.priorSha256}).Count-ne0-or$result.journalPresent-or$result.nextJournalPresent-or$result.transactionDirectoryCount-ne0-or$result.quarantined){throw"rollback restoration vector failed: $vector"}}
+    foreach($vector in @('Rollback01Restore','RecoveryAmbiguous','UnknownRecoveryBytes')){$result=$results[$vector];if($result.status-cne'Failed'-or-not$result.quarantined-or@($result.consumerStates|Where-Object present).Count-ne0-or$result.journalPresent-or$result.nextJournalPresent-or$result.transactionDirectoryCount-ne1){throw"quarantine vector failed: $vector"}}
+    $journal=$results.Rollback01Restore;if($journal.quarantineJournalPhase-cne'Quarantined'-or$journal.journalTopShape-cne'schemaVersion,transactionId,phase,gateStatus,generatedAt,expectedPaths,entries'-or$journal.journalEntryShape-cne'artifactId,path,desiredState,stagedSha256,priorState,priorSha256,backupRelativePath,installState'-or$journal.journalExpectedPaths-cne'Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json,Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json,Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json,Tools/AssetImport/Fixtures/DiscoveryGate/valid-object-dispatch.json,Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-report.md,Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-evidence.json,Tools/AssetImport/Fixtures/DiscoveryGate/c0-contract-change-request.json,Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json'){throw'journal exact shape/order failed.'}
+    'status=Passed';'emptyPassed=5/5/0/0';'ordinaryFailed=5/1/4/0';'ft12=5/0/5/0';'faultPointCount=9';'recoveryVectorCount=7';'sandboxLeakCount=0';return
+}
 
 if($Case -ceq 'OutputSerialization'){
     function Invoke-Output($value){$loadedModule.Invoke({param($x)try{Invoke-C2OutputSerialization $x}catch{throw "$($_.Exception.Message) $($_.ScriptStackTrace)"}},@($value))[0]}
@@ -697,7 +714,10 @@ function Get-AstViolations {
                 'New-C2FailedIntakeResult'='^\[IO\.(Path|File)\]::(Combine|Exists)\(.+\)$'
                 'Invoke-C2DiscoveryIntakeGateInternal'='^\[IO\.(Path|Directory|File)\]::(IsPathFullyQualified|Combine|Exists|ReadAllBytes)\(.+\)$'
             }
-            if($null -eq $parent -or -not $allowedByFunction.ContainsKey($parent.Name) -or $text -cnotmatch $allowedByFunction[$parent.Name]){$violations.Add("api:$text")}
+            $publicationFunctions=@('Get-C2PublicationChildPath','Write-C2DurableFile','Get-C2PublicationFileSha','Remove-C2PublicationPath','Move-C2PublicationFile','Write-C2PublicationJournal','Read-C2PublicationJournal','Invoke-C2PublicationQuarantine','Invoke-C2PublicationUnknownQuarantine','Invoke-C2PublicationRollback','Invoke-C2PublicationRecovery','Invoke-C2PublicationTransactionCore','Initialize-C2PublicationRecoveryState','Test-C2PublicationTransactionVector')
+            $publicationApiPattern='^\[IO\.(Path|Directory|File)\]::(GetFullPath|Combine|GetRelativePath|GetDirectoryName|CreateDirectory|Open|Exists|ReadAllBytes|Delete|Move|GetFileName|GetDirectories|GetFiles|GetFileSystemEntries)\(.+\)$'
+            $registered=$null-ne$parent-and(($allowedByFunction.ContainsKey($parent.Name)-and$text-cmatch$allowedByFunction[$parent.Name])-or($parent.Name-cin$publicationFunctions-and$text-cmatch$publicationApiPattern))
+            if(-not$registered){$violations.Add("api:$text")}
         }
     }
     return [string[]]$violations

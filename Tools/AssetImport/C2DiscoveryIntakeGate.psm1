@@ -248,6 +248,180 @@ function Invoke-C2OutputSerialization {
     [pscustomobject][ordered]@{gateStatus=$gateStatus;artifacts=[object[]]$artifacts;outputFailures=[object[]]$outputFailures;outputExclusions=@();outputAccounting=$outputAccounting;discoveryArtifactFingerprint=$artifactFingerprint;diagnosticBundleFingerprint=$diagnosticFingerprint;transactionId=Get-C2PublicationTransactionId -SnapshotId $InputFact.snapshotId -GeneratedAt $InputFact.generatedAt -InputFingerprint $InputFact.inputFingerprint -DiscoveryInputFingerprint $discoveryFingerprint -GateStatus $gateStatus}
 }
 
+function Get-C2PublicationChildPath {
+    param([string]$Root,[string]$RelativePath)
+    $rootFull=[IO.Path]::GetFullPath($Root);$candidate=[IO.Path]::GetFullPath([IO.Path]::Combine($rootFull,$RelativePath.Replace('/',[IO.Path]::DirectorySeparatorChar)))
+    if(-not$candidate.StartsWith($rootFull.TrimEnd([IO.Path]::DirectorySeparatorChar)+[IO.Path]::DirectorySeparatorChar,[StringComparison]::Ordinal)){throw 'Publication path escaped its registered root.'}
+    $candidate
+}
+
+function Write-C2DurableFile {
+    param([string]$SandboxRoot,[string]$Path,[byte[]]$Bytes)
+    $null=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,$Path));$parent=[IO.Path]::GetDirectoryName($Path);$null=[IO.Directory]::CreateDirectory($parent)
+    $stream=[IO.File]::Open($Path,[IO.FileMode]::Create,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$stream.Write($Bytes,0,$Bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+}
+
+function Get-C2PublicationFileSha {
+    param([string]$SandboxRoot,[string]$Path)
+    $null=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,$Path));if(-not[IO.File]::Exists($Path)){return $null};Get-C2Sha256 ([IO.File]::ReadAllBytes($Path))
+}
+
+function Remove-C2PublicationPath {
+    param([string]$SandboxRoot,[string]$Path)
+    $null=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,$Path));if([IO.File]::Exists($Path)){[IO.File]::Delete($Path)}elseif([IO.Directory]::Exists($Path)){[IO.Directory]::Delete($Path,$true)}
+}
+
+function Move-C2PublicationFile {
+    param([string]$SandboxRoot,[string]$Source,[string]$Destination)
+    $null=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,$Source));$null=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,$Destination));$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Destination));[IO.File]::Move($Source,$Destination,$true)
+}
+
+function New-C2PublicationFailureResult {
+    param([string]$TransactionId,[bool]$Quarantined,[bool]$LockFilePresent,[string]$Reason='ProjectionInvalid')
+    $rows=[Collections.Generic.List[object]]::new();foreach($id in @('AR-O01','AR-O02','AR-O03','AR-O04','AR-O05')){$rows.Add((New-C2AccountingRow outputFailures OutputArtifact $id $Reason "FT-12:$id" @()))}
+    [pscustomobject][ordered]@{status='Failed';outputAccounting=[pscustomobject][ordered]@{outputCandidateCount=5;projectedOutputCount=0;outputFailureCount=5;excludedOutputCount=0};outputFailures=[object[]]$rows;quarantined=$Quarantined;lockFilePresent=$LockFilePresent;transactionId=$TransactionId}
+}
+
+function Test-C2SerializedPublicationResult {
+    param([pscustomobject]$Result)
+    try{
+        if(-not(Test-C2ExactShape $Result 'gateStatus,artifacts,outputFailures,outputExclusions,outputAccounting,discoveryArtifactFingerprint,diagnosticBundleFingerprint,transactionId')-or$Result.gateStatus-cnotin@('Passed','Failed')-or$Result.transactionId-cnotmatch'^publication-sha256:[0-9a-f]{64}$'-or@($Result.artifacts).Count-ne8){return $false}
+        $expectedStates=if($Result.gateStatus-ceq'Passed'){@('Present')*8}else{@('Absent')*4+@('Present')*4}
+        for($i=0;$i-lt8;$i++){$row=$Result.artifacts[$i];$reg=$script:OutputRegistry[$i];if(-not(Test-C2ExactShape $row 'artifactId,path,desiredState,text,sha256,index')-or$row.artifactId-cne$reg.artifactId-or$row.path-cne$reg.path-or$row.index-ne$i-or$row.desiredState-cne$expectedStates[$i]){return $false};if($row.desiredState-ceq'Present'){if($row.text-isnot[string]-or-not$row.text.EndsWith("`n")-or$row.text.Contains("`r")-or$row.sha256-cne(Get-C2Sha256 $script:Utf8.GetBytes([string]$row.text))){return $false};if($row.path.EndsWith('.json')){$parsed=$row.text|ConvertFrom-Json -Depth 100 -DateKind String;if((ConvertTo-C2CanonicalJson $parsed)-cne$row.text){return $false}}}elseif($null-ne$row.text-or$null-ne$row.sha256){return $false}}
+        $a=$Result.outputAccounting;if(-not(Test-C2ExactShape $a 'outputCandidateCount,projectedOutputCount,outputFailureCount,excludedOutputCount')-or$a.outputCandidateCount-ne5-or$a.excludedOutputCount-ne0-or$a.outputCandidateCount-ne$a.projectedOutputCount+$a.outputFailureCount+$a.excludedOutputCount){return $false}
+        return $true
+    }catch{return $false}
+}
+
+function Write-C2PublicationJournal {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[pscustomobject]$Journal,[bool]$FailReplace=$false)
+    $active=Get-C2PublicationChildPath $SandboxRoot ([IO.Path]::GetRelativePath($SandboxRoot,[IO.Path]::Combine($OperationalRoot,'active-journal.json')));$next="$active.next";$bytes=$script:Utf8.GetBytes((ConvertTo-C2CanonicalJson $Journal));Write-C2DurableFile $SandboxRoot $next $bytes
+    if($FailReplace){throw 'Injected JournalPreparedReplace.'};Move-C2PublicationFile $SandboxRoot $next $active
+}
+
+function Read-C2PublicationJournal {
+    param([string]$SandboxRoot,[string]$Path)
+    try{$bytes=[IO.File]::ReadAllBytes($Path);$text=$script:Utf8.GetString($bytes);$journal=$text|ConvertFrom-Json -Depth 100 -DateKind String;if((ConvertTo-C2CanonicalJson $journal)-cne$text-or-not(Test-C2ExactShape $journal 'schemaVersion,transactionId,phase,gateStatus,generatedAt,expectedPaths,entries')-or$journal.schemaVersion-cne'1.0.0'-or$journal.transactionId-cnotmatch'^publication-sha256:[0-9a-f]{64}$'-or$journal.phase-cnotin@('Prepared','BackingUp','Installing','Verifying','Committed','RollingBack','Quarantined')-or$journal.gateStatus-cnotin@('Passed','Failed')-or$journal.generatedAt-cnotmatch'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'-or(@($journal.expectedPaths)-join"`n")-cne(@($script:OutputRegistry.path)-join"`n")-or@($journal.entries).Count-ne8){return $null};for($i=0;$i-lt8;$i++){$entry=$journal.entries[$i];$reg=$script:OutputRegistry[$i];if(-not(Test-C2ExactShape $entry 'artifactId,path,desiredState,stagedSha256,priorState,priorSha256,backupRelativePath,installState')-or$entry.artifactId-cne$reg.artifactId-or$entry.path-cne$reg.path-or$entry.desiredState-cnotin@('Present','Absent')-or$entry.priorState-cnotin@('Present','Absent')-or$entry.installState-cnotin@('Pending','BackedUp','Installed','Verified','Restored','Quarantined')-or($entry.desiredState-ceq'Present'-and$entry.stagedSha256-cnotmatch'^[0-9a-f]{64}$')-or($entry.desiredState-ceq'Absent'-and$null-ne$entry.stagedSha256)-or($entry.priorState-ceq'Present'-and($entry.priorSha256-cnotmatch'^[0-9a-f]{64}$'-or$entry.backupRelativePath-cne('backup/{0:d2}'-f$i)))-or($entry.priorState-ceq'Absent'-and($null-ne$entry.priorSha256-or$null-ne$entry.backupRelativePath))){return $null}};return $journal}catch{return $null}
+}
+
+function Test-C2PublicationJournalsCompatible {
+    param([pscustomobject]$First,[pscustomobject]$Second)
+    if($First.transactionId-cne$Second.transactionId-or$First.gateStatus-cne$Second.gateStatus-or$First.generatedAt-cne$Second.generatedAt-or(@($First.expectedPaths)-join"`n")-cne(@($Second.expectedPaths)-join"`n")){return $false};for($i=0;$i-lt8;$i++){foreach($name in @('artifactId','path','desiredState','stagedSha256','priorState','priorSha256','backupRelativePath')){if($First.entries[$i].$name-cne$Second.entries[$i].$name){return $false}}};return $true
+}
+
+function Invoke-C2PublicationQuarantine {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot,[pscustomobject]$Journal,[string]$TransactionRoot)
+    $quarantine=[IO.Path]::Combine($TransactionRoot,'quarantine');$null=[IO.Directory]::CreateDirectory($quarantine)
+    for($i=0;$i-lt8;$i++){$entry=$Journal.entries[$i];$consumer=Get-C2PublicationChildPath $ConsumerRoot $entry.path;$stage=[IO.Path]::Combine($TransactionRoot,'stage',('{0:d2}'-f$i));$backup=[IO.Path]::Combine($TransactionRoot,'backup',('{0:d2}'-f$i));foreach($pair in @(@($consumer,"consumer-$('{0:d2}'-f$i)"),@($stage,"stage-$('{0:d2}'-f$i)"),@($backup,"backup-$('{0:d2}'-f$i)"))){if([IO.File]::Exists($pair[0])){Move-C2PublicationFile $SandboxRoot $pair[0] ([IO.Path]::Combine($quarantine,$pair[1]))}};$entry.installState='Quarantined'}
+    $Journal.phase='Quarantined';Write-C2DurableFile $SandboxRoot ([IO.Path]::Combine($quarantine,'journal.json')) $script:Utf8.GetBytes((ConvertTo-C2CanonicalJson $Journal))
+    foreach($path in @([IO.Path]::Combine($OperationalRoot,'active-journal.json'),[IO.Path]::Combine($OperationalRoot,'active-journal.json.next'))){if([IO.File]::Exists($path)){Move-C2PublicationFile $SandboxRoot $path ([IO.Path]::Combine($quarantine,[IO.Path]::GetFileName($path)))}}
+}
+
+function Invoke-C2PublicationUnknownQuarantine {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot)
+    $transaction=[IO.Path]::Combine($OperationalRoot,'transactions',('0'*64));$quarantine=[IO.Path]::Combine($transaction,'quarantine');$null=[IO.Directory]::CreateDirectory($quarantine)
+    for($i=0;$i-lt8;$i++){$consumer=Get-C2PublicationChildPath $ConsumerRoot $script:OutputRegistry[$i].path;if([IO.File]::Exists($consumer)){Move-C2PublicationFile $SandboxRoot $consumer ([IO.Path]::Combine($quarantine,"consumer-$('{0:d2}'-f$i)"))}}
+    foreach($path in @([IO.Path]::Combine($OperationalRoot,'active-journal.json'),[IO.Path]::Combine($OperationalRoot,'active-journal.json.next'))){if([IO.File]::Exists($path)){Move-C2PublicationFile $SandboxRoot $path ([IO.Path]::Combine($quarantine,[IO.Path]::GetFileName($path)))}}
+}
+
+function Invoke-C2PublicationRollback {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot,[pscustomobject]$Journal,[string]$TransactionRoot,[bool]$FailRestore01=$false)
+    try{
+        $Journal.phase='RollingBack';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $Journal
+        for($i=0;$i-lt8;$i++){$entry=$Journal.entries[$i];$consumer=Get-C2PublicationChildPath $ConsumerRoot $entry.path;$backup=[IO.Path]::Combine($TransactionRoot,'backup',('{0:d2}'-f$i));$consumerSha=Get-C2PublicationFileSha $SandboxRoot $consumer;$backupSha=Get-C2PublicationFileSha $SandboxRoot $backup
+            if($entry.priorState-ceq'Present'){
+                if($consumerSha-ceq$entry.priorSha256){$entry.installState='Restored';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $Journal;continue}
+                if($null-ne$consumerSha){if($consumerSha-cne$entry.stagedSha256){throw 'Unknown consumer bytes during rollback.'};Remove-C2PublicationPath $SandboxRoot $consumer}
+                if($backupSha-cne$entry.priorSha256){throw 'Prior backup unavailable during rollback.'};if($FailRestore01-and$i-eq1){throw 'Injected Rollback01Restore.'};Move-C2PublicationFile $SandboxRoot $backup $consumer;$entry.installState='Restored';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $Journal
+            }else{if($null-ne$consumerSha){if($consumerSha-cne$entry.stagedSha256){throw 'Unknown absent-prior consumer bytes.'};Remove-C2PublicationPath $SandboxRoot $consumer};$entry.installState='Restored';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $Journal}
+        }
+        foreach($entry in @($Journal.entries)){if($entry.priorState-ceq'Present'-and(Get-C2PublicationFileSha $SandboxRoot (Get-C2PublicationChildPath $ConsumerRoot $entry.path))-cne$entry.priorSha256){throw 'Rollback verification failed.'};if($entry.priorState-ceq'Absent'-and[IO.File]::Exists((Get-C2PublicationChildPath $ConsumerRoot $entry.path))){throw 'Rollback absence verification failed.'}}
+        Remove-C2PublicationPath $SandboxRoot $TransactionRoot;Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json'));Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json.next'));return $true
+    }catch{Invoke-C2PublicationQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot $Journal $TransactionRoot;return $false}
+}
+
+function Invoke-C2PublicationRecovery {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot)
+    $active=[IO.Path]::Combine($OperationalRoot,'active-journal.json');$next="$active.next";$activeExists=[IO.File]::Exists($active);$nextExists=[IO.File]::Exists($next);$journal=$null
+    if($activeExists-and$nextExists){$activeJournal=Read-C2PublicationJournal $SandboxRoot $active;$nextJournal=Read-C2PublicationJournal $SandboxRoot $next;if($null-eq$activeJournal-or$null-eq$nextJournal-or-not(Test-C2PublicationJournalsCompatible $activeJournal $nextJournal)){$known=if($null-ne$activeJournal){$activeJournal}else{$nextJournal};if($null-ne$known){$knownTransaction=[IO.Path]::Combine($OperationalRoot,'transactions',$known.transactionId.Substring('publication-sha256:'.Length));if(-not[IO.Directory]::Exists($knownTransaction)){$null=[IO.Directory]::CreateDirectory($knownTransaction)};Invoke-C2PublicationQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot $known $knownTransaction}else{Invoke-C2PublicationUnknownQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot};return $false};$journal=$nextJournal}
+    elseif($activeExists){$journal=Read-C2PublicationJournal $SandboxRoot $active}elseif($nextExists){$journal=Read-C2PublicationJournal $SandboxRoot $next}
+    if(($activeExists-or$nextExists)-and$null-eq$journal){Invoke-C2PublicationUnknownQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot;return $false}
+    if($null-ne$journal){$digest=$journal.transactionId.Substring('publication-sha256:'.Length);$transaction=[IO.Path]::Combine($OperationalRoot,'transactions',$digest);$transactions=[IO.Path]::Combine($OperationalRoot,'transactions');if([IO.Directory]::Exists($transactions)){foreach($directory in @([IO.Directory]::GetDirectories($transactions))){if([IO.Path]::GetFullPath($directory)-cne[IO.Path]::GetFullPath($transaction)){if(-not[IO.Directory]::Exists($transaction)){$null=[IO.Directory]::CreateDirectory($transaction)};Invoke-C2PublicationQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot $journal $transaction;return $false}}}
+        if($journal.phase-ceq'Committed'){$valid=$true;foreach($entry in @($journal.entries)){$consumer=Get-C2PublicationChildPath $ConsumerRoot $entry.path;if($entry.desiredState-ceq'Present'){if((Get-C2PublicationFileSha $SandboxRoot $consumer)-cne$entry.stagedSha256){$valid=$false}}elseif([IO.File]::Exists($consumer)){$valid=$false}};if(-not$valid){if(-not[IO.Directory]::Exists($transaction)){$null=[IO.Directory]::CreateDirectory($transaction)};Invoke-C2PublicationQuarantine $SandboxRoot $OperationalRoot $ConsumerRoot $journal $transaction;return $false};if([IO.Directory]::Exists($transaction)){Remove-C2PublicationPath $SandboxRoot $transaction};Remove-C2PublicationPath $SandboxRoot $active;Remove-C2PublicationPath $SandboxRoot $next;return $true}
+        if(-not[IO.Directory]::Exists($transaction)){return $false};return Invoke-C2PublicationRollback $SandboxRoot $OperationalRoot $ConsumerRoot $journal $transaction}
+    $transactions=[IO.Path]::Combine($OperationalRoot,'transactions');if(-not[IO.Directory]::Exists($transactions)){return $true}
+    foreach($directory in @([IO.Directory]::GetDirectories($transactions))){$children=@([IO.Directory]::GetDirectories($directory)|ForEach-Object{[IO.Path]::GetFileName($_)});$files=@([IO.Directory]::GetFiles($directory));$stage=[IO.Path]::Combine($directory,'stage');$stageOnly=$files.Count-eq0-and@($children|Where-Object{$_-cne'stage'}).Count-eq0-and[IO.Directory]::Exists($stage)
+        if($stageOnly){Remove-C2PublicationPath $SandboxRoot $directory}else{for($i=0;$i-lt8;$i++){$consumer=Get-C2PublicationChildPath $ConsumerRoot $script:OutputRegistry[$i].path;if([IO.File]::Exists($consumer)){$quarantine=[IO.Path]::Combine($directory,'quarantine');$null=[IO.Directory]::CreateDirectory($quarantine);Move-C2PublicationFile $SandboxRoot $consumer ([IO.Path]::Combine($quarantine,"consumer-$('{0:d2}'-f$i)"))}};return $false}}
+    return $true
+}
+
+function Invoke-C2PublicationTransactionCore {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot,[pscustomobject]$SerializedResult,[string]$FaultPoint='')
+    if($FaultPoint-cnotin@('','LockOpen','Stage05Write','JournalPreparedReplace','Backup02Move','Install04Move','Install07Move','Verify06Hash','Rollback01Restore','RecoveryAmbiguous')){throw 'Unsupported publication fault point.'}
+    if(-not(Test-C2SerializedPublicationResult $SerializedResult)){return New-C2PublicationFailureResult $SerializedResult.transactionId $false $false}
+    $null=[IO.Directory]::CreateDirectory($OperationalRoot);$null=[IO.Directory]::CreateDirectory($ConsumerRoot);$lockPath=[IO.Path]::Combine($OperationalRoot,'publication.lock')
+    if($FaultPoint-ceq'LockOpen'){return New-C2PublicationFailureResult $SerializedResult.transactionId $false ([IO.File]::Exists($lockPath))}
+    $lock=$null;try{$lock=[IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}catch{return New-C2PublicationFailureResult $SerializedResult.transactionId $false ([IO.File]::Exists($lockPath))}
+    $transaction=$null
+    try{
+        if($FaultPoint-ceq'RecoveryAmbiguous'){$orphan=[IO.Path]::Combine($OperationalRoot,'transactions',('e'*64),'backup');$null=[IO.Directory]::CreateDirectory($orphan);Write-C2DurableFile $SandboxRoot ([IO.Path]::Combine($orphan,'00')) $script:Utf8.GetBytes('unknown')}
+        if(-not(Invoke-C2PublicationRecovery $SandboxRoot $OperationalRoot $ConsumerRoot)){return New-C2PublicationFailureResult $SerializedResult.transactionId $true $true}
+        $digest=$SerializedResult.transactionId.Substring('publication-sha256:'.Length);$transaction=[IO.Path]::Combine($OperationalRoot,'transactions',$digest);$stage=[IO.Path]::Combine($transaction,'stage');$backup=[IO.Path]::Combine($transaction,'backup');$null=[IO.Directory]::CreateDirectory($stage);$null=[IO.Directory]::CreateDirectory($backup)
+        $entries=[Collections.Generic.List[object]]::new()
+        for($i=0;$i-lt8;$i++){$artifact=$SerializedResult.artifacts[$i];$consumer=Get-C2PublicationChildPath $ConsumerRoot $artifact.path;$priorSha=Get-C2PublicationFileSha $SandboxRoot $consumer;$priorPresent=$null-ne$priorSha;if($artifact.desiredState-ceq'Present'){if($FaultPoint-ceq'Stage05Write'-and$i-eq5){throw 'Injected Stage05Write.'};$stageFile=[IO.Path]::Combine($stage,('{0:d2}'-f$i));Write-C2DurableFile $SandboxRoot $stageFile $script:Utf8.GetBytes([string]$artifact.text);if((Get-C2PublicationFileSha $SandboxRoot $stageFile)-cne$artifact.sha256){throw 'Stage readback mismatch.'}}
+            $entries.Add([pscustomobject][ordered]@{artifactId=$artifact.artifactId;path=$artifact.path;desiredState=$artifact.desiredState;stagedSha256=$artifact.sha256;priorState=if($priorPresent){'Present'}else{'Absent'};priorSha256=$priorSha;backupRelativePath=if($priorPresent){'backup/{0:d2}'-f$i}else{$null};installState='Pending'})}
+        $journal=[pscustomobject][ordered]@{schemaVersion='1.0.0';transactionId=$SerializedResult.transactionId;phase='Prepared';gateStatus=$SerializedResult.gateStatus;generatedAt='2026-07-15T00:00:00Z';expectedPaths=@($script:OutputRegistry.path);entries=[object[]]$entries};$journalWritten=$false
+        try{
+            Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal ($FaultPoint-ceq'JournalPreparedReplace');$journalWritten=$true;$journal.phase='BackingUp';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal
+            for($i=0;$i-lt8;$i++){$entry=$journal.entries[$i];if($entry.priorState-ceq'Present'){if($FaultPoint-ceq'Backup02Move'-and$i-eq2){throw 'Injected Backup02Move.'};$consumer=Get-C2PublicationChildPath $ConsumerRoot $entry.path;$backupFile=[IO.Path]::Combine($transaction,'backup',('{0:d2}'-f$i));Move-C2PublicationFile $SandboxRoot $consumer $backupFile;$entry.installState='BackedUp';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal}}
+            $journal.phase='Installing';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal
+            foreach($i in @(0,1,2,3,4,5,6,7)){if(($FaultPoint-ceq'Install04Move'-and$i-eq4)-or($FaultPoint-ceq'Install07Move'-and$i-eq7)){throw "Injected Install$('{0:d2}'-f$i)Move."};$entry=$journal.entries[$i];if($entry.desiredState-ceq'Present'){Move-C2PublicationFile $SandboxRoot ([IO.Path]::Combine($stage,('{0:d2}'-f$i))) (Get-C2PublicationChildPath $ConsumerRoot $entry.path)};$entry.installState='Installed';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal}
+            $journal.phase='Verifying';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal
+            for($i=0;$i-lt8;$i++){$entry=$journal.entries[$i];if(($FaultPoint-ceq'Verify06Hash'-and$i-eq6)-or($FaultPoint-ceq'Rollback01Restore'-and$i-eq7)){throw 'Injected verification failure.'};$consumer=Get-C2PublicationChildPath $ConsumerRoot $entry.path;if($entry.desiredState-ceq'Present'){if((Get-C2PublicationFileSha $SandboxRoot $consumer)-cne$entry.stagedSha256){throw 'Installed hash mismatch.'}}elseif([IO.File]::Exists($consumer)){throw 'Desired-absent consumer exists.'};$entry.installState='Verified';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal}
+            $journal.phase='Committed';Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal;Remove-C2PublicationPath $SandboxRoot $transaction;Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json'));Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json.next'))
+            return [pscustomobject][ordered]@{status='Committed';outputAccounting=$SerializedResult.outputAccounting;outputFailures=@($SerializedResult.outputFailures);quarantined=$false;lockFilePresent=$true;transactionId=$SerializedResult.transactionId}
+        }catch{if($journalWritten){$restored=Invoke-C2PublicationRollback $SandboxRoot $OperationalRoot $ConsumerRoot $journal $transaction ($FaultPoint-ceq'Rollback01Restore');return New-C2PublicationFailureResult $SerializedResult.transactionId (-not$restored) $true};Remove-C2PublicationPath $SandboxRoot $transaction;Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json.next'));return New-C2PublicationFailureResult $SerializedResult.transactionId $false $true}
+    }catch{if($null-ne$transaction-and[IO.Directory]::Exists($transaction)){Remove-C2PublicationPath $SandboxRoot $transaction};Remove-C2PublicationPath $SandboxRoot ([IO.Path]::Combine($OperationalRoot,'active-journal.json.next'));return New-C2PublicationFailureResult $SerializedResult.transactionId $false $true}finally{$lock.Dispose()}
+}
+
+function New-C2PublicationTestSerialization {
+    param([ValidateSet('Passed','Failed')][string]$GateStatus)
+    $artifacts=[Collections.Generic.List[object]]::new();for($i=0;$i-lt8;$i++){$present=$GateStatus-ceq'Passed'-or$i-ge4;$text=if($present){if($i-eq4){"report-$GateStatus`n"}else{ConvertTo-C2CanonicalJson ([pscustomobject][ordered]@{artifactId=$script:OutputRegistry[$i].artifactId;gateStatus=$GateStatus;index=$i})}}else{$null};$artifacts.Add([pscustomobject][ordered]@{artifactId=$script:OutputRegistry[$i].artifactId;path=$script:OutputRegistry[$i].path;desiredState=if($present){'Present'}else{'Absent'};text=$text;sha256=if($present){Get-C2Sha256 $script:Utf8.GetBytes($text)}else{$null};index=$i})}
+    $projected=if($GateStatus-ceq'Passed'){5}else{1};$failures=if($GateStatus-ceq'Passed'){@()}else{@('AR-O01','AR-O02','AR-O03','AR-O04')|ForEach-Object{New-C2AccountingRow outputFailures OutputArtifact $_ SuppressedByGate "SuppressedByGate:$_" @()}}
+    [pscustomobject][ordered]@{gateStatus=$GateStatus;artifacts=[object[]]$artifacts;outputFailures=@($failures);outputExclusions=@();outputAccounting=[pscustomobject][ordered]@{outputCandidateCount=5;projectedOutputCount=$projected;outputFailureCount=@($failures).Count;excludedOutputCount=0};discoveryArtifactFingerprint=('a'*64-join'');diagnosticBundleFingerprint=('b'*64-join'');transactionId=Get-C2PublicationTransactionId 'snapshot-pc-install-001' '2026-07-15T00:00:00Z' ('a'*64-join'') $(if($GateStatus-ceq'Passed'){'f2360d25078bfd90ca88a85ea1e801cb583841d3ef4cfbad0c8c92d2d0ba3eab'}else{$null}) $GateStatus}
+}
+
+function Initialize-C2PublicationRecoveryState {
+    param([string]$SandboxRoot,[string]$OperationalRoot,[string]$ConsumerRoot,[pscustomobject]$SerializedResult,[ValidateSet('AfterBackup','AfterInstall','UnknownConsumer')][string]$Mode)
+    $digest=$SerializedResult.transactionId.Substring('publication-sha256:'.Length);$transaction=[IO.Path]::Combine($OperationalRoot,'transactions',$digest);$stage=[IO.Path]::Combine($transaction,'stage');$backup=[IO.Path]::Combine($transaction,'backup');$null=[IO.Directory]::CreateDirectory($stage);$null=[IO.Directory]::CreateDirectory($backup);$entries=[Collections.Generic.List[object]]::new()
+    for($i=0;$i-lt8;$i++){$artifact=$SerializedResult.artifacts[$i];$consumer=Get-C2PublicationChildPath $ConsumerRoot $artifact.path;$priorSha=Get-C2PublicationFileSha $SandboxRoot $consumer;$stageFile=[IO.Path]::Combine($stage,('{0:d2}'-f$i));Write-C2DurableFile $SandboxRoot $stageFile $script:Utf8.GetBytes([string]$artifact.text);$backupFile=[IO.Path]::Combine($backup,('{0:d2}'-f$i));Move-C2PublicationFile $SandboxRoot $consumer $backupFile;$entries.Add([pscustomobject][ordered]@{artifactId=$artifact.artifactId;path=$artifact.path;desiredState='Present';stagedSha256=$artifact.sha256;priorState='Present';priorSha256=$priorSha;backupRelativePath='backup/{0:d2}'-f$i;installState='BackedUp'})}
+    $phase='BackingUp';if($Mode-cin@('AfterInstall','UnknownConsumer')){$phase='Installing';for($i=0;$i-le4;$i++){Move-C2PublicationFile $SandboxRoot ([IO.Path]::Combine($stage,('{0:d2}'-f$i))) (Get-C2PublicationChildPath $ConsumerRoot $SerializedResult.artifacts[$i].path);$entries[$i].installState='Installed'}}
+    $journal=[pscustomobject][ordered]@{schemaVersion='1.0.0';transactionId=$SerializedResult.transactionId;phase=$phase;gateStatus=$SerializedResult.gateStatus;generatedAt='2026-07-15T00:00:00Z';expectedPaths=@($script:OutputRegistry.path);entries=[object[]]$entries};Write-C2PublicationJournal $SandboxRoot $OperationalRoot $journal
+    if($Mode-ceq'UnknownConsumer'){Write-C2DurableFile $SandboxRoot (Get-C2PublicationChildPath $ConsumerRoot $SerializedResult.artifacts[0].path) $script:Utf8.GetBytes('unknown-consumer-bytes')}
+}
+
+function Test-C2PublicationTransactionVector {
+    [CmdletBinding()]param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][ValidateSet('EmptyPassed','PriorReplacement','OrdinaryFailed','PrePreparedOrphan','CrashAfterBackup','CrashAfterInstall','BothJournalForms','CommittedCleanup','UnknownRecoveryBytes','LockContention','LockOpen','Stage05Write','JournalPreparedReplace','Backup02Move','Install04Move','Install07Move','Verify06Hash','Rollback01Restore','RecoveryAmbiguous')][string]$Vector)
+    $repository=[IO.Path]::GetFullPath($RepositoryRoot);$testBase=Get-C2PublicationChildPath $repository "Temp/C2DiscoveryPublicationTests/$Vector";if([IO.Directory]::Exists($testBase)){[IO.Directory]::Delete($testBase,$true)};$operational=[IO.Path]::Combine($testBase,'operation');$consumer=[IO.Path]::Combine($testBase,'consumers');$null=[IO.Directory]::CreateDirectory($operational);$null=[IO.Directory]::CreateDirectory($consumer)
+    $snapshot=$null
+    try{
+        $gate=if($Vector-ceq'OrdinaryFailed'){'Failed'}else{'Passed'};$serialized=New-C2PublicationTestSerialization $gate;$prior=@{};$recoveryPriorRestored=$null;$committedCleanupRecovered=$null
+        if($Vector-cnotin@('EmptyPassed','PrePreparedOrphan','RecoveryAmbiguous')){for($i=0;$i-lt8;$i++){$path=Get-C2PublicationChildPath $consumer $script:OutputRegistry[$i].path;$bytes=$script:Utf8.GetBytes("prior-$i`n");Write-C2DurableFile $testBase $path $bytes;$prior[$i]=Get-C2Sha256 $bytes}}
+        if($Vector-ceq'PrePreparedOrphan'){$orphan=[IO.Path]::Combine($operational,'transactions',('e'*64),'stage');$null=[IO.Directory]::CreateDirectory($orphan);Write-C2DurableFile $testBase ([IO.Path]::Combine($orphan,'00')) $script:Utf8.GetBytes('orphan')}
+        if($Vector-cin@('CrashAfterBackup','CrashAfterInstall','BothJournalForms','CommittedCleanup','UnknownRecoveryBytes')){$mode=if($Vector-cin@('CrashAfterBackup','BothJournalForms')){'AfterBackup'}elseif($Vector-ceq'UnknownRecoveryBytes'){'UnknownConsumer'}else{'AfterInstall'};Initialize-C2PublicationRecoveryState $testBase $operational $consumer $serialized $mode;$active=[IO.Path]::Combine($operational,'active-journal.json')
+            if($Vector-ceq'BothJournalForms'){Write-C2DurableFile $testBase "$active.next" ([IO.File]::ReadAllBytes($active))}
+            if($Vector-ceq'CommittedCleanup'){$journal=Read-C2PublicationJournal $testBase $active;$digest=$serialized.transactionId.Substring('publication-sha256:'.Length);$transaction=[IO.Path]::Combine($operational,'transactions',$digest);for($i=5;$i-lt8;$i++){Move-C2PublicationFile $testBase ([IO.Path]::Combine($transaction,'stage',('{0:d2}'-f$i))) (Get-C2PublicationChildPath $consumer $script:OutputRegistry[$i].path)};foreach($entry in @($journal.entries)){$entry.installState='Verified'};$journal.phase='Committed';Write-C2PublicationJournal $testBase $operational $journal}
+            $held=[IO.File]::Open([IO.Path]::Combine($operational,'publication.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None);try{$recovered=Invoke-C2PublicationRecovery $testBase $operational $consumer}finally{$held.Dispose()};$recoveryPriorRestored=$recovered-and@(0..7|Where-Object{(Get-C2PublicationFileSha $testBase (Get-C2PublicationChildPath $consumer $script:OutputRegistry[$_].path))-cne$prior[$_]}).Count-eq0;$committedCleanupRecovered=$Vector-ceq'CommittedCleanup'-and$recovered-and@(0..7|Where-Object{(Get-C2PublicationFileSha $testBase (Get-C2PublicationChildPath $consumer $script:OutputRegistry[$_].path))-cne$serialized.artifacts[$_].sha256}).Count-eq0
+            if($Vector-ceq'CommittedCleanup'-and$recovered){$result=[pscustomobject][ordered]@{status='Committed';outputAccounting=$serialized.outputAccounting;outputFailures=@();quarantined=$false}}elseif($recovered){$result=Invoke-C2PublicationTransactionCore $testBase $operational $consumer $serialized ''}else{$result=New-C2PublicationFailureResult $serialized.transactionId $true $true}}
+        elseif($Vector-ceq'LockContention'){$null=[IO.Directory]::CreateDirectory($operational);$held=[IO.File]::Open([IO.Path]::Combine($operational,'publication.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None);try{$result=Invoke-C2PublicationTransactionCore $testBase $operational $consumer $serialized ''}finally{$held.Dispose()}}else{$fault=if($Vector-cin@('EmptyPassed','PriorReplacement','OrdinaryFailed','PrePreparedOrphan')){''}else{$Vector};$result=Invoke-C2PublicationTransactionCore $testBase $operational $consumer $serialized $fault}
+        $states=[Collections.Generic.List[object]]::new();for($i=0;$i-lt8;$i++){$path=Get-C2PublicationChildPath $consumer $script:OutputRegistry[$i].path;$states.Add([pscustomobject][ordered]@{index=$i;present=[IO.File]::Exists($path);sha256=Get-C2PublicationFileSha $testBase $path;priorSha256=$prior[$i];desiredSha256=$serialized.artifacts[$i].sha256})}
+        $transactionRoot=[IO.Path]::Combine($operational,'transactions');$transactionDirectories=if([IO.Directory]::Exists($transactionRoot)){@([IO.Directory]::GetDirectories($transactionRoot)).Count}else{0};$quarantineJournal=$null;if($transactionDirectories){$candidate=@([IO.Directory]::GetFiles($transactionRoot,'journal.json',[IO.SearchOption]::AllDirectories));if($candidate.Count-eq1){$quarantineJournal=Read-C2PublicationJournal $testBase $candidate[0];if($null-eq$quarantineJournal){$text=$script:Utf8.GetString([IO.File]::ReadAllBytes($candidate[0]));$quarantineJournal=$text|ConvertFrom-Json -Depth 100 -DateKind String}}}
+        $snapshot=[pscustomobject][ordered]@{vector=$Vector;status=$result.status;outputAccounting=$result.outputAccounting;outputFailureCount=@($result.outputFailures).Count;consumerStates=[object[]]$states;journalPresent=[IO.File]::Exists([IO.Path]::Combine($operational,'active-journal.json'));nextJournalPresent=[IO.File]::Exists([IO.Path]::Combine($operational,'active-journal.json.next'));transactionDirectoryCount=$transactionDirectories;quarantined=$result.quarantined;lockFilePresent=[IO.File]::Exists([IO.Path]::Combine($operational,'publication.lock'));recoveryPriorRestored=$recoveryPriorRestored;committedCleanupRecovered=$committedCleanupRecovered;quarantineJournalPhase=if($null-ne$quarantineJournal){$quarantineJournal.phase}else{$null};journalTopShape=if($null-ne$quarantineJournal){@($quarantineJournal.PSObject.Properties.Name)-join','}else{$null};journalEntryShape=if($null-ne$quarantineJournal){@($quarantineJournal.entries[0].PSObject.Properties.Name)-join','}else{$null};journalExpectedPaths=if($null-ne$quarantineJournal){@($quarantineJournal.expectedPaths)-join','}else{$null}}
+    }finally{if([IO.Directory]::Exists($testBase)){[IO.Directory]::Delete($testBase,$true)};$testsRoot=[IO.Path]::GetDirectoryName($testBase);if([IO.Directory]::Exists($testsRoot)-and@([IO.Directory]::GetFileSystemEntries($testsRoot)).Count-eq0){[IO.Directory]::Delete($testsRoot)}}
+    $snapshot|Add-Member -NotePropertyName sandboxRemoved -NotePropertyValue (-not[IO.Directory]::Exists($testBase));$snapshot
+}
+
 function Invoke-C2PureDiscoveryIntake {
     [CmdletBinding()]
     param(
