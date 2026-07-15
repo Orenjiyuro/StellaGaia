@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions')]
+    [ValidateSet('Pure','GitAdapter','Integration','FailureState','ValidatorMutations','FileFixtureIntake','FilePartitions','ObjectObservationPartitions','ObjectMergeProjection','ConfigurationPartitions','CanonicalPartitions','DispatchPartitions')]
     [string]$Case = 'Pure'
 )
 
@@ -9,6 +9,57 @@ $ErrorActionPreference = 'Stop'
 
 $modulePath = Join-Path $PSScriptRoot 'C2DiscoveryIntakeGate.psm1'
 $loadedModule = Import-Module $modulePath -Force -PassThru
+
+if($Case -ceq 'DispatchPartitions'){
+    $objectId='sha256:1770763b64b209f9a6e8da91770278c9eba4cd4d3253145dd0dcd2a68abd7f11'
+    $toolObservation='version=1.0.0;observationId=observation-sha256:4854cc54de709e7419a003802f29f602da1ce4aeaddc3fef1085bbebe57e0180;resolution=SingleTool'
+    $public=[pscustomobject][ordered]@{assetObjectId=$objectId;canonicalAssetId=$objectId;sourceId='pc-install-primary';objectType='Sprite';objectName='Hero';containerRelativePath='SourceCorpus/PcInstall/game-data.bundle';classId=1;serializedSizeBytes=100;dependencyObjectIds=@();toolObservations=@([pscustomobject][ordered]@{toolName='ToolA';observation=$toolObservation});platformVariant='Pc';configurationDisposition='NotConfiguration';evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/r1.json');status=[pscustomobject][ordered]@{corpus='Cataloged';extraction='ExtractedReadable';semantics='Known';unity='NotTested';disposition='RetainForLater'}}
+    $fact=[pscustomobject][ordered]@{assetObjectId=$objectId;sp04Partition='Classified';privateConfigurationDisposition=$null;configurationCandidateId=$null}
+    $input=[pscustomobject]@{publicObjectsWithCanonicalId=@($public);dispatchInputFacts=@($fact);inputFailures=@();contractChecks=@()}
+    $result=$loadedModule.Invoke({param($x)Invoke-C2DispatchPartitions $x},@($input))[0]
+    if($result.dispatchRows.Count-ne1){throw 'SP-07 base row missing'}
+    $row=$result.dispatchRows[0]
+    if((@($row.PSObject.Properties.Name)-join',')-cne'assetObjectId,canonicalAssetId,sourceId,familyLane,memberSelectorInputs,configurationCandidateId,dispatchStatus,evidence'){throw 'SP-07 dispatch row exact shape failed'}
+    if($row.familyLane-cne'UI'-or$row.dispatchStatus-cne'Assigned'-or$null-ne$row.configurationCandidateId){throw 'SP-07 base precedence failed'}
+    $expectedSelectors=@("CanonicalAssetId=$objectId",'ClassId=1','ObjectType=Sprite','PlatformVariant=Pc',"ToolObservation=$toolObservation")
+    $actualSelectors=@($row.memberSelectorInputs|ForEach-Object{"$($_.kind)=$($_.value)"})
+    if(($actualSelectors-join'|')-cne($expectedSelectors-join'|')){throw "SP-07 base selector set/order failed: $($actualSelectors-join'|')"}
+    if($result.coverage.dispatchEligibleObjectCount-ne1-or$result.coverage.assignedObjectCount-ne1-or$result.coverage.uiObjectCount-ne1){throw 'SP-07 base conservation failed'}
+    function CloneDispatch($x){$x|ConvertTo-Json -Depth 30|ConvertFrom-Json -Depth 30}
+    function RunDispatch($objects,$facts,$failures=@(),$checks=@()){$loadedModule.Invoke({param($x)Invoke-C2DispatchPartitions $x},@([pscustomobject]@{publicObjectsWithCanonicalId=@($objects);dispatchInputFacts=@($facts);inputFailures=@($failures);contractChecks=@($checks)}))[0]}
+    $vectors=@(
+        [pscustomobject]@{id='1';type='AudioClip';partition='Classified';disposition=$null;status='Assigned';lane='Audio'},
+        [pscustomobject]@{id='2';type='AudioMixer';partition='Classified';disposition=$null;status='Assigned';lane='Audio'},
+        [pscustomobject]@{id='3';type='Scene';partition='Classified';disposition=$null;status='Assigned';lane='Environment'},
+        [pscustomobject]@{id='4';type='Avatar';partition='Classified';disposition=$null;status='Assigned';lane='Actor'},
+        [pscustomobject]@{id='5';type='Sprite';partition='Classified';disposition=$null;status='Assigned';lane='UI'},
+        [pscustomobject]@{id='6';type='ParticleSystem';partition='Classified';disposition=$null;status='Assigned';lane='Effects'},
+        [pscustomobject]@{id='7';type='VisualEffect';partition='Classified';disposition=$null;status='Assigned';lane='Effects'},
+        [pscustomobject]@{id='8';type='DefinitelyUnknown';partition='Classified';disposition=$null;status='RetainedForDiagnosis';lane='Unassigned'},
+        [pscustomobject]@{id='9';type='Sprite';partition='Unclassified';disposition=$null;status='RetainedForDiagnosis';lane='Unassigned'},
+        [pscustomobject]@{id='a';type='Sprite';partition='Classified';disposition='Parsed';status='ConfigurationOnly';lane='Unassigned'},
+        [pscustomobject]@{id='b';type='sprite';partition='Classified';disposition=$null;status='RetainedForDiagnosis';lane='Unassigned'}
+    )
+    $aggregateObjects=[Collections.Generic.List[object]]::new();$aggregateFacts=[Collections.Generic.List[object]]::new()
+    foreach($vector in $vectors){
+        $o=CloneDispatch $public;$f=CloneDispatch $fact;$id='sha256:'+([string]$vector.id*64);$o.assetObjectId=$id;$o.canonicalAssetId=$id;$o.objectType=$vector.type;$f.assetObjectId=$id;$f.sp04Partition=$vector.partition;$f.privateConfigurationDisposition=$vector.disposition;$f.configurationCandidateId=if($vector.id-ceq'a'){'config-sha256:c79fe7f3b8e8c92c21d833160899a15d44cead595b9e6a9037216a2b3ed13ab7'}else{$null};$aggregateObjects.Add($o);$aggregateFacts.Add($f)
+    }
+    $aggregate=RunDispatch $aggregateObjects $aggregateFacts
+    for($i=0;$i-lt$vectors.Count;$i++){if($aggregate.dispatchRows[$i].dispatchStatus-cne$vectors[$i].status-or$aggregate.dispatchRows[$i].familyLane-cne$vectors[$i].lane){throw "SP-07 lane vector failed: $($vectors[$i].type)/$($vectors[$i].partition)/$($vectors[$i].disposition)"}}
+    $c=$aggregate.coverage
+    if($c.dispatchEligibleObjectCount-ne11-or$c.assignedObjectCount-ne7-or$c.retainedForDiagnosisObjectCount-ne3-or$c.configurationOnlyObjectCount-ne1-or$c.audioObjectCount-ne2-or$c.environmentObjectCount-ne1-or$c.actorObjectCount-ne1-or$c.uiObjectCount-ne1-or$c.effectsObjectCount-ne2){throw 'SP-07 aggregate conservation failed'}
+    $configFact=CloneDispatch $fact;$configFact.privateConfigurationDisposition='Parsed';$configFact.configurationCandidateId='config-sha256:68c371737c3abe9a42704d555566590739c8fac1418c72add516070fc853f564';$config=RunDispatch @($public) @($configFact);if($config.dispatchRows[0].dispatchStatus-cne'ConfigurationOnly'-or$config.dispatchRows[0].familyLane-cne'Unassigned'-or$config.dispatchRows[0].configurationCandidateId-cne$configFact.configurationCandidateId){throw 'SP-07 configuration precedence/binding failed'}
+    $dedupeObject=CloneDispatch $public;$dependency='sha256:'+('d'*64);$dedupeObject.dependencyObjectIds=@($dependency,$dependency);$dedupeObject.toolObservations=@($public.toolObservations[0],$public.toolObservations[0]);$dedupe=RunDispatch @($dedupeObject) @($fact);$pairs=@($dedupe.dispatchRows[0].memberSelectorInputs|ForEach-Object{"$($_.kind)=$($_.value)"});if(@($pairs|Where-Object{$_-ceq"DependencyObjectId=$dependency"}).Count-ne1-or@($pairs|Where-Object{$_-ceq"ToolObservation=$toolObservation"}).Count-ne1){throw 'SP-07 selector dedupe failed'}
+    $priorFailure=[pscustomobject]@{subjectId='AR-I07'};$suppressed=RunDispatch @($public) @($fact) @($priorFailure);if(-not$suppressed.outputsSuppressed-or$suppressed.dispatchRows.Count-ne0-or($suppressed.coverage.PSObject.Properties.Value|Measure-Object -Sum).Sum-ne0){throw 'SP-07 pre-existing failure suppression failed'}
+    $failedCheck=[pscustomobject]@{status='Failed'};$checkSuppressed=RunDispatch @($public) @($fact) @() @($failedCheck);if(-not$checkSuppressed.outputsSuppressed-or$checkSuppressed.dispatchRows.Count-ne0){throw 'SP-07 failed-check suppression failed'}
+    foreach($badFact in @(
+        @(),
+        @($fact,$fact),
+        @([pscustomobject][ordered]@{assetObjectId=('sha256:'+('f'*64));sp04Partition='Classified';privateConfigurationDisposition=$null;configurationCandidateId=$null}),
+        @([pscustomobject][ordered]@{assetObjectId=$objectId;sp04Partition='Classified';privateConfigurationDisposition='Parsed';configurationCandidateId='config-sha256:'+('0'*64)})
+    )){$badJoin=RunDispatch @($public) $badFact;if($badJoin.inputFailures.Count-ne1-or$badJoin.inputFailures[0].attribution-cne'FT-10:C2Check:Conservation'-or$badJoin.inputFailures[0].evidence[0]-cne'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-evidence.json'-or$badJoin.dispatchRows.Count-ne0-or-not$badJoin.outputsSuppressed){throw 'SP-07 exact private join fail-closed failed'}}
+    'status=Passed';return
+}
 
 if($Case -ceq 'CanonicalPartitions'){
     $objectId='sha256:1770763b64b209f9a6e8da91770278c9eba4cd4d3253145dd0dcd2a68abd7f11'
@@ -214,6 +265,8 @@ if ($Case -in @('Integration','FileFixtureIntake')) {
     if($independentD9 -cne 'f2360d25078bfd90ca88a85ea1e801cb583841d3ef4cfbad0c8c92d2d0ba3eab'){throw "Independent D9 mismatch: $independentD9"}
     if($result.O2.objectObservationRowCount -ne 6 -or $result.O2.acceptedObjectObservationRowCount -ne 4 -or $result.O2.rejectedObjectObservationRowCount -ne 1 -or $result.O2.excludedObjectObservationRowCount -ne 1 -or $result.O1.inputFailures.Count -ne 2 -or $result.O1.inputExclusions.Count -ne 1 -or $result.O1.mergedObjects.Count -ne 1 -or $result.O1.observationConflicts.Count -ne 1 -or $result.O1.publicObjectCores.Count -ne 1){throw 'Integrated SP-03/SP-04 accounting vector invalid'}
     if($result.O1.configurationCandidates.Count-ne1-or$result.O1.configurationConflicts.Count-ne0-or$result.O1.configurationCandidates[0].configurationCandidateId-cne'config-sha256:68c371737c3abe9a42704d555566590739c8fac1418c72add516070fc853f564'-or$result.O2.configurationDiscoverySubjectCount-ne1-or$result.O2.configurationCandidateCount-ne1-or$result.O2.configurationConflictCount-ne0-or$result.O2.parsedConfigurationCount-ne1){throw 'Integrated SP-05 vector invalid'}
+    if($result.O1.dispatchInputFacts.Count-ne1-or(@($result.O1.dispatchInputFacts[0].PSObject.Properties.Name)-join',')-cne'assetObjectId,sp04Partition,privateConfigurationDisposition,configurationCandidateId'-or$result.O1.dispatchInputFacts[0].sp04Partition-cne'Classified'-or$result.O1.dispatchInputFacts[0].configurationCandidateId-cne'config-sha256:68c371737c3abe9a42704d555566590739c8fac1418c72add516070fc853f564'){throw 'Integrated SP-07 private join derivation invalid'}
+    if($result.O1.dispatchRows.Count-ne0-or$result.O2.dispatchEligibleObjectCount-ne0-or$result.O2.assignedObjectCount-ne0-or$result.O2.retainedForDiagnosisObjectCount-ne0-or$result.O2.configurationOnlyObjectCount-ne0-or$result.O2.audioObjectCount-ne0-or$result.O2.environmentObjectCount-ne0-or$result.O2.actorObjectCount-ne0-or$result.O2.uiObjectCount-ne0-or$result.O2.effectsObjectCount-ne0){throw 'Integrated SP-07 failure suppression/conservation invalid'}
     $i08=@($result.O1.artifactStates|Where-Object artifactId -eq 'AR-I08')[0]
     if($i08.worktreeSha256 -cne 'f1733a10236714e62404660083827091a7884f6ee0b1c7342d7737f6dd84c82a' -or $i08.commitBlobSha256 -cne $i08.worktreeSha256 -or $i08.manifestSha256 -cne $i08.worktreeSha256){throw 'AR-I08 exact binding invalid.'}
     $i10=@($result.O1.artifactStates|Where-Object artifactId -eq 'AR-I10')[0]

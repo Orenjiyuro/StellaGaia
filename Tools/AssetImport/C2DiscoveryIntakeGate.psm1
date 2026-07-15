@@ -608,6 +608,94 @@ function Invoke-C2CanonicalPartitions {
     [pscustomobject][ordered]@{canonicalGroups=[object[]]$groups;canonicalConflicts=[object[]]$conflicts;publicObjectsWithCanonicalId=[object[]]$public;inputFailures=[object[]]$failures;coverage=$coverage;gateStatus=if($failed){'Failed'}else{'Passed'};outputsSuppressed=$failed}
 }
 
+function Invoke-C2DispatchPartitions {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][psobject]$InputFact)
+
+    $objects=@($InputFact.publicObjectsWithCanonicalId)
+    $facts=@($InputFact.dispatchInputFacts)
+    $priorFailures=@($InputFact.inputFailures)
+    $checks=@($InputFact.contractChecks)
+    $rows=[Collections.Generic.List[object]]::new()
+    $failures=[Collections.Generic.List[object]]::new()
+    foreach($failure in $priorFailures){$failures.Add($failure)}
+    $blocked=$priorFailures.Count -gt 0 -or @($checks|Where-Object status -cne 'Accepted').Count -gt 0
+    $joinInvalid=$false
+    $publicNames=@('assetObjectId','canonicalAssetId','sourceId','objectType','objectName','containerRelativePath','classId','serializedSizeBytes','dependencyObjectIds','toolObservations','platformVariant','configurationDisposition','evidence','status')
+    $factNames=@('assetObjectId','sp04Partition','privateConfigurationDisposition','configurationCandidateId')
+
+    if(-not$blocked){
+        try{
+            if($objects.Count-ne$facts.Count){$joinInvalid=$true}
+            $lastObject=$null;$lastFact=$null
+            for($i=0;$i-lt$objects.Count;$i++){
+                $object=$objects[$i]
+                if((@($object.PSObject.Properties.Name)-join',')-cne($publicNames-join',')){$joinInvalid=$true;break}
+                $id=[string]$object.assetObjectId
+                if($id-cnotmatch'^sha256:[0-9a-f]{64}$'-or[string]::IsNullOrEmpty([string]$object.canonicalAssetId)-or[string]::IsNullOrEmpty([string]$object.sourceId)-or[string]::IsNullOrEmpty([string]$object.objectType)-or($object.classId-isnot[int]-and$object.classId-isnot[long])-or$object.dependencyObjectIds-isnot[object[]]-or$object.toolObservations-isnot[object[]]-or@($object.toolObservations).Count-eq0-or$object.evidence-isnot[object[]]){$joinInvalid=$true;break}
+                if($null-ne$lastObject-and$script:Ordinal.Compare($lastObject,$id)-ge0){$joinInvalid=$true;break};$lastObject=$id
+                foreach($path in @($object.evidence)){if(-not(Test-C2PortablePath ([string]$path))){$joinInvalid=$true}}
+                foreach($tool in @($object.toolObservations)){if((@($tool.PSObject.Properties.Name)-join',')-cne'toolName,observation'-or[string]::IsNullOrEmpty([string]$tool.toolName)-or[string]::IsNullOrEmpty([string]$tool.observation)){$joinInvalid=$true}}
+            }
+            for($i=0;$i-lt$facts.Count;$i++){
+                $fact=$facts[$i]
+                if((@($fact.PSObject.Properties.Name)-join',')-cne($factNames-join',')){$joinInvalid=$true;break}
+                $id=[string]$fact.assetObjectId
+                if($id-cnotmatch'^sha256:[0-9a-f]{64}$'-or$fact.sp04Partition-cnotin@('Classified','Unclassified')){$joinInvalid=$true;break}
+                if($null-ne$lastFact-and$script:Ordinal.Compare($lastFact,$id)-ge0){$joinInvalid=$true;break};$lastFact=$id
+                $hasDisposition=$null-ne$fact.privateConfigurationDisposition
+                if($hasDisposition-ne($null-ne$fact.configurationCandidateId)){$joinInvalid=$true;break}
+                if($hasDisposition-and([string]::IsNullOrEmpty([string]$fact.privateConfigurationDisposition)-or$fact.configurationCandidateId-cne(Get-C2ConfigurationObjectId $id))){$joinInvalid=$true;break}
+            }
+            if(-not$joinInvalid){for($i=0;$i-lt$objects.Count;$i++){if($objects[$i].assetObjectId-cne$facts[$i].assetObjectId){$joinInvalid=$true;break}}}
+        }catch{$joinInvalid=$true}
+        if($joinInvalid){$failures.Add((New-C2AccountingRow inputFailures ConservationCheck 'C2Check:Conservation' ConservationMismatch 'FT-10:C2Check:Conservation' @('Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-evidence.json')));$blocked=$true}
+    }
+
+    if(-not$blocked){
+        $laneKinds=[ordered]@{
+            Audio=@('AudioClip','AudioMixer','WwiseBank','WwiseMedia')
+            Environment=@('Scene','TerrainData','LightmapData','MeshRenderer')
+            Actor=@('Avatar','AnimationClip','AnimatorController','SkinnedMeshRenderer')
+            UI=@('Sprite','SpriteAtlas','Font','TMP_FontAsset','Canvas')
+            Effects=@('ParticleSystem','VisualEffect','TrailRenderer')
+        }
+        for($i=0;$i-lt$objects.Count;$i++){
+            $object=$objects[$i];$fact=$facts[$i];$lane='Unassigned';$status='RetainedForDiagnosis'
+            if($null-ne$fact.privateConfigurationDisposition){$status='ConfigurationOnly'}
+            elseif($fact.sp04Partition-ceq'Classified'){
+                $matches=@($laneKinds.Keys|Where-Object{$laneKinds[$_] -ccontains [string]$object.objectType})
+                if($matches.Count-eq1){$lane=$matches[0];$status='Assigned'}
+            }
+            $selectorPairs=[Collections.Generic.HashSet[string]]::new($script:Ordinal)
+            $selectors=[Collections.Generic.List[object]]::new()
+            $addSelector={param([string]$kind,[string]$value)$key="$kind`n$value";if($selectorPairs.Add($key)){$selectors.Add([pscustomobject][ordered]@{kind=$kind;value=$value})}}.GetNewClosure()
+            $null=$addSelector.Invoke('ObjectType',[string]$object.objectType)
+            $null=$addSelector.Invoke('ClassId',([string]::Format([Globalization.CultureInfo]::InvariantCulture,'{0}',[long]$object.classId)))
+            $null=$addSelector.Invoke('CanonicalAssetId',[string]$object.canonicalAssetId)
+            $null=$addSelector.Invoke('PlatformVariant',[string]$object.platformVariant)
+            foreach($dependency in @($object.dependencyObjectIds)){$null=$addSelector.Invoke('DependencyObjectId',[string]$dependency)}
+            foreach($tool in @($object.toolObservations)){$null=$addSelector.Invoke('ToolObservation',[string]$tool.observation)}
+            $selectors.Sort([Comparison[object]]{param($a,$b)$comparison=$script:Ordinal.Compare([string]$a.kind,[string]$b.kind);if($comparison-ne0){return $comparison};return $script:Ordinal.Compare([string]$a.value,[string]$b.value)})
+            $evidence=Get-C2OrdinalUnique @($object.evidence)
+            $rows.Add([pscustomobject][ordered]@{assetObjectId=$object.assetObjectId;canonicalAssetId=$object.canonicalAssetId;sourceId=$object.sourceId;familyLane=$lane;memberSelectorInputs=[object[]]$selectors;configurationCandidateId=$fact.configurationCandidateId;dispatchStatus=$status;evidence=[string[]]$evidence})
+        }
+    }
+
+    $coverage=[pscustomobject][ordered]@{
+        dispatchEligibleObjectCount=$rows.Count
+        assignedObjectCount=@($rows|Where-Object dispatchStatus -ceq Assigned).Count
+        retainedForDiagnosisObjectCount=@($rows|Where-Object dispatchStatus -ceq RetainedForDiagnosis).Count
+        configurationOnlyObjectCount=@($rows|Where-Object dispatchStatus -ceq ConfigurationOnly).Count
+        audioObjectCount=@($rows|Where-Object familyLane -ceq Audio).Count
+        environmentObjectCount=@($rows|Where-Object familyLane -ceq Environment).Count
+        actorObjectCount=@($rows|Where-Object familyLane -ceq Actor).Count
+        uiObjectCount=@($rows|Where-Object familyLane -ceq UI).Count
+        effectsObjectCount=@($rows|Where-Object familyLane -ceq Effects).Count
+    }
+    [pscustomobject][ordered]@{dispatchInputFacts=[object[]]$facts;dispatchRows=[object[]]$rows;inputFailures=[object[]]$failures;coverage=$coverage;gateStatus=if($blocked){'Failed'}else{'Passed'};outputsSuppressed=$blocked}
+}
+
 function Test-C2SchemaNode {
     param([AllowNull()]$Node,[psobject]$Definitions)
     $pending=[Collections.Generic.Stack[object]]::new();$pending.Push($Node)
@@ -713,8 +801,8 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     )
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}
     if($null -eq $GitTransport -and -not [IO.Path]::IsPathFullyQualified($gitExecutable)){return New-C2FailedIntakeResult FT-13 HeavyOperationAttempted $null $null $null 0 0}
-    $context=[ordered]@{facts=$null;handoff=$null;sp12=$null;sp03=$null;sp05=$null;sp06=$null;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
-    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$partitioner=${function:Invoke-C2FileDiscoveryPartitions};$objectPartitioner=${function:Invoke-C2ObjectObservationPartitions};$configurationPartitioner=${function:Invoke-C2ConfigurationPartitions};$canonicalPartitioner=${function:Invoke-C2CanonicalPartitions};$fixtureMutation=$FixtureMutator
+    $context=[ordered]@{facts=$null;handoff=$null;sp12=$null;sp03=$null;sp05=$null;sp06=$null;sp07=$null;sp07PriorFailureCount=0;events=[Collections.Generic.List[object]]::new();extractedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Extracted'));importedBefore=[IO.Directory]::Exists([IO.Path]::Combine($RepositoryRoot,'Assets','StellaGaia','Imported'))}
+    $registry=$script:Registry;$utf8=$script:Utf8;$fixtureValidator=${function:Test-C2FixtureContracts};$partitioner=${function:Invoke-C2FileDiscoveryPartitions};$objectPartitioner=${function:Invoke-C2ObjectObservationPartitions};$configurationPartitioner=${function:Invoke-C2ConfigurationPartitions};$canonicalPartitioner=${function:Invoke-C2CanonicalPartitions};$dispatchPartitioner=${function:Invoke-C2DispatchPartitions};$configurationObjectId=${function:Get-C2ConfigurationObjectId};$fixtureMutation=$FixtureMutator
     $hashBytes={param([byte[]]$value)[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($value)).ToLowerInvariant()}.GetNewClosure()
     $validation={param($bundle)
         try{
@@ -745,6 +833,15 @@ function Invoke-C2DiscoveryIntakeGateInternal {
             $context.sp05=@($configurationPartitioner.Invoke($sp05Input))[0]
             $acceptedIds=@($context.sp03.observationSubjects|Where-Object partition -ceq 'AcceptedObservation'|ForEach-Object observationId);$nonNullIds=@($documents['AR-I07'].rows|Where-Object{$null-ne$_.canonicalEvidence-and$_.observationId-cin$acceptedIds}|ForEach-Object observationId)
             $context.sp06=@($canonicalPartitioner.Invoke([pscustomobject]@{publicObjectCores=@($context.sp03.publicObjectCores);canonicalProposalProvenance=@($context.sp03.canonicalProposalProvenance);acceptedNonNullCanonicalEvidenceObservationIds=$nonNullIds}))[0]
+            $dispatchFacts=[Collections.Generic.List[object]]::new()
+            foreach($publicObject in @($context.sp06.publicObjectsWithCanonicalId)){
+                $merged=@($context.sp03.mergedObjects|Where-Object assetObjectId -ceq $publicObject.assetObjectId)[0]
+                $core=@($context.sp03.publicObjectCores|Where-Object assetObjectId -ceq $publicObject.assetObjectId)[0]
+                $privateDisposition=$merged.resolvedValues.configurationDisposition
+                $dispatchFacts.Add([pscustomobject][ordered]@{assetObjectId=$publicObject.assetObjectId;sp04Partition=$core.sp04Partition;privateConfigurationDisposition=$privateDisposition;configurationCandidateId=if($null-ne$privateDisposition){@($configurationObjectId.Invoke([string]$publicObject.assetObjectId))[0]}else{$null}})
+            }
+            $priorFailures=@($context.sp03.inputFailures)+@($context.sp05.inputFailures)+@($context.sp06.inputFailures);$context.sp07PriorFailureCount=$priorFailures.Count
+            $context.sp07=@($dispatchPartitioner.Invoke([pscustomobject]@{publicObjectsWithCanonicalId=@($context.sp06.publicObjectsWithCanonicalId);dispatchInputFacts=[object[]]$dispatchFacts;inputFailures=$priorFailures;contractChecks=@()}))[0]
             [pscustomobject]@{status='Passed';owner=$null;reason=$null}
         }catch{[pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';message="$($_.Exception.Message) $($_.ScriptStackTrace)"}}
     }.GetNewClosure()
@@ -781,6 +878,7 @@ function Invoke-C2DiscoveryIntakeGateInternal {
     }
     if($null-ne$context.sp05){$result.O1|Add-Member -NotePropertyName configurationCandidates -NotePropertyValue ([object[]]$context.sp05.configurationCandidates);$result.O1|Add-Member -NotePropertyName configurationConflicts -NotePropertyValue ([object[]]$context.sp05.configurationConflicts);foreach($p in $context.sp05.coverage.PSObject.Properties){$result.O2|Add-Member -NotePropertyName $p.Name -NotePropertyValue ([int]$p.Value)};if($context.sp05.inputFailures.Count){$result.O1.inputFailures=[object[]]@($result.O1.inputFailures)+[object[]]@($context.sp05.inputFailures);$result.O2.inputSubjectCount += $context.sp05.inputFailures.Count;$result.O2.inputFailureCount += $context.sp05.inputFailures.Count;$result.O2.issueCount += $context.sp05.inputFailures.Count;$result.O2.status='Failed';$result.O2.discoveryInputFingerprint=$null;$result.O1.discoveryInputFingerprint=$null;$result.O1.decision.failureAttribution=$context.sp05.inputFailures[0].attribution;$result.O1.decision.nextAllowedAction='Correct file configuration observation/conflict'}}
     if($null-ne$context.sp06){$result.O1|Add-Member -NotePropertyName canonicalGroups -NotePropertyValue ([object[]]$context.sp06.canonicalGroups);$result.O1|Add-Member -NotePropertyName canonicalConflicts -NotePropertyValue ([object[]]$context.sp06.canonicalConflicts);$result.O1|Add-Member -NotePropertyName publicObjectsWithCanonicalId -NotePropertyValue ([object[]]$context.sp06.publicObjectsWithCanonicalId);foreach($p in $context.sp06.coverage.PSObject.Properties){$result.O2|Add-Member -NotePropertyName $p.Name -NotePropertyValue ([int]$p.Value)};if($context.sp06.inputFailures.Count){$result.O1.inputFailures=[object[]]@($result.O1.inputFailures)+[object[]]@($context.sp06.inputFailures);$result.O2.inputSubjectCount += $context.sp06.inputFailures.Count;$result.O2.inputFailureCount += $context.sp06.inputFailures.Count;$result.O2.issueCount += $context.sp06.inputFailures.Count;$result.O2.status='Failed';$result.O2.discoveryInputFingerprint=$null;$result.O1.discoveryInputFingerprint=$null;$result.O1.decision.failureAttribution=$context.sp06.inputFailures[0].attribution;$result.O1.decision.nextAllowedAction='Correct canonical proposal provenance/conflict'}}
+    if($null-ne$context.sp07){$result.O1|Add-Member -NotePropertyName dispatchInputFacts -NotePropertyValue ([object[]]$context.sp07.dispatchInputFacts);$result.O1|Add-Member -NotePropertyName dispatchRows -NotePropertyValue ([object[]]$context.sp07.dispatchRows);foreach($p in $context.sp07.coverage.PSObject.Properties){$result.O2|Add-Member -NotePropertyName $p.Name -NotePropertyValue ([int]$p.Value)};if($context.sp07.inputFailures.Count-gt$context.sp07PriorFailureCount){$newFailures=@($context.sp07.inputFailures|Select-Object -Skip $context.sp07PriorFailureCount);$result.O1.inputFailures=[object[]]@($result.O1.inputFailures)+[object[]]$newFailures;$result.O2.inputSubjectCount += $newFailures.Count;$result.O2.inputFailureCount += $newFailures.Count;$result.O2.issueCount += $newFailures.Count;$result.O2.status='Failed';$result.O2.discoveryInputFingerprint=$null;$result.O1.discoveryInputFingerprint=$null;$result.O1.decision.failureAttribution=$newFailures[0].attribution;$result.O1.decision.nextAllowedAction='Correct SP-07 private dispatch join'}}
     return $result
 }
 
