@@ -2,7 +2,7 @@
 
 > **Status:** Approved sequencing and effort-control roadmap. This document grants no implementation, real-asset access, extraction, import, Unity, Phase B, merge, or worktree-removal authority. Each implementation slice still requires its own reviewed central contracts, 20–30 minute Task, and explicit authorization.
 
-**Current baseline:** `codex/asset-corpus-integration` at reviewed commit `b635059689d7a7b67ed715e8fcdf2cf8267d7664`. C0 and C1 Phase A are complete. The minimal synthetic C2 object gate and C2 intake fixture authority are complete. C2 intake implementation, SP-01–SP-07, C3–C6, G5 integration, Phase B, and C7/G4 Unity remain unauthorized.
+**Current baseline:** `codex/asset-corpus-integration` at reviewed commit `6165be7a2b93352a94a9ae65ffb15aa1a6dcf004`. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. C2 Phase B remains unauthorized; its fixture-to-real runbook is the next independent Task. C3–C6 definition and implementation, G5 integration, Phase B execution, and C7/G4 Unity have not started.
 
 ## 1. Program Goal And Definition Of Done
 
@@ -42,7 +42,7 @@ Authority remains repository `AGENTS.md`, the approved 2026-07-10 corpus/reuse d
 
 ## 4. Remaining Phase A Sequence
 
-### R1 — Complete C2 Intake/Freshness
+### R1 — Complete C2 Intake/Freshness — Complete
 
 Execute the amended intake plan in three separately authorized increments:
 
@@ -52,7 +52,9 @@ Execute the amended intake plan in three separately authorized increments:
 
 Acceptance: all three commits independently GREEN; no real assets, extraction, Unity, import, or forbidden directory creation.
 
-### R2 — Complete C2 Partitions And Projection
+Completion record: implemented and retained in the verified C2 fixture-only matrix through `6165be7`.
+
+### R2 — Complete C2 Partitions And Projection — Complete Through SP-09
 
 Write and approve one narrow plan before implementation, then execute one Task per slice:
 
@@ -64,6 +66,8 @@ Write and approve one narrow plan before implementation, then execute one Task p
 6. minimal consumer-required C2 outputs and a C2 Phase B runbook.
 
 Do not make the full atomic multi-artifact publisher a prerequisite until at least two approved consumers require the publication transaction. A simpler current-consumer output may be used only if the central registries and failure suppression remain lossless.
+
+Completion record: SP-01 through SP-09, including canonical provenance, dispatch, complete input accounting, deterministic serialization, journaled publication/recovery, and diagnostic publication wiring, are implemented through `6165be7` and pass the complete fixture-only verification matrix. This record does not include real assets, extraction, Unity, Phase B, C3–C6, or G5. The C2 Phase B fixture-to-real runbook remains a separate, unauthorized Task.
 
 ### R3 — Define C3–C6 Before Implementing Them
 
@@ -154,4 +158,4 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-The next normal Task is **C2 Task 2A: Pure Intake Model And HI-13** from the amended intake/freshness plan. It may begin only after explicit authorization. Task 2B, Task 2C, SP-01/SP-02, real assets, extraction, Unity, import, and Phase B remain unauthorized.
+The next normal Task is **write the C2 Phase B fixture-to-real runbook**. It requires separate explicit authorization and does not authorize execution against real sources. C2 Phase B execution, real assets, extraction, Unity, import, C3–C6 definition or implementation, G5, and release work remain unauthorized.

@@ -1,13 +1,15 @@
 # StellaSora C2 SP-09 Journaled Publication Plan
 
 **Date:** 2026-07-15
-**Status:** DRAFT FOR READ-ONLY REVIEW — Task 0 docs amendment only; Tasks 1–3 unauthorized pending approval
-**Baseline:** `codex/asset-corpus-integration` at `c40a6b7fe1dc8368945d9fc802c166fa12c9d587`
+**Status:** Tasks 0–3 implemented through `6165be7a2b93352a94a9ae65ffb15aa1a6dcf004`; complete fixture-only verification passed at that commit
+**Baseline:** `codex/asset-corpus-integration` at `6165be7a2b93352a94a9ae65ffb15aa1a6dcf004`
 **Scope:** deterministic AR-O01–AR-O05 serialization, SP-09 accounting, same-volume journaled publication, crash recovery, and locked consumer validation. No C3–C6 implementation, G5 decision, schema changes, Unity, extraction, import, real assets, Phase B, or release packaging.
 
 ## 1. Authorization And Stop Boundaries
 
 This plan contains three implementation Tasks because pure byte construction, the filesystem transaction, and production wiring have different failure owners and independent stop checkpoints. One user authorization executes one Task and creates one independent commit. Approval of this plan authorizes no implementation by itself.
+
+Implementation record: Task 0 is `79ea93c89aed88ba7e31ffd6ecb69a0d0a1efdef`, Task 1 is `eacd57a`, Task 2 is `f8d97b8`, the complete-input-accounting correction is `8b40672`, and Task 3 is `6165be7`. At `6165be7`, every registered C2 fixture case, the minimal object gate, and the directly dependent C0/C1 regressions pass; publication tests restore the exact pre-test consumer and TEMP state. This closes C2 Phase A code implementation and fixture-only publication verification only. C2 Phase B remains unauthorized, its runbook is the next independent Task, and C3–C6 definition and implementation have not started.
 
 Task 0 is this docs-only amendment. It modifies only:
 
