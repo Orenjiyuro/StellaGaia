@@ -1,0 +1,8 @@
+{
+  "declaredFactKinds": [
+    "ObjectType"
+  ],
+  "requiredFactKinds": [
+    "MissingFact"
+  ]
+}

@@ -1,0 +1,575 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/c3-c6-lane-policy-registry.schema.json",
+  "title": "StellaSora C3-C6 Lane Policy Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "policySetId",
+    "policySetVersion",
+    "policies"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "const": "2026-07-15T00:00:00Z"
+    },
+    "policySetId": {
+      "type": "string",
+      "const": "StellaSoraLifecycleLanePolicySet"
+    },
+    "policySetVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/policy"
+      },
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "lane": {
+      "type": "string",
+      "enum": [
+        "Actor",
+        "Audio",
+        "Effects",
+        "Environment",
+        "UI"
+      ]
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "familyKindId": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*Family$"
+    },
+    "factKind": {
+      "type": "string",
+      "enum": [
+        "ObjectType",
+        "ClassId",
+        "CanonicalAssetId",
+        "PlatformVariant",
+        "DependencyObjectIds",
+        "AudioEncoding",
+        "BankStructureId",
+        "EventStructureId",
+        "LoopMode",
+        "ChannelLayout",
+        "SampleRate",
+        "EnvironmentThemeId",
+        "EnvironmentModuleType",
+        "RendererType",
+        "ShaderFamilyIds",
+        "PrefabDependencyShapeId",
+        "MeshTopologyId",
+        "LightmapMode",
+        "ColliderMode",
+        "NavMeshMode",
+        "ActorRole",
+        "SkeletonId",
+        "AvatarId",
+        "AnimationSetShapeId",
+        "ControllerReferenceState",
+        "UiRouteKind",
+        "AtlasId",
+        "FontDependencyIds",
+        "TextureFormat",
+        "EffectSystemKind",
+        "AudioDependencyIds"
+      ]
+    },
+    "evidenceKind": {
+      "type": "string",
+      "enum": [
+        "FileReadability",
+        "ObjectReadability",
+        "DependencyGraph",
+        "SerializedMetadata",
+        "DecoderProbe",
+        "PrefabYaml",
+        "MaterialShaderGraph",
+        "TextureMetadata",
+        "AudioMetadata",
+        "UnityImport",
+        "VisibleRender",
+        "AnimationPlayback",
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior",
+        "MaterialFidelity",
+        "UiConstruction",
+        "EffectBehavior"
+      ]
+    },
+    "failureClass": {
+      "type": "string",
+      "enum": [
+        "ReadFailure",
+        "MissingDependency",
+        "ShaderMismatch",
+        "MaterialMismatch",
+        "ImportSettingMismatch",
+        "ControllerMissing",
+        "DecodeFailure",
+        "SemanticUnknown",
+        "PrefabDependencyMissing",
+        "FontAtlasMissing",
+        "EffectBehaviorMissing",
+        "CoreDataMissing"
+      ]
+    },
+    "routeKind": {
+      "type": "string",
+      "enum": [
+        "OriginalAsset",
+        "PrototypeController",
+        "TextureOnlyRebuild",
+        "EffectBehaviorReconstructed",
+        "DecodedAudio"
+      ]
+    },
+    "familyDecision": {
+      "type": "string",
+      "enum": [
+        "NeedsDiagnosis",
+        "UseOriginalAsset",
+        "RepairOnce",
+        "PrototypeReplacement",
+        "RetainForLater",
+        "DiagnosticOnly",
+        "Stop"
+      ]
+    },
+    "expectedChangeMeasure": {
+      "type": "string",
+      "enum": [
+        "MissingDependencyCount",
+        "FailedCheckCount",
+        "ShaderMismatchCount",
+        "MaterialMismatchCount",
+        "DecodeFailureCount",
+        "SemanticUnknownCount",
+        "VisibleIssueCount"
+      ]
+    },
+    "selectorKind": {
+      "type": "string",
+      "enum": [
+        "ObjectType",
+        "ClassId",
+        "CanonicalAssetId",
+        "PlatformVariant",
+        "DependencyObjectId",
+        "ToolObservation"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyId",
+        "lane",
+        "policyVersion",
+        "familyKinds",
+        "factDefinitions",
+        "staticCheckDefinitions",
+        "riskAxisDefinitions",
+        "evidenceRequirementDefinitions",
+        "capabilityProjectionRules",
+        "repairRules"
+      ],
+      "properties": {
+        "policyId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "lane": {
+          "$ref": "#/$defs/lane"
+        },
+        "policyVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "familyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKind"
+          },
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true
+        },
+        "factDefinitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factDefinition"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "staticCheckDefinitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/staticCheckDefinition"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "riskAxisDefinitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/riskAxisDefinition"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "evidenceRequirementDefinitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceRequirementDefinition"
+          },
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true
+        },
+        "capabilityProjectionRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capabilityProjectionRule"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "repairRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repairRule"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "familyKind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "familyKindId",
+        "applicableObjectTypes",
+        "keyDimensionIds",
+        "memberSelectorKinds"
+      ],
+      "properties": {
+        "familyKindId": {
+          "$ref": "#/$defs/familyKindId"
+        },
+        "applicableObjectTypes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "keyDimensionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "memberSelectorKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selectorKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+    "factDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factKind",
+        "valueKind",
+        "requiredForFamilyKinds",
+        "allowedValues",
+        "allowNotApplicable"
+      ],
+      "properties": {
+        "factKind": {
+          "$ref": "#/$defs/factKind"
+        },
+        "valueKind": {
+          "type": "string",
+          "enum": [
+            "String",
+            "Integer",
+            "Boolean",
+            "IdSet"
+          ]
+        },
+        "requiredForFamilyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKindId"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "allowedValues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true,
+          "minItems": 0
+        },
+        "allowNotApplicable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "staticCheckDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkId",
+        "applicableFamilyKinds",
+        "requiredFactKinds",
+        "outcomeOnMissingFact",
+        "requiredEvidenceKinds"
+      ],
+      "properties": {
+        "checkId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "applicableFamilyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKindId"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredFactKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "outcomeOnMissingFact": {
+          "type": "string",
+          "enum": [
+            "Unchecked",
+            "StaticFailed"
+          ]
+        },
+        "requiredEvidenceKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+    "riskAxisDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "riskAxisId",
+        "applicableFamilyKinds",
+        "sourceFactKinds",
+        "variantEncoding"
+      ],
+      "properties": {
+        "riskAxisId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "applicableFamilyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKindId"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "sourceFactKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "variantEncoding": {
+          "type": "string",
+          "enum": [
+            "Scalar",
+            "OrdinalIdSet",
+            "Tuple"
+          ]
+        }
+      }
+    },
+    "evidenceRequirementDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceRequirementId",
+        "applicableRiskAxisIds",
+        "requiredEvidenceKinds",
+        "acceptedExecutionStatuses"
+      ],
+      "properties": {
+        "evidenceRequirementId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "applicableRiskAxisIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredEvidenceKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "acceptedExecutionStatuses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "const": "Completed"
+          },
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "capabilityProjectionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilityId",
+        "applicableFamilyKinds",
+        "requiredRouteKinds",
+        "allowedFamilyDecisions",
+        "requiredEvidenceKinds"
+      ],
+      "properties": {
+        "capabilityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "applicableFamilyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKindId"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredRouteKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/routeKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "allowedFamilyDecisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyDecision"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredEvidenceKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceKind"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+    "repairRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repairClass",
+        "applicableFamilyKinds",
+        "requiredFailureClasses",
+        "requiredInputKinds",
+        "expectedChangeMeasure",
+        "maxAttempts"
+      ],
+      "properties": {
+        "repairClass": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "applicableFamilyKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyKindId"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredFailureClasses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failureClass"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "requiredInputKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "expectedChangeMeasure": {
+          "$ref": "#/$defs/expectedChangeMeasure"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "const": 1
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 > **Status:** Approved sequencing and effort-control roadmap. This document grants no implementation, real-asset access, extraction, import, Unity, Phase B, merge, or worktree-removal authority. Each implementation slice still requires its own reviewed central contracts, 20–30 minute Task, and explicit authorization.
 
-**Current baseline:** `codex/asset-corpus-integration` at reviewed commit `d2b5247f07d776bb94214ec6c6ecde1b01f570a5`. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. The C2 Phase B fixture-to-real runbook is written, but Phase B remains unauthorized. C3–C6 responsibilities and input/output contracts are now defined; implementation, G5 integration, Phase B execution, and C7/G4 Unity have not started.
+**Current baseline:** `codex/asset-corpus-integration` includes the reviewed design chain through `c13535e1d318bd22edc22b703c1a8ff99813e316` and the LC-I07 implementation checkpoint recorded below. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. The C2 Phase B fixture-to-real runbook is written, but Phase B remains unauthorized. C3–C6 responsibilities and input/output contracts are defined, and the prerequisite LC-I06/LC-I07 fixture-only contracts are implemented; C3–C6 implementation, G5 integration, Phase B execution, and C7/G4 Unity have not started.
 
 ## 1. Program Goal And Definition Of Done
 
@@ -90,7 +90,7 @@ Implement the reviewed component map one small lane/risk-family Task at a time. 
 
 Enabling checkpoint: the pure LC-I06 adapter now projects only the five approved structured AR-O04 selector facts, binds the exact AR-O04/AR-O05/LC-I13 bytes, terminally accounts Assigned/RetainedForDiagnosis/ConfigurationOnly subjects, and byte-compares a checked-in schema-valid fixture. Focused five-lane, mutation, determinism, conservation, C2 safety, and minimal-object regressions pass. This does not publish LC-I06, start C3, or authorize Phase B, real assets, extraction, import, or Unity.
 
-LC-I07 contract-closure checkpoint: the authority now removes the self-referential registry fingerprint, freezes the immutable first-version registry identity, and defines every family-kind, typed fact, static check, risk tuple, evidence requirement, capability contribution, repair predicate, ordering rule, NotApplicable transition, and LF-03 negative vector. This is documentation authority only; the registry, JSON Schema, fixtures, validator, and C3 implementation remain absent.
+LC-I07 implementation checkpoint: the non-self-referential first-version registry now exists with exactly five strongly typed lane policies, a strict JSON Schema, a byte-identical positive fixture, four focused semantic negative fixtures, and executable contract validation. Focused contract, minimal-object, C2 pure, and LC-I06 projection regressions pass. C3 implementation, LC-I06 publication integration, Phase B, real assets, extraction, import, and Unity remain unauthorized.
 
 ### R5 — C0 Contract Change And Lightweight G5
 
@@ -164,6 +164,6 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The pure LC-I06 fixture-only producer is implemented against the frozen three-input sub-contract. LC-I07 now has one closed logical contract with exact nested policy rows and a non-self-referential exact-byte fingerprint, but no physical registry/schema/fixture implementation exists yet.
+LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The pure LC-I06 fixture-only producer is implemented against the frozen three-input sub-contract. LC-I07 now has one closed logical and physical contract with exact nested policy rows, a non-self-referential exact-byte fingerprint boundary, strict schema, byte-identical positive fixture, focused negatives, and executable validation.
 
-The next normal Task is **implement the closed LC-I07 registry, JSON Schema, positive/negative fixtures, and focused contract validator** as a separate 20-30 minute checkpoint. LC-I11, LC-I12, the required vocabulary dimensions, authoring reuse ledger v2, any LC-I06 publication integration, C2 Phase B execution, real assets, extraction, Unity, import, C3-C6 implementation, G5, and release work remain unauthorized.
+The next normal Task is **close the LC-I11 decision/capability registry contract, including its currently self-referential fingerprint boundary**, as a separate docs-only 20-30 minute checkpoint. LC-I11 physical artifacts, LC-I12, the required vocabulary dimensions, authoring reuse ledger v2, any LC-I06 publication integration, C2 Phase B execution, real assets, extraction, Unity, import, C3-C6 implementation, G5, and release work remain unauthorized.

@@ -1,0 +1,1947 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-15T00:00:00Z",
+  "policySetId": "StellaSoraLifecycleLanePolicySet",
+  "policySetVersion": "1.0.0",
+  "policies": [
+    {
+      "policyId": "ActorPolicyV1",
+      "lane": "Actor",
+      "policyVersion": "1.0.0",
+      "familyKinds": [
+        {
+          "familyKindId": "ActorRouteFamily",
+          "applicableObjectTypes": [
+            "AnimationClip",
+            "AnimatorController",
+            "Avatar",
+            "SkinnedMeshRenderer"
+          ],
+          "keyDimensionIds": [
+            "ActorRole",
+            "AnimationSetShapeId",
+            "AvatarId",
+            "ControllerReferenceState",
+            "ObjectType",
+            "RendererType",
+            "ShaderFamilyIds",
+            "SkeletonId"
+          ],
+          "memberSelectorKinds": [
+            "CanonicalAssetId",
+            "ClassId",
+            "DependencyObjectId",
+            "ObjectType",
+            "PlatformVariant",
+            "ToolObservation"
+          ]
+        }
+      ],
+      "factDefinitions": [
+        {
+          "factKind": "ActorRole",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [
+            "Enemy",
+            "Other",
+            "Player"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "AnimationSetShapeId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "AvatarId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ControllerReferenceState",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [
+            "Missing",
+            "Present",
+            "PrototypeRequired"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "DependencyObjectIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "ObjectType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [
+            "AnimationClip",
+            "AnimatorController",
+            "Avatar",
+            "SkinnedMeshRenderer"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PlatformVariant",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [
+            "Android",
+            "Pc",
+            "Unknown"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "RendererType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ShaderFamilyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "SkeletonId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        }
+      ],
+      "staticCheckDefinitions": [
+        {
+          "checkId": "AnimationClipReadability",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "AnimationSetShapeId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "AvatarClosure",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "AvatarId",
+            "SkeletonId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "ControllerReferenceClassification",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ControllerReferenceState"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "DependencyClosure",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "DependencyObjectIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph"
+          ]
+        },
+        {
+          "checkId": "MaterialDependencyClosure",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "MeshReadability",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "RendererType"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability"
+          ]
+        },
+        {
+          "checkId": "SkeletonClosure",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "SkeletonId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "TextureDependencyClosure",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "TextureMetadata"
+          ]
+        }
+      ],
+      "riskAxisDefinitions": [
+        {
+          "riskAxisId": "ActorRole",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "ActorRole",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "AnimationSetShape",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "AnimationSetShapeId",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "ControllerRoute",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "ControllerReferenceState",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "RendererShaderCombination",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "SkeletonAvatar",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "SkeletonId",
+            "AvatarId",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        }
+      ],
+      "evidenceRequirementDefinitions": [
+        {
+          "evidenceRequirementId": "ActorRouteEvidence",
+          "applicableRiskAxisIds": [
+            "ActorRole",
+            "AnimationSetShape",
+            "ControllerRoute",
+            "RendererShaderCombination",
+            "SkeletonAvatar"
+          ],
+          "requiredEvidenceKinds": [
+            "AnimationPlayback",
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ],
+          "acceptedExecutionStatuses": [
+            "Completed"
+          ]
+        }
+      ],
+      "capabilityProjectionRules": [
+        {
+          "capabilityId": "EnemyModelSkeletonAnimationSet",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "OriginalAsset",
+            "PrototypeController"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "AnimationPlayback",
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ]
+        },
+        {
+          "capabilityId": "PlayerModelSkeletonAnimationSet",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "OriginalAsset",
+            "PrototypeController"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "AnimationPlayback",
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ]
+        }
+      ],
+      "repairRules": [
+        {
+          "repairClass": "DependencyClosureRepair",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "MissingDependency",
+            "PrefabDependencyMissing"
+          ],
+          "requiredInputKinds": [
+            "DependencyGraph",
+            "DependencyObjectIds",
+            "PrefabDependencyShapeId"
+          ],
+          "expectedChangeMeasure": "MissingDependencyCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "MaterialMappingRepair",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "MaterialMismatch",
+            "ShaderMismatch"
+          ],
+          "requiredInputKinds": [
+            "MaterialShaderGraph",
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "PrototypeControllerRepair",
+          "applicableFamilyKinds": [
+            "ActorRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "ControllerMissing"
+          ],
+          "requiredInputKinds": [
+            "ControllerReferenceState",
+            "SerializedMetadata"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        }
+      ]
+    },
+    {
+      "policyId": "AudioPolicyV1",
+      "lane": "Audio",
+      "policyVersion": "1.0.0",
+      "familyKinds": [
+        {
+          "familyKindId": "AudioRouteFamily",
+          "applicableObjectTypes": [
+            "AudioClip",
+            "AudioMixer",
+            "WwiseBank",
+            "WwiseMedia"
+          ],
+          "keyDimensionIds": [
+            "AudioEncoding",
+            "BankStructureId",
+            "ChannelLayout",
+            "EventStructureId",
+            "LoopMode",
+            "ObjectType",
+            "SampleRate"
+          ],
+          "memberSelectorKinds": [
+            "CanonicalAssetId",
+            "ClassId",
+            "DependencyObjectId",
+            "ObjectType",
+            "PlatformVariant",
+            "ToolObservation"
+          ]
+        }
+      ],
+      "factDefinitions": [
+        {
+          "factKind": "AudioEncoding",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [
+            "AAC",
+            "ADPCM",
+            "Opus",
+            "PCM",
+            "Vorbis",
+            "WwiseProprietary"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "BankStructureId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ChannelLayout",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [
+            "Mono",
+            "Multichannel",
+            "Stereo"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "DependencyObjectIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "EventStructureId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "LoopMode",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [
+            "Looped",
+            "OneShot"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ObjectType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [
+            "AudioClip",
+            "AudioMixer",
+            "WwiseBank",
+            "WwiseMedia"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PlatformVariant",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [
+            "Android",
+            "Pc",
+            "Unknown"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "SampleRate",
+          "valueKind": "Integer",
+          "requiredForFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        }
+      ],
+      "staticCheckDefinitions": [
+        {
+          "checkId": "BankProvenance",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "BankStructureId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "ChannelLayoutValidity",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ChannelLayout",
+            "SampleRate"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "AudioMetadata"
+          ]
+        },
+        {
+          "checkId": "DecodeOutcome",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "AudioEncoding"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DecoderProbe"
+          ]
+        },
+        {
+          "checkId": "DependencyClosure",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "DependencyObjectIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph"
+          ]
+        },
+        {
+          "checkId": "EventRelationship",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "BankStructureId",
+            "EventStructureId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "LoopValidity",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "LoopMode"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "AudioMetadata",
+            "LoopBehavior"
+          ]
+        },
+        {
+          "checkId": "MediaReadability",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ObjectType"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability"
+          ]
+        }
+      ],
+      "riskAxisDefinitions": [
+        {
+          "riskAxisId": "BankEventStructure",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "BankStructureId",
+            "EventStructureId",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "ChannelLayout",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "ChannelLayout",
+            "SampleRate",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "Encoding",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "AudioEncoding",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "LoopRoute",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "LoopMode",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        }
+      ],
+      "evidenceRequirementDefinitions": [
+        {
+          "evidenceRequirementId": "AudioRouteEvidence",
+          "applicableRiskAxisIds": [
+            "BankEventStructure",
+            "ChannelLayout",
+            "Encoding",
+            "LoopRoute"
+          ],
+          "requiredEvidenceKinds": [
+            "AudioPlayback",
+            "HumanListening",
+            "LoopBehavior"
+          ],
+          "acceptedExecutionStatuses": [
+            "Completed"
+          ]
+        }
+      ],
+      "capabilityProjectionRules": [
+        {
+          "capabilityId": "PlayableBgmRoute",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "DecodedAudio",
+            "OriginalAsset"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "AudioPlayback",
+            "HumanListening",
+            "LoopBehavior"
+          ]
+        },
+        {
+          "capabilityId": "PlayableCombatSfx",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "DecodedAudio",
+            "OriginalAsset"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "AudioPlayback",
+            "HumanListening"
+          ]
+        }
+      ],
+      "repairRules": [
+        {
+          "repairClass": "AudioDecodeRepair",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "DecodeFailure"
+          ],
+          "requiredInputKinds": [
+            "AudioEncoding",
+            "DecoderProbe"
+          ],
+          "expectedChangeMeasure": "DecodeFailureCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "AudioSemanticRepair",
+          "applicableFamilyKinds": [
+            "AudioRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "SemanticUnknown"
+          ],
+          "requiredInputKinds": [
+            "EventStructureId",
+            "SerializedMetadata"
+          ],
+          "expectedChangeMeasure": "SemanticUnknownCount",
+          "maxAttempts": 1
+        }
+      ]
+    },
+    {
+      "policyId": "EffectsPolicyV1",
+      "lane": "Effects",
+      "policyVersion": "1.0.0",
+      "familyKinds": [
+        {
+          "familyKindId": "EffectRouteFamily",
+          "applicableObjectTypes": [
+            "ParticleSystem",
+            "TrailRenderer",
+            "VisualEffect"
+          ],
+          "keyDimensionIds": [
+            "AudioDependencyIds",
+            "EffectSystemKind",
+            "ObjectType",
+            "PrefabDependencyShapeId",
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "memberSelectorKinds": [
+            "CanonicalAssetId",
+            "ClassId",
+            "DependencyObjectId",
+            "ObjectType",
+            "PlatformVariant",
+            "ToolObservation"
+          ]
+        }
+      ],
+      "factDefinitions": [
+        {
+          "factKind": "AudioDependencyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "DependencyObjectIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "EffectSystemKind",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [
+            "ParticleSystem",
+            "TrailRenderer",
+            "VisualEffect"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "ObjectType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [
+            "ParticleSystem",
+            "TrailRenderer",
+            "VisualEffect"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PlatformVariant",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [
+            "Android",
+            "Pc",
+            "Unknown"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PrefabDependencyShapeId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "RendererType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ShaderFamilyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        }
+      ],
+      "staticCheckDefinitions": [
+        {
+          "checkId": "AudioDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "AudioDependencyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "AudioMetadata",
+            "DependencyGraph"
+          ]
+        },
+        {
+          "checkId": "EffectSystemReadability",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "EffectSystemKind"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "MaterialDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "MeshDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "RendererType"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "ObjectReadability"
+          ]
+        },
+        {
+          "checkId": "PrefabDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "PrefabDependencyShapeId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "PrefabYaml"
+          ]
+        },
+        {
+          "checkId": "ShaderDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "TextureDependencyClosure",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "TextureMetadata"
+          ]
+        }
+      ],
+      "riskAxisDefinitions": [
+        {
+          "riskAxisId": "AudioCoupling",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "AudioDependencyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "EffectSystem",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "EffectSystemKind",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "PrefabDependencyShape",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "PrefabDependencyShapeId",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "RendererShaderCombination",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        }
+      ],
+      "evidenceRequirementDefinitions": [
+        {
+          "evidenceRequirementId": "EffectRouteEvidence",
+          "applicableRiskAxisIds": [
+            "AudioCoupling",
+            "EffectSystem",
+            "PrefabDependencyShape",
+            "RendererShaderCombination"
+          ],
+          "requiredEvidenceKinds": [
+            "AudioPlayback",
+            "EffectBehavior",
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ],
+          "acceptedExecutionStatuses": [
+            "Completed"
+          ]
+        }
+      ],
+      "capabilityProjectionRules": [
+        {
+          "capabilityId": "CombatEffectRoute",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "EffectBehaviorReconstructed",
+            "OriginalAsset"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "EffectBehavior",
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ]
+        }
+      ],
+      "repairRules": [
+        {
+          "repairClass": "DependencyClosureRepair",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "MissingDependency",
+            "PrefabDependencyMissing"
+          ],
+          "requiredInputKinds": [
+            "DependencyGraph",
+            "DependencyObjectIds",
+            "PrefabDependencyShapeId"
+          ],
+          "expectedChangeMeasure": "MissingDependencyCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "EffectBehaviorReconstruction",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "EffectBehaviorMissing"
+          ],
+          "requiredInputKinds": [
+            "EffectBehavior",
+            "PrefabYaml"
+          ],
+          "expectedChangeMeasure": "VisibleIssueCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "MaterialMappingRepair",
+          "applicableFamilyKinds": [
+            "EffectRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "MaterialMismatch",
+            "ShaderMismatch"
+          ],
+          "requiredInputKinds": [
+            "MaterialShaderGraph",
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        }
+      ]
+    },
+    {
+      "policyId": "EnvironmentPolicyV1",
+      "lane": "Environment",
+      "policyVersion": "1.0.0",
+      "familyKinds": [
+        {
+          "familyKindId": "EnvironmentModuleFamily",
+          "applicableObjectTypes": [
+            "LightmapData",
+            "MeshRenderer",
+            "Scene",
+            "TerrainData"
+          ],
+          "keyDimensionIds": [
+            "ColliderMode",
+            "EnvironmentModuleType",
+            "EnvironmentThemeId",
+            "LightmapMode",
+            "MeshTopologyId",
+            "NavMeshMode",
+            "ObjectType",
+            "PrefabDependencyShapeId",
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "memberSelectorKinds": [
+            "CanonicalAssetId",
+            "ClassId",
+            "DependencyObjectId",
+            "ObjectType",
+            "PlatformVariant",
+            "ToolObservation"
+          ]
+        }
+      ],
+      "factDefinitions": [
+        {
+          "factKind": "ColliderMode",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [
+            "Absent",
+            "Present"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "DependencyObjectIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "EnvironmentModuleType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "EnvironmentThemeId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "LightmapMode",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [
+            "Absent",
+            "Baked",
+            "Mixed",
+            "Realtime"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "MeshTopologyId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "NavMeshMode",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [
+            "Absent",
+            "Present"
+          ],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ObjectType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [
+            "LightmapData",
+            "MeshRenderer",
+            "Scene",
+            "TerrainData"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PlatformVariant",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [
+            "Android",
+            "Pc",
+            "Unknown"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PrefabDependencyShapeId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "RendererType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ShaderFamilyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        }
+      ],
+      "staticCheckDefinitions": [
+        {
+          "checkId": "ColliderValidity",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "ColliderMode"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "LightmapValidity",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "LightmapMode"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "MaterialDependencyClosure",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "MeshReadability",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "MeshTopologyId",
+            "ObjectType"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability"
+          ]
+        },
+        {
+          "checkId": "NavMeshValidity",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "NavMeshMode"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "PrefabDependencyClosure",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "PrefabDependencyShapeId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "PrefabYaml"
+          ]
+        },
+        {
+          "checkId": "ShaderDependencyClosure",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "TextureDependencyClosure",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "TextureMetadata"
+          ]
+        }
+      ],
+      "riskAxisDefinitions": [
+        {
+          "riskAxisId": "PhysicsNavigationShape",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "sourceFactKinds": [
+            "ColliderMode",
+            "NavMeshMode",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "PrefabDependencyShape",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "sourceFactKinds": [
+            "PrefabDependencyShapeId",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "RendererShaderCombination",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "sourceFactKinds": [
+            "RendererType",
+            "ShaderFamilyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "ThemeModule",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "sourceFactKinds": [
+            "EnvironmentThemeId",
+            "EnvironmentModuleType",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        }
+      ],
+      "evidenceRequirementDefinitions": [
+        {
+          "evidenceRequirementId": "EnvironmentRouteEvidence",
+          "applicableRiskAxisIds": [
+            "PhysicsNavigationShape",
+            "PrefabDependencyShape",
+            "RendererShaderCombination",
+            "ThemeModule"
+          ],
+          "requiredEvidenceKinds": [
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ],
+          "acceptedExecutionStatuses": [
+            "Completed"
+          ]
+        }
+      ],
+      "capabilityProjectionRules": [
+        {
+          "capabilityId": "RecognizableEnvironmentOrMapModules",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredRouteKinds": [
+            "OriginalAsset"
+          ],
+          "allowedFamilyDecisions": [
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "MaterialFidelity",
+            "UnityImport",
+            "VisibleRender"
+          ]
+        }
+      ],
+      "repairRules": [
+        {
+          "repairClass": "DependencyClosureRepair",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFailureClasses": [
+            "MissingDependency",
+            "PrefabDependencyMissing"
+          ],
+          "requiredInputKinds": [
+            "DependencyGraph",
+            "DependencyObjectIds",
+            "PrefabDependencyShapeId"
+          ],
+          "expectedChangeMeasure": "MissingDependencyCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "ImportSettingsRepair",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFailureClasses": [
+            "ImportSettingMismatch"
+          ],
+          "requiredInputKinds": [
+            "SerializedMetadata",
+            "TextureMetadata"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "MaterialMappingRepair",
+          "applicableFamilyKinds": [
+            "EnvironmentModuleFamily"
+          ],
+          "requiredFailureClasses": [
+            "MaterialMismatch",
+            "ShaderMismatch"
+          ],
+          "requiredInputKinds": [
+            "MaterialShaderGraph",
+            "RendererType",
+            "ShaderFamilyIds"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        }
+      ]
+    },
+    {
+      "policyId": "UiPolicyV1",
+      "lane": "UI",
+      "policyVersion": "1.0.0",
+      "familyKinds": [
+        {
+          "familyKindId": "UiRouteFamily",
+          "applicableObjectTypes": [
+            "Canvas",
+            "Font",
+            "Sprite",
+            "SpriteAtlas",
+            "TMP_FontAsset"
+          ],
+          "keyDimensionIds": [
+            "AtlasId",
+            "FontDependencyIds",
+            "ObjectType",
+            "PrefabDependencyShapeId",
+            "ShaderFamilyIds",
+            "TextureFormat",
+            "UiRouteKind"
+          ],
+          "memberSelectorKinds": [
+            "CanonicalAssetId",
+            "ClassId",
+            "DependencyObjectId",
+            "ObjectType",
+            "PlatformVariant",
+            "ToolObservation"
+          ]
+        }
+      ],
+      "factDefinitions": [
+        {
+          "factKind": "AtlasId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "DependencyObjectIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "FontDependencyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ObjectType",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [
+            "Canvas",
+            "Font",
+            "Sprite",
+            "SpriteAtlas",
+            "TMP_FontAsset"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PlatformVariant",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [
+            "Android",
+            "Pc",
+            "Unknown"
+          ],
+          "allowNotApplicable": false
+        },
+        {
+          "factKind": "PrefabDependencyShapeId",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "ShaderFamilyIds",
+          "valueKind": "IdSet",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "TextureFormat",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [],
+          "allowNotApplicable": true
+        },
+        {
+          "factKind": "UiRouteKind",
+          "valueKind": "String",
+          "requiredForFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "allowedValues": [
+            "OriginalPrefab",
+            "TextureRebuild"
+          ],
+          "allowNotApplicable": false
+        }
+      ],
+      "staticCheckDefinitions": [
+        {
+          "checkId": "FontDependencyClosure",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "FontDependencyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "SerializedMetadata"
+          ]
+        },
+        {
+          "checkId": "MaterialDependencyClosure",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "ShaderFamilyIds"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "MaterialShaderGraph"
+          ]
+        },
+        {
+          "checkId": "PrefabDependencyClosure",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "PrefabDependencyShapeId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "PrefabYaml"
+          ]
+        },
+        {
+          "checkId": "SpriteAtlasClosure",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "AtlasId"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "DependencyGraph",
+            "TextureMetadata"
+          ]
+        },
+        {
+          "checkId": "TextureReadability",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "TextureFormat"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "FileReadability",
+            "ObjectReadability",
+            "TextureMetadata"
+          ]
+        },
+        {
+          "checkId": "UiRouteValidity",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFactKinds": [
+            "UiRouteKind"
+          ],
+          "outcomeOnMissingFact": "Unchecked",
+          "requiredEvidenceKinds": [
+            "SerializedMetadata"
+          ]
+        }
+      ],
+      "riskAxisDefinitions": [
+        {
+          "riskAxisId": "AtlasFontCombination",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "AtlasId",
+            "FontDependencyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "PrefabDependencyRisk",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "PrefabDependencyShapeId",
+            "ShaderFamilyIds",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "TextureFormat",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "TextureFormat",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        },
+        {
+          "riskAxisId": "UiRoute",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "sourceFactKinds": [
+            "UiRouteKind",
+            "PlatformVariant"
+          ],
+          "variantEncoding": "Tuple"
+        }
+      ],
+      "evidenceRequirementDefinitions": [
+        {
+          "evidenceRequirementId": "UiRouteEvidence",
+          "applicableRiskAxisIds": [
+            "AtlasFontCombination",
+            "PrefabDependencyRisk",
+            "TextureFormat",
+            "UiRoute"
+          ],
+          "requiredEvidenceKinds": [
+            "MaterialFidelity",
+            "UiConstruction",
+            "UnityImport",
+            "VisibleRender"
+          ],
+          "acceptedExecutionStatuses": [
+            "Completed"
+          ]
+        }
+      ],
+      "capabilityProjectionRules": [
+        {
+          "capabilityId": "ReusableUiGraphicsAndConstructionRoute",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredRouteKinds": [
+            "OriginalAsset",
+            "TextureOnlyRebuild"
+          ],
+          "allowedFamilyDecisions": [
+            "PrototypeReplacement",
+            "UseOriginalAsset"
+          ],
+          "requiredEvidenceKinds": [
+            "MaterialFidelity",
+            "UiConstruction",
+            "UnityImport",
+            "VisibleRender"
+          ]
+        }
+      ],
+      "repairRules": [
+        {
+          "repairClass": "DependencyClosureRepair",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "MissingDependency",
+            "PrefabDependencyMissing"
+          ],
+          "requiredInputKinds": [
+            "DependencyGraph",
+            "DependencyObjectIds",
+            "PrefabDependencyShapeId"
+          ],
+          "expectedChangeMeasure": "MissingDependencyCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "FontAtlasRepair",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "FontAtlasMissing"
+          ],
+          "requiredInputKinds": [
+            "FontDependencyIds",
+            "SerializedMetadata"
+          ],
+          "expectedChangeMeasure": "MissingDependencyCount",
+          "maxAttempts": 1
+        },
+        {
+          "repairClass": "TextureOnlyRebuild",
+          "applicableFamilyKinds": [
+            "UiRouteFamily"
+          ],
+          "requiredFailureClasses": [
+            "ImportSettingMismatch",
+            "ReadFailure"
+          ],
+          "requiredInputKinds": [
+            "TextureFormat",
+            "TextureMetadata"
+          ],
+          "expectedChangeMeasure": "FailedCheckCount",
+          "maxAttempts": 1
+        }
+      ]
+    }
+  ]
+}

@@ -58,7 +58,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I04 | C2 dispatch | C2 AR-O04 registered path | C2 | C3 | Required Passed locked C2 generation |
 | LC-I05 | C2 diagnostic summary | C2 AR-O05 registered summary | C2 | C3-C6 freshness | Must be Passed and bind LC-I01-I04 |
 | LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Pure fixture-only C2 typed projection | C3-C5 | Frozen projection is implemented and fixture-verified; it is not an SP-09 publication output, and remaining Phase A preconditions still block C3 implementation |
-| LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Runtime registry contract is closed below; exact registry/schema/fixtures remain unimplemented, and consumers compute its exact-byte fingerprint externally |
+| LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Runtime registry, strict JSON Schema, byte-identical positive fixture, focused negative fixtures, and executable contract validation are implemented; consumers compute its exact-byte fingerprint externally |
 | LC-I08 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json` | C0 | C3-C6 | Required exact accepted C0 artifact |
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
 | LC-I10 | C7/G4 evidence packages | paths listed exactly by LC-I09 | C7/G4 | C5 | Each package must match manifest path/SHA and requirement identity |
@@ -1030,9 +1030,9 @@ The report is never a machine consumer. Its content fingerprint remains part of 
 
 The current `authoring-reuse-ledger.schema.json` cannot represent member identities, bytes, representative partitions, pool isolation, capability projection, policy fingerprints, or complete direct input fingerprints. C6-O01 cannot be projected losslessly into it. A C0 contract change to authoring reuse ledger v2 is required before C6 implementation.
 
-The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. The physical LC-I07 artifacts, LC-I11, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
+The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. LC-I11, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
 
-LC-I07's logical registry contract is now closed: its non-self-referential fingerprint boundary, exact first-version identity, five policy rows, nested reference sets, NotApplicable/check/axis semantics, capability predicates, repair predicates, ordering, and LF-03 vectors are unique. The physical LC-I07 registry, its JSON Schema, positive/negative fixtures, and executable validator remain absent and require the next separately authorized fixture-only Task.
+LC-I07's logical and physical registry contract is complete: its non-self-referential fingerprint boundary, exact first-version identity, five policy rows, nested reference sets, NotApplicable/check/axis semantics, capability predicates, repair predicates, ordering, and LF-03 vectors are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical to the registry, focused negative fixtures prove the key fail-closed rules, and the executable contract validator verifies exact-byte formatting, fingerprint, reference closure, row conservation, and capability coverage. This fixture-only completion does not start C3 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
 LC-I11 still stores `decisionPolicyFingerprint` while defining it over the exact LC-I11 bytes, so its fingerprint boundary remains self-referential and unclosed. The later LC-I11 contract Task must explicitly remove the stored self-hash or obtain separate approval for another non-self-referential encoding; no C6 implementation may infer a rule here.
 
@@ -1373,11 +1373,11 @@ No refresh may launch Unity, extraction, import, or another stage unless its exa
 
 ## Phase A Implementation Preconditions And Sequence
 
-This design grants no C3-C6 implementation. LC-I13 and the pure LC-I06 fixture-only projection are complete. Before C3 begins, separate reviewed Tasks must still complete the LC-I07 strong lane policy schema/fixture, LC-I11 decision policy schema/fixture, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
+This design grants no C3-C6 implementation. LC-I13, the pure LC-I06 fixture-only projection, and the LC-I07 strong lane-policy registry/schema/fixtures are complete. Before C3 begins, separate reviewed Tasks must still complete the LC-I11 decision policy schema/fixture, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
 
 The later implementation sequence is:
 
-1. Remaining fixture-only artifact Tasks for the closed LC-I07 contract, LC-I11, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 is complete but remains outside SP-09 publication.
+1. Remaining fixture-only artifact Tasks for LC-I11, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 and LC-I07 are complete, while LC-I06 remains outside SP-09 publication.
 2. C3 family registry Task; prove SP-30/SP-31 and C3 output vector.
 3. C4 static qualification Task; prove every lane check matrix and SP-40.
 4. C5 requirement/evidence Task; prove all six statuses and SP-50 without C7/G4 execution.

@@ -720,6 +720,97 @@ function Get-LaneFactPackageSemanticIssues {
     return $result.ToArray()
 }
 
+function Test-LanePolicyOrdinalSet {
+    param([AllowNull()][object[]] $Values)
+    $actual = @($Values)
+    if (@($actual | Where-Object { $_ -isnot [string] -or [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+        return $false
+    }
+    $unique = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($value in $actual) {
+        if (-not $unique.Add([string]$value)) { return $false }
+    }
+    $sorted = [string[]]@($actual)
+    [Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+    return ($actual -join "`n") -ceq ($sorted -join "`n")
+}
+
+function Test-LanePolicySetEquals {
+    param([AllowNull()][object[]] $Actual, [AllowNull()][string[]] $Expected)
+    $left = [string[]]@($Actual)
+    $right = [string[]]@($Expected)
+    [Array]::Sort($left, [System.StringComparer]::Ordinal)
+    [Array]::Sort($right, [System.StringComparer]::Ordinal)
+    return ($left -join "`n") -ceq ($right -join "`n")
+}
+
+function Get-LanePolicyRegistrySemanticIssues {
+    param([Parameter(Mandatory)][object] $Registry)
+    $result = [System.Collections.Generic.List[string]]::new()
+    try {
+        if ((@($Registry.PSObject.Properties.Name) -join ',') -cne 'schemaVersion,generatedAt,policySetId,policySetVersion,policies') {
+            $result.Add('Lane policy registry top-level shape is not exact.')
+        }
+        if ($null -ne $Registry.PSObject.Properties['policySetFingerprint']) {
+            $result.Add('Lane policy registry must not store policySetFingerprint.')
+        }
+        if ($Registry.schemaVersion -cne '1.0.0' -or $Registry.generatedAt -cne '2026-07-15T00:00:00Z' -or $Registry.policySetId -cne 'StellaSoraLifecycleLanePolicySet' -or $Registry.policySetVersion -cne '1.0.0') {
+            $result.Add('Lane policy registry immutable identity is invalid.')
+        }
+
+        $expected = [ordered]@{
+            Actor = [pscustomobject]@{ policyId='ActorPolicyV1'; familyKindId='ActorRouteFamily'; factCount=10; checkCount=8; axisCount=5; capabilityCount=2; repairCount=3 }
+            Audio = [pscustomobject]@{ policyId='AudioPolicyV1'; familyKindId='AudioRouteFamily'; factCount=9; checkCount=7; axisCount=4; capabilityCount=2; repairCount=2 }
+            Effects = [pscustomobject]@{ policyId='EffectsPolicyV1'; familyKindId='EffectRouteFamily'; factCount=8; checkCount=7; axisCount=4; capabilityCount=1; repairCount=3 }
+            Environment = [pscustomobject]@{ policyId='EnvironmentPolicyV1'; familyKindId='EnvironmentModuleFamily'; factCount=12; checkCount=8; axisCount=4; capabilityCount=1; repairCount=3 }
+            UI = [pscustomobject]@{ policyId='UiPolicyV1'; familyKindId='UiRouteFamily'; factCount=9; checkCount=6; axisCount=4; capabilityCount=1; repairCount=3 }
+        }
+        $policies = @($Registry.policies)
+        if ($policies.Count -ne 5 -or (@($policies | ForEach-Object lane) -join ',') -cne (@($expected.Keys) -join ',')) {
+            $result.Add('Lane policy registry policies are not the exact Ordinal five-lane list.')
+            return $result.ToArray()
+        }
+
+        $allCapabilityIds = [System.Collections.Generic.List[string]]::new()
+        $totalChecks=0; $totalAxes=0; $totalEvidence=0; $totalCapabilities=0; $totalRepairs=0
+        foreach ($policy in $policies) {
+            $lane = [string]$policy.lane
+            $e = $expected[$lane]
+            if ((@($policy.PSObject.Properties.Name) -join ',') -cne 'policyId,lane,policyVersion,familyKinds,factDefinitions,staticCheckDefinitions,riskAxisDefinitions,evidenceRequirementDefinitions,capabilityProjectionRules,repairRules' -or $policy.policyId -cne $e.policyId -or $policy.policyVersion -cne '1.0.0') {
+                $result.Add("Lane policy row identity/shape is invalid for '$lane'.")
+            }
+            $families=@($policy.familyKinds);$facts=@($policy.factDefinitions);$checks=@($policy.staticCheckDefinitions);$axes=@($policy.riskAxisDefinitions);$requirements=@($policy.evidenceRequirementDefinitions);$capabilities=@($policy.capabilityProjectionRules);$repairs=@($policy.repairRules)
+            if ($families.Count-ne1-or$facts.Count-ne$e.factCount-or$checks.Count-ne$e.checkCount-or$axes.Count-ne$e.axisCount-or$requirements.Count-ne1-or$capabilities.Count-ne$e.capabilityCount-or$repairs.Count-ne$e.repairCount) {
+                $result.Add("Lane policy nested row conservation failed for '$lane'.")
+                continue
+            }
+            $family=$families[0]
+            if ($family.familyKindId-cne$e.familyKindId-or-not(Test-LanePolicyOrdinalSet @($family.applicableObjectTypes))-or-not(Test-LanePolicyOrdinalSet @($family.keyDimensionIds))-or-not(Test-LanePolicySetEquals @($family.memberSelectorKinds) @('CanonicalAssetId','ClassId','DependencyObjectId','ObjectType','PlatformVariant','ToolObservation'))) {
+                $result.Add("Lane family-kind contract is invalid for '$lane'.")
+            }
+            $factIds=@($facts|ForEach-Object factKind)
+            if (-not(Test-LanePolicyOrdinalSet $factIds)-or$factIds-cnotcontains'DependencyObjectIds'-or$factIds-cnotcontains'PlatformVariant') {$result.Add("Lane fact definitions are not closed for '$lane'.")}
+            foreach($key in @($family.keyDimensionIds)){if($factIds-cnotcontains$key){$result.Add("Lane family key '$key' is unresolved for '$lane'.")}}
+            foreach($fact in $facts){if(-not(Test-LanePolicySetEquals @($fact.requiredForFamilyKinds) @($e.familyKindId))-or-not(Test-LanePolicyOrdinalSet @($fact.allowedValues))){$result.Add("Lane fact definition '$($fact.factKind)' is invalid for '$lane'.")}}
+            foreach($set in @(@{rows=$checks;key='checkId'},@{rows=$axes;key='riskAxisId'},@{rows=$requirements;key='evidenceRequirementId'},@{rows=$capabilities;key='capabilityId'},@{rows=$repairs;key='repairClass'})){if(-not(Test-LanePolicyOrdinalSet @($set.rows|ForEach-Object{$_.$($set.key)}))){$result.Add("Lane nested IDs are not distinct Ordinal for '$lane/$($set.key)'.")}}
+            foreach($check in $checks){if(-not(Test-LanePolicySetEquals @($check.applicableFamilyKinds) @($e.familyKindId))-or$check.outcomeOnMissingFact-cne'Unchecked'-or-not(Test-LanePolicyOrdinalSet @($check.requiredFactKinds))-or-not(Test-LanePolicyOrdinalSet @($check.requiredEvidenceKinds))){$result.Add("Lane static check '$($check.checkId)' is invalid for '$lane'.")};foreach($id in @($check.requiredFactKinds)){if($factIds-cnotcontains$id){$result.Add("Lane static check fact '$id' is unresolved for '$lane'.")}}}
+            $axisIds=@($axes|ForEach-Object riskAxisId)
+            foreach($axis in $axes){if(-not(Test-LanePolicySetEquals @($axis.applicableFamilyKinds) @($e.familyKindId))-or$axis.variantEncoding-cne'Tuple'-or@($axis.sourceFactKinds).Count-ne@($axis.sourceFactKinds|Select-Object -Unique).Count){$result.Add("Lane risk axis '$($axis.riskAxisId)' is invalid for '$lane'.")};foreach($id in @($axis.sourceFactKinds)){if($factIds-cnotcontains$id){$result.Add("Lane risk-axis fact '$id' is unresolved for '$lane'.")}}}
+            $requirement=$requirements[0]
+            if(-not(Test-LanePolicySetEquals @($requirement.applicableRiskAxisIds) $axisIds)-or-not(Test-LanePolicyOrdinalSet @($requirement.applicableRiskAxisIds))-or-not(Test-LanePolicyOrdinalSet @($requirement.requiredEvidenceKinds))-or-not(Test-LanePolicySetEquals @($requirement.acceptedExecutionStatuses) @('Completed'))){$result.Add("Lane evidence requirement is invalid for '$lane'.")}
+            foreach($capability in $capabilities){$allCapabilityIds.Add([string]$capability.capabilityId);if(-not(Test-LanePolicySetEquals @($capability.applicableFamilyKinds) @($e.familyKindId))){$result.Add("Lane capability family is invalid for '$lane/$($capability.capabilityId)'.")};foreach($name in @('requiredRouteKinds','allowedFamilyDecisions','requiredEvidenceKinds')){if(-not(Test-LanePolicyOrdinalSet @($capability.$name))){$result.Add("Lane capability set '$name' is invalid for '$lane/$($capability.capabilityId)'.")}}}
+            foreach($repair in $repairs){if(-not(Test-LanePolicySetEquals @($repair.applicableFamilyKinds) @($e.familyKindId))-or$repair.maxAttempts-ne1){$result.Add("Lane repair rule is invalid for '$lane/$($repair.repairClass)'.")};foreach($name in @('requiredFailureClasses','requiredInputKinds')){if(-not(Test-LanePolicyOrdinalSet @($repair.$name))){$result.Add("Lane repair set '$name' is invalid for '$lane/$($repair.repairClass)'.")}}}
+            $totalChecks+=$checks.Count;$totalAxes+=$axes.Count;$totalEvidence+=$requirements.Count;$totalCapabilities+=$capabilities.Count;$totalRepairs+=$repairs.Count
+        }
+        if($totalChecks-ne36-or$totalAxes-ne21-or$totalEvidence-ne5-or$totalCapabilities-ne7-or$totalRepairs-ne14){$result.Add('Lane policy global row conservation failed.')}
+        $expectedCapabilities=@('CombatEffectRoute','EnemyModelSkeletonAnimationSet','PlayableBgmRoute','PlayableCombatSfx','PlayerModelSkeletonAnimationSet','RecognizableEnvironmentOrMapModules','ReusableUiGraphicsAndConstructionRoute')
+        if(-not(Test-LanePolicySetEquals $allCapabilityIds.ToArray() $expectedCapabilities)){$result.Add('Lane policy required capability set is invalid.')}
+    } catch {
+        $result.Add("Lane policy registry semantic validation threw: $($_.Exception.Message)")
+    }
+    return $result.ToArray()
+}
+
 function Get-NegativeFixtureSemanticIssues {
     param(
         [Parameter(Mandatory)]
@@ -733,6 +824,36 @@ function Get-NegativeFixtureSemanticIssues {
     )
 
     $fixtureIssues = [System.Collections.Generic.List[string]]::new()
+
+    if ($PrimaryRule -ceq 'LanePolicyStoredFingerprint') {
+        if ($null -ne $Fixture.PSObject.Properties['policySetFingerprint']) {
+            $fixtureIssues.Add('Lane policy registry must not store policySetFingerprint.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'LanePolicyOrder') {
+        if ((@($Fixture.lanes) -join ',') -cne 'Actor,Audio,Effects,Environment,UI') {
+            $fixtureIssues.Add('Lane policy registry policies are not the exact Ordinal five-lane list.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'LanePolicyUnresolvedFact') {
+        foreach ($requiredFactKind in @($Fixture.requiredFactKinds)) {
+            if ($requiredFactKind -cnotin @($Fixture.declaredFactKinds)) {
+                $fixtureIssues.Add("Lane policy reference is unresolved: '$requiredFactKind'.")
+            }
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'LanePolicyMaxAttempts') {
+        if ($Fixture.maxAttempts -ne 1) {
+            $fixtureIssues.Add('Lane policy repair maxAttempts must be exactly 1.')
+        }
+        return $fixtureIssues.ToArray()
+    }
 
     if ($PrimaryRule -cin @('LaneFactCarrier', 'LaneFactDuplicateSubjectKind')) {
         foreach ($laneFactIssue in @(Get-LaneFactPackageSemanticIssues -Package $Fixture)) {
@@ -1093,6 +1214,11 @@ $schemaContracts = @(
         Name = 'c2-lane-fact-package.schema.json'
         Id = 'https://stellagaia.dev/schemas/c2-lane-fact-package.schema.json'
         Required = @('schemaVersion', 'generatedAt', 'snapshotId', 'c2GenerationFingerprint', 'factContractFingerprint', 'inputFingerprint', 'rows')
+    },
+    [pscustomobject]@{
+        Name = 'c3-c6-lane-policy-registry.schema.json'
+        Id = 'https://stellagaia.dev/schemas/c3-c6-lane-policy-registry.schema.json'
+        Required = @('schemaVersion', 'generatedAt', 'policySetId', 'policySetVersion', 'policies')
     }
 )
 
@@ -1112,6 +1238,10 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-c2-lane-fact-package.json'
         SchemaName = 'c2-lane-fact-package.schema.json'
+    },
+    [pscustomobject]@{
+        Name = 'valid-c3-c6-lane-policy-registry.json'
+        SchemaName = 'c3-c6-lane-policy-registry.schema.json'
     }
 )
 
@@ -1150,6 +1280,26 @@ $negativeFixtureContracts = @(
         Name = 'invalid-lane-fact-duplicate-subject-kind.json'
         Rule = 'LaneFactDuplicateSubjectKind'
         ExpectedIssue = "Lane fact subject/kind is duplicated: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ActorRole'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-policy-stored-fingerprint.json'
+        Rule = 'LanePolicyStoredFingerprint'
+        ExpectedIssue = 'Lane policy registry must not store policySetFingerprint.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-policy-order.json'
+        Rule = 'LanePolicyOrder'
+        ExpectedIssue = 'Lane policy registry policies are not the exact Ordinal five-lane list.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-policy-unresolved-fact.json'
+        Rule = 'LanePolicyUnresolvedFact'
+        ExpectedIssue = "Lane policy reference is unresolved: 'MissingFact'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-lane-policy-max-attempts.json'
+        Rule = 'LanePolicyMaxAttempts'
+        ExpectedIssue = 'Lane policy repair maxAttempts must be exactly 1.'
     }
 )
 
@@ -1254,6 +1404,30 @@ if ($schemas.ContainsKey('c2-lane-fact-package.schema.json')) {
     }
 }
 
+if ($schemas.ContainsKey('c3-c6-lane-policy-registry.schema.json')) {
+    $schema = $schemas['c3-c6-lane-policy-registry.schema.json']
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.policy.required' -Expected @('policyId', 'lane', 'policyVersion', 'familyKinds', 'factDefinitions', 'staticCheckDefinitions', 'riskAxisDefinitions', 'evidenceRequirementDefinitions', 'capabilityProjectionRules', 'repairRules')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.familyKind.required' -Expected @('familyKindId', 'applicableObjectTypes', 'keyDimensionIds', 'memberSelectorKinds')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.factDefinition.required' -Expected @('factKind', 'valueKind', 'requiredForFamilyKinds', 'allowedValues', 'allowNotApplicable')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.staticCheckDefinition.required' -Expected @('checkId', 'applicableFamilyKinds', 'requiredFactKinds', 'outcomeOnMissingFact', 'requiredEvidenceKinds')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.riskAxisDefinition.required' -Expected @('riskAxisId', 'applicableFamilyKinds', 'sourceFactKinds', 'variantEncoding')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.evidenceRequirementDefinition.required' -Expected @('evidenceRequirementId', 'applicableRiskAxisIds', 'requiredEvidenceKinds', 'acceptedExecutionStatuses')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.capabilityProjectionRule.required' -Expected @('capabilityId', 'applicableFamilyKinds', 'requiredRouteKinds', 'allowedFamilyDecisions', 'requiredEvidenceKinds')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-lane-policy-registry.schema.json' -Path '$defs.repairRule.required' -Expected @('repairClass', 'applicableFamilyKinds', 'requiredFailureClasses', 'requiredInputKinds', 'expectedChangeMeasure', 'maxAttempts')
+    if ($null -ne (Get-PropertyByPath -Value $schema -Path 'properties.policySetFingerprint')) {
+        $issues.Add("Schema 'c3-c6-lane-policy-registry.schema.json' must not define a stored policySetFingerprint.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path 'properties.policies.minItems') -ne 5 -or (Get-PropertyByPath -Value $schema -Path 'properties.policies.maxItems') -ne 5) {
+        $issues.Add("Schema 'c3-c6-lane-policy-registry.schema.json' must freeze exactly five policies.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path '$defs.evidenceRequirementDefinition.properties.acceptedExecutionStatuses.items.const') -cne 'Completed') {
+        $issues.Add("Schema 'c3-c6-lane-policy-registry.schema.json' must accept only Completed evidence execution status.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path '$defs.repairRule.properties.maxAttempts.const') -ne 1) {
+        $issues.Add("Schema 'c3-c6-lane-policy-registry.schema.json' must freeze repair maxAttempts to 1.")
+    }
+}
+
 $fixtures = @{}
 foreach ($contract in $fixtureContracts) {
     $fixturePath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot $contract.Name))
@@ -1320,6 +1494,39 @@ if ($null -ne $laneFactFixture) {
     $expectedLaneFactSchemaFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($laneFactSchemaPath))).ToLowerInvariant()
     foreach ($laneFactIssue in @(Get-LaneFactPackageSemanticIssues -Package $laneFactFixture -ExpectedContractFingerprint $expectedLaneFactSchemaFingerprint)) {
         $issues.Add("Fixture 'valid-c2-lane-fact-package.json' semantic contract failed: $laneFactIssue")
+    }
+}
+
+$lanePolicyFixture = $fixtures['valid-c3-c6-lane-policy-registry.json']
+if ($null -ne $lanePolicyFixture) {
+    $lanePolicyRegistryPath = [System.IO.Path]::GetFullPath((Join-Path $ContractRoot 'c3-c6-lane-policy-registry.json'))
+    if (-not [System.IO.File]::Exists($lanePolicyRegistryPath)) {
+        $issues.Add("Lane policy registry '$lanePolicyRegistryPath' does not exist.")
+    }
+    else {
+        $registryBytes = [System.IO.File]::ReadAllBytes($lanePolicyRegistryPath)
+        $fixtureBytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath((Join-Path $FixtureRoot 'valid-c3-c6-lane-policy-registry.json')))
+        if (-not [System.Linq.Enumerable]::SequenceEqual[byte]($registryBytes, $fixtureBytes)) {
+            $issues.Add('Lane policy registry and its positive fixture are not byte-identical.')
+        }
+        $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($registryBytes)).ToLowerInvariant()
+        if ($actualFingerprint -cne '7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862') {
+            $issues.Add("Lane policy registry exact-byte fingerprint is unexpected: '$actualFingerprint'.")
+        }
+        $registryText = [Text.Encoding]::UTF8.GetString($registryBytes)
+        if ($registryBytes.Length -ge 3 -and $registryBytes[0] -eq 0xEF -and $registryBytes[1] -eq 0xBB -and $registryBytes[2] -eq 0xBF) {
+            $issues.Add('Lane policy registry must be UTF-8 without BOM.')
+        }
+        if ($registryText.Contains("`r") -or -not $registryText.EndsWith("`n") -or $registryText.EndsWith("`n`n")) {
+            $issues.Add('Lane policy registry must use LF line endings and exactly one final LF.')
+        }
+        $canonicalText = (($lanePolicyFixture | ConvertTo-Json -Depth 100) -replace "`r`n", "`n") + "`n"
+        if ($registryText -cne $canonicalText) {
+            $issues.Add('Lane policy registry is not canonical two-space PowerShell JSON serialization.')
+        }
+    }
+    foreach ($lanePolicyIssue in @(Get-LanePolicyRegistrySemanticIssues -Registry $lanePolicyFixture)) {
+        $issues.Add("Fixture 'valid-c3-c6-lane-policy-registry.json' semantic contract failed: $lanePolicyIssue")
     }
 }
 
