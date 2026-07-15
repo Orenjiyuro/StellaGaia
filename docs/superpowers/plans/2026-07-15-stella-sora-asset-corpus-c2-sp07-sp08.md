@@ -1,8 +1,8 @@
 # StellaSora C2 SP-07/SP-08 Phase A Plan
 
 **Date:** 2026-07-15
-**Status:** DRAFT FOR READ-ONLY REVIEW — SP-08 subject model and SP-07 private join amended
-**Baseline:** `codex/asset-corpus-integration` at `6b8bc1b01077036394473b39f51f71e2412f0c09`
+**Status:** TASK 1 COMPLETE AT `954207e5ed7404024485b315dda75a2fbf6a07f7`; TASK 2 BLOCKED PENDING APPROVAL OF THE CORRECTED SP-08 SUBJECT VECTOR
+**Baseline:** `codex/asset-corpus-integration` at `954207e5ed7404024485b315dda75a2fbf6a07f7`
 **Scope:** fixture-only SP-07 dispatch and SP-08 input accounting. No fixture/spec/schema changes, output persistence, SP-09, C3-C6, G5, Unity, extraction, import, real assets, or forbidden-path creation.
 
 ## 1. Authorization And Task Boundary
@@ -254,21 +254,21 @@ The amended authoritative model includes every actually read artifact. AR-I08 is
 
 ```text
 read artifact subjects=10: AR-I01..AR-I08, AR-I10, AR-I11
-raw observation subjects=6: r1..r6
+raw observation subjects=8: AR-I07 r1..r6 plus AR-I08 fd1 and fd2
 contract checks=5
 derived conflict subjects=1: gConflict (HI-11b)
-inputSubjectCount=22
-acceptedInputSubjectCount=19: 10 artifacts + 4 accepted rows + 5 checks
+inputSubjectCount=24
+acceptedInputSubjectCount=21: 10 artifacts + 4 accepted AR-I07 rows + 2 accepted AR-I08 rows + 5 checks
 inputFailureCount=2: r5 + gConflict
 excludedInputSubjectCount=1: r6
 notEvaluatedInputSubjectCount=0
-22=19+2+1+0
+24=21+2+1+0
 
-inputObservationCount=6
-acceptedInputObservationCount=4
+inputObservationCount=8
+acceptedInputObservationCount=6
 rejectedInputObservationCount=1
 excludedInputCount=1
-6=4+1+1
+8=6+1+1
 
 contractFailureRecordCount=0
 fileDiscoveryConflictRecordCount=0
@@ -279,7 +279,18 @@ canonicalConflictRecordCount=0
 issueCount=2
 ```
 
-The pre-amendment implementation currently reports:
+The two accepted AR-I08 raw subjects are frozen independently of their merged SP-02 file result:
+
+```text
+fd1.fileDiscoveryObservationId=file-discovery-observation-sha256:195be146f0f08df54c160fbccf1c790bc1fbd535b6626976e1981344031b3e80
+fd1.evidence={Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toola-file-readable.json}
+fd2.fileDiscoveryObservationId=file-discovery-observation-sha256:19e7158715bf0dd0807da34dddfa744b9d205a3d3e1273ea5185f217b426b5c4
+fd2.evidence={Tools/AssetImport/Fixtures/DiscoveryGate/Evidence/toolb-file-readable.json}
+```
+
+Both rows remain distinct SP-08 accounting subjects because their HI-06 identities differ. SP-02 coalescing them into one `Parsed` file result must not erase either raw subject.
+
+The implementation at the Task 1 baseline reports the following incomplete registry because it omits both AR-I08 raw subjects and leaves two checks NotEvaluated:
 
 ```text
 inputSubjectCount=22
@@ -289,7 +300,7 @@ excludedInputSubjectCount=1
 notEvaluatedInputSubjectCount=2
 ```
 
-Task 2 must change those two NotEvaluated checks to Accepted only after deriving their predicates from complete actual sets; it may not overwrite counts. The overall gate remains Failed because two direct InputFailures exist, and SP-07 remains suppressed with zero eligible objects.
+Task 2 must add the two distinct AR-I08 raw subjects and change the two NotEvaluated checks to Accepted only after deriving their predicates from complete actual sets; it may not overwrite counts. The correct delta from the baseline is therefore `+2 inputSubjectCount`, `+4 acceptedInputSubjectCount`, and `-2 notEvaluatedInputSubjectCount`. The overall gate remains Failed because two direct InputFailures exist, and SP-07 remains suppressed with zero eligible objects.
 
 ### 5.4 SP-08 failure vectors
 
@@ -323,11 +334,11 @@ pwsh -NoProfile -File Tools/AssetImport/Test-C2DiscoveryIntakeGate.ps1 -Case Dis
 
 **Exact files:** the same two scripts. Requires independently approved Task 1 commit.
 
-1. **RED actual-subject registry (2–5 min).** Add `-Case InputAccounting`; hard-code the 22-subject integration vector, identities, parent partitions, and all three equations.
+1. **RED actual-subject registry (2–5 min).** Add `-Case InputAccounting`; hard-code the 24-subject integration vector, including both exact AR-I08 raw identities, parent partitions, and all three equations.
 2. **Derive complete sets (2–5 min).** Replace incremental count patching with distinct artifact/raw-row/conflict/check collections and derive every count.
 3. **Five checks (2–5 min).** Freeze exact order, prerequisites, Accepted/Failed/NotEvaluated derivation and reject any implicit sixth check.
 4. **FT-10/11/15 matrix (2–5 min).** Assert unique ownership, exact AR-S10 shape/evidence, one-check-one-state behavior, and issue/fingerprint effects.
-5. **SP-07 coupling (2–5 min).** Evaluate SP-07 only after complete SP-08 state; any failure yields zero dispatch universe, while the amended integration is exact 22/19/2/1/0.
+5. **SP-07 coupling (2–5 min).** Evaluate SP-07 only after complete SP-08 state; any failure yields zero dispatch universe, while the amended integration is exact 24/21/2/1/0.
 6. **GREEN/checkpoint (2–5 min).** Run every focused case, minimal regression, AST safety, exact scope and forbidden-path checks; commit independently and stop.
 
 Focused command:
