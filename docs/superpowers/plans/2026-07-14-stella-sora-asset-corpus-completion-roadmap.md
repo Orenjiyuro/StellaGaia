@@ -2,7 +2,7 @@
 
 > **Status:** Approved sequencing and effort-control roadmap. This document grants no implementation, real-asset access, extraction, import, Unity, Phase B, merge, or worktree-removal authority. Each implementation slice still requires its own reviewed central contracts, 20–30 minute Task, and explicit authorization.
 
-**Current baseline:** `codex/asset-corpus-integration` at reviewed commit `6165be7a2b93352a94a9ae65ffb15aa1a6dcf004`. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. C2 Phase B remains unauthorized; its fixture-to-real runbook is the next independent Task. C3–C6 definition and implementation, G5 integration, Phase B execution, and C7/G4 Unity have not started.
+**Current baseline:** `codex/asset-corpus-integration` at reviewed commit `d2b5247f07d776bb94214ec6c6ecde1b01f570a5`. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. The C2 Phase B fixture-to-real runbook is written, but Phase B remains unauthorized. C3–C6 responsibilities and input/output contracts are now defined; implementation, G5 integration, Phase B execution, and C7/G4 Unity have not started.
 
 ## 1. Program Goal And Definition Of Done
 
@@ -67,9 +67,9 @@ Write and approve one narrow plan before implementation, then execute one Task p
 
 Do not make the full atomic multi-artifact publisher a prerequisite until at least two approved consumers require the publication transaction. A simpler current-consumer output may be used only if the central registries and failure suppression remain lossless.
 
-Completion record: SP-01 through SP-09, including canonical provenance, dispatch, complete input accounting, deterministic serialization, journaled publication/recovery, and diagnostic publication wiring, are implemented through `6165be7` and pass the complete fixture-only verification matrix. This record does not include real assets, extraction, Unity, Phase B, C3–C6, or G5. The C2 Phase B fixture-to-real runbook remains a separate, unauthorized Task.
+Completion record: SP-01 through SP-09, including canonical provenance, dispatch, complete input accounting, deterministic serialization, journaled publication/recovery, and diagnostic publication wiring, are implemented through `6165be7` and pass the complete fixture-only verification matrix. The fixture-to-real runbook was added at `d2b5247`; it is planning evidence only and grants no real-source or Phase B execution authority. This record does not include real assets, extraction, Unity, Phase B, C3–C6 implementation, or G5.
 
-### R3 — Define C3–C6 Before Implementing Them
+### R3 — Define C3–C6 Before Implementing Them — Complete
 
 Current authority names C3–C6 but does not assign complete ownership, artifact boundaries, or acceptance criteria. This is a blocking roadmap gap, not permission to infer meanings from old scripts.
 
@@ -81,6 +81,8 @@ A docs-only Task must freeze:
 - how existing evidence is fingerprinted, accepted, marked stale, or rejected without repeating equivalent work.
 
 No C3–C6 implementation begins until that definition passes independent review.
+
+Completion record: `2026-07-15-stella-sora-asset-corpus-c3-c6-design.md` freezes the lifecycle spine, strong Audio/Environment/Actor/UI/Effects policies, C3–C6 direct inputs and outputs, conservation partitions, identities/fingerprints, failure vectors, C7/G4 evidence boundary, C6-only G5 handoff, and fixed counterexamples. It also records the exact C0/C2 contract gaps. This docs-only completion does not authorize implementation, Phase B, Unity, extraction, or real assets.
 
 ### R4 — C3–C6 Fixture-Only Family Gates
 
@@ -158,4 +160,4 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-The next normal Task is **write the C2 Phase B fixture-to-real runbook**. It requires separate explicit authorization and does not authorize execution against real sources. C2 Phase B execution, real assets, extraction, Unity, import, C3–C6 definition or implementation, G5, and release work remain unauthorized.
+The next normal Task is **review and implement the prerequisite C0/C2 fixture-only contract changes for LC-I13/LC-I06, LC-I07, LC-I11, LC-I12, the required vocabulary dimensions, and authoring reuse ledger v2**. It requires separate explicit authorization and must be split into reviewed 20–30 minute increments before any C3 implementation. C2 Phase B execution, real assets, extraction, Unity, import, C3–C6 implementation, G5, and release work remain unauthorized.
