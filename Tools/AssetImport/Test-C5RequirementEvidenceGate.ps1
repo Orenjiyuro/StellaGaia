@@ -19,6 +19,13 @@ $vocabulary=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset
 function Clone-Value($Value){$Value|ConvertTo-Json -Depth 100|ConvertFrom-Json -Depth 100 -DateKind String}
 function Get-Sha256([string]$Text){[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text))).ToLowerInvariant()}
 function Scalar([string]$Name,[string]$Value){"${Name}:$([Text.Encoding]::UTF8.GetByteCount($Value)):${Value}`n"}
+function SetFrame([string]$Name,[string[]]$Values){$ordered=@($Values|Sort-Object -CaseSensitive -Unique);$count=[string]$ordered.Count;$text="${Name}.count:$([Text.Encoding]::UTF8.GetByteCount($count)):$count`n";for($i=0;$i-lt$ordered.Count;$i++){$text+=Scalar "${Name}[$i]" $ordered[$i]};$text}
+function ObservationFrame($Observation){"C5EvidenceObservationV1`n"+(Scalar evidenceKind $Observation.evidenceKind)+(Scalar outcome $Observation.outcome)+(Scalar contentFingerprint $Observation.contentFingerprint)+(SetFrame evidence @($Observation.evidence))}
+function Update-PackageId($Package){$digests=@($Package.observations|ForEach-Object{Get-Sha256 (ObservationFrame $_)});$text="C5EvidencePackageV1`n"+(Scalar requirementId $Package.requirementId)+(Scalar requirementKind $Package.requirementKind)+(Scalar representativeAssetObjectId $Package.representativeAssetObjectId)+(Scalar executorKind $Package.executorKind)+(Scalar executionStatus $Package.executionStatus)+(Scalar inputFingerprint $Package.inputFingerprint)+(SetFrame observationDigests $digests)+(SetFrame evidencePaths @($Package.evidencePaths));$Package.evidencePackageId="evidence-package-sha256:$(Get-Sha256 $text)";$Package}
+function New-Package($Requirement,[string]$Kind,[string]$Executor,[string]$ExecutionStatus,[object[]]$Observations){
+    $id=if($Kind-ceq'RiskVariant'){$Requirement.requirementId}else{$Requirement.suitabilityRequirementId}
+    Update-PackageId ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T05:00:00Z';evidencePackageId=('evidence-package-sha256:'+('0'*64));requirementId=$id;requirementKind=$Kind;representativeAssetObjectId=$Requirement.selectedRepresentativeAssetObjectId;executorKind=$Executor;executionStatus=$ExecutionStatus;inputFingerprint=$Requirement.expectedInputFingerprint;toolVersions=@('ImmutableFixture:1.0.0');observations=@($Observations);evidencePaths=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')})
+}
 function Get-StaticInputFingerprint {
     $paths=@('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md')
     $entries=@($paths|ForEach-Object{[pscustomobject][ordered]@{path=$_;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $_)).Hash.ToLowerInvariant()}}|Sort-Object path -CaseSensitive)
@@ -71,16 +78,43 @@ if((@($loopResult.capabilitySuitabilityRequirements.suitabilityRequirementId|Sor
 $riskRequirement=@($base.requirements|Where-Object{$null-ne$_.selectedRepresentativeAssetObjectId})[0]
 $suitabilityRequirement=@($base.capabilitySuitabilityRequirements|Where-Object{$null-ne$_.selectedRepresentativeAssetObjectId})[0]
 $packages=@(
-    [pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T05:00:00Z';evidencePackageId="evidence-package-sha256:$(Get-Sha256 $riskRequirement.requirementId)";requirementId=$riskRequirement.requirementId;requirementKind='RiskVariant';representativeAssetObjectId=$riskRequirement.selectedRepresentativeAssetObjectId;executorKind='C7Unity';executionStatus='Unavailable';inputFingerprint=$riskRequirement.expectedInputFingerprint;toolVersions=@('FixtureUnavailable:1.0.0');observations=@();evidencePaths=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')},
-    [pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T05:00:00Z';evidencePackageId="evidence-package-sha256:$(Get-Sha256 $suitabilityRequirement.suitabilityRequirementId)";requirementId=$suitabilityRequirement.suitabilityRequirementId;requirementKind='CapabilitySuitability';representativeAssetObjectId=$suitabilityRequirement.selectedRepresentativeAssetObjectId;executorKind='G4Unity';executionStatus='Unavailable';inputFingerprint=$suitabilityRequirement.expectedInputFingerprint;toolVersions=@('FixtureUnavailable:1.0.0');observations=@();evidencePaths=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
+    (New-Package $riskRequirement RiskVariant C7Unity Unavailable @()),
+    (New-Package $suitabilityRequirement CapabilitySuitability G4Unity Unavailable @())
 )
 $unavailable=Run-Kernel @($riskFacts) $packages
 if($unavailable.status-cne'Passed'-or$unavailable.unityExecutionUnavailableCount-ne1-or$unavailable.evidenceMissingCount-ne11-or$unavailable.suitabilityExecutionUnavailableCount-ne1-or$unavailable.suitabilityMissingCount-ne7){throw 'Unavailable package partition failed.'}
 if(@($unavailable.assessments|Where-Object assessmentStatus -CEQ EvidenceAccepted).Count-or@($unavailable.capabilitySuitabilityAssessments|Where-Object assessmentStatus -CEQ SuitabilityAccepted).Count){throw 'C5-0 fabricated acceptance.'}
 if($unavailable.executorLaunchCount-ne0-or$unavailable.heavyOperationCount-ne0){throw 'C5-0 attempted an executor or heavy operation.'}
-$completedPackages=Clone-Value $packages;$completedPackages[0].executionStatus='Completed';$completedPackages[0].observations=@([pscustomobject][ordered]@{evidenceKind='VisibleRender';outcome='Passed';contentFingerprint=('a'*64);evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')})
-$completed=Run-Kernel @($riskFacts) $completedPackages
-if($completed.status-cne'Failed'-or$completed.issues-cnotcontains'C5-0 accepts only exact Unavailable evidence packages.'-or$completed.evidenceAcceptedCount-ne0){throw 'Completed package was not fail-closed in C5-0.'}
+$riskPassedObservations=@($riskRequirement.requiredEvidenceKinds|ForEach-Object{[pscustomobject][ordered]@{evidenceKind=$_;outcome='Passed';contentFingerprint=('a'*64);evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}})
+$riskAcceptedPackage=New-Package $riskRequirement RiskVariant StaticHumanReview Completed $riskPassedObservations
+$riskAccepted=Run-Kernel @($riskFacts) @($riskAcceptedPackage)
+if($riskAccepted.status-cne'Passed'-or$riskAccepted.evidenceAcceptedCount-ne1-or$riskAccepted.evidenceMissingCount-ne11-or@($riskAccepted.assessments|Where-Object assessmentStatus -CEQ EvidenceAccepted)[0].missingEvidenceKinds.Count-ne0){throw 'Fresh complete risk evidence was not accepted.'}
+$riskStalePackage=Clone-Value $riskAcceptedPackage;$riskStalePackage.inputFingerprint=('b'*64);$riskStalePackage=Update-PackageId $riskStalePackage;$riskStale=Run-Kernel @($riskFacts) @($riskStalePackage)
+if($riskStale.status-cne'Passed'-or$riskStale.evidenceStaleCount-ne1-or$riskStale.evidenceMissingCount-ne11-or@($riskStale.assessments|Where-Object assessmentStatus -CEQ EvidenceStale)[0].failureAttribution-cnotlike'LF-12:*'){throw 'Freshness mismatch did not produce EvidenceStale.'}
+$riskRejectedPackage=Clone-Value $riskAcceptedPackage;$riskRejectedPackage.observations[0].outcome='Rejected';$riskRejectedPackage=Update-PackageId $riskRejectedPackage;$riskRejected=Run-Kernel @($riskFacts) @($riskRejectedPackage)
+if($riskRejected.status-cne'Passed'-or$riskRejected.representativeRejectedCount-ne1-or$riskRejected.evidenceMissingCount-ne11-or@($riskRejected.assessments|Where-Object assessmentStatus -CEQ RepresentativeRejected)[0].failureAttribution-cnotlike'LF-14:*'){throw 'Rejected risk observation did not remain a valid RepresentativeRejected outcome.'}
+$riskInconclusivePackage=Clone-Value $riskAcceptedPackage;$riskInconclusivePackage.observations[0].outcome='Inconclusive';$riskInconclusivePackage=Update-PackageId $riskInconclusivePackage;$riskInconclusive=Run-Kernel @($riskFacts) @($riskInconclusivePackage)
+if($riskInconclusive.status-cne'Passed'-or$riskInconclusive.evidenceAcceptedCount-ne0-or$riskInconclusive.evidenceMissingCount-ne12){throw 'Inconclusive risk evidence was inferred as acceptance.'}
+
+$audioBgmRequirement=@($audioRequirements|Where-Object capabilityId -CEQ PlayableBgmRoute|Sort-Object routeKind -CaseSensitive)[0]
+$suitabilityObservation=[pscustomobject][ordered]@{evidenceKind='CapabilitySuitability';outcome='Passed';contentFingerprint=('c'*64);evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
+$suitabilityAcceptedPackage=New-Package $audioBgmRequirement CapabilitySuitability AudioListening Completed @($suitabilityObservation)
+$suitabilityAccepted=Run-Kernel @($riskFacts) @($suitabilityAcceptedPackage)
+$acceptedSuitability=@($suitabilityAccepted.capabilitySuitabilityAssessments|Where-Object assessmentStatus -CEQ SuitabilityAccepted)
+if($suitabilityAccepted.status-cne'Passed'-or$suitabilityAccepted.suitabilityAcceptedCount-ne1-or$suitabilityAccepted.suitabilityMissingCount-ne7-or$acceptedSuitability.Count-ne1-or$acceptedSuitability[0].suitabilityRequirementId-cne$audioBgmRequirement.suitabilityRequirementId){throw 'Fresh capability suitability evidence was not isolated to its exact requirement.'}
+if(@($suitabilityAccepted.capabilitySuitabilityAssessments|Where-Object{$_.familyId-ceq$audioFamily.familyId-and$_.assessmentStatus-ceq'SuitabilityAccepted'}).Count-ne1){throw 'BGM suitability evidence crossed a capability or route boundary.'}
+$suitabilityStalePackage=Clone-Value $suitabilityAcceptedPackage;$suitabilityStalePackage.inputFingerprint=('d'*64);$suitabilityStalePackage=Update-PackageId $suitabilityStalePackage;$suitabilityStale=Run-Kernel @($riskFacts) @($suitabilityStalePackage)
+if($suitabilityStale.status-cne'Passed'-or$suitabilityStale.suitabilityStaleCount-ne1-or$suitabilityStale.suitabilityMissingCount-ne7){throw 'Suitability freshness mismatch did not produce SuitabilityStale.'}
+$suitabilityRejectedPackage=Clone-Value $suitabilityAcceptedPackage;$suitabilityRejectedPackage.observations[0].outcome='Rejected';$suitabilityRejectedPackage=Update-PackageId $suitabilityRejectedPackage;$suitabilityRejected=Run-Kernel @($riskFacts) @($suitabilityRejectedPackage)
+if($suitabilityRejected.status-cne'Passed'-or$suitabilityRejected.suitabilityRejectedCount-ne1-or$suitabilityRejected.suitabilityMissingCount-ne7){throw 'Rejected suitability escaped its exact route outcome.'}
+$suitabilityInconclusivePackage=Clone-Value $suitabilityAcceptedPackage;$suitabilityInconclusivePackage.observations[0].outcome='Inconclusive';$suitabilityInconclusivePackage=Update-PackageId $suitabilityInconclusivePackage;$suitabilityInconclusive=Run-Kernel @($riskFacts) @($suitabilityInconclusivePackage)
+if($suitabilityInconclusive.status-cne'Passed'-or$suitabilityInconclusive.suitabilityAcceptedCount-ne0-or$suitabilityInconclusive.suitabilityMissingCount-ne8){throw 'Inconclusive suitability was inferred as acceptance.'}
+$unknownPackage=Clone-Value $suitabilityAcceptedPackage;$unknownPackage.requirementId=('capability-suitability-requirement-sha256:'+('e'*64));$unknownPackage=Update-PackageId $unknownPackage;$identityFailure=Run-Kernel @($riskFacts) @($unknownPackage)
+if($identityFailure.status-cne'Failed'-or$identityFailure.issues-cnotcontains'Evidence package does not resolve to a C5 requirement.'-or$identityFailure.suitabilityAcceptedCount-ne0){throw 'Unknown capability/route evidence did not fail as LF-15 contract evidence.'}
+$wrongKindPackage=Clone-Value $suitabilityAcceptedPackage;$wrongKindPackage.observations[0].evidenceKind='VisibleRender';$wrongKindPackage=Update-PackageId $wrongKindPackage;$wrongKind=Run-Kernel @($riskFacts) @($wrongKindPackage)
+if($wrongKind.status-cne'Failed'-or$wrongKind.issues-cnotcontains'Capability suitability package identity mismatch.'-or$wrongKind.suitabilityAcceptedCount-ne0){throw 'Wrong capability-suitability observation kind was reused.'}
+$staleWrongKindPackage=Clone-Value $wrongKindPackage;$staleWrongKindPackage.inputFingerprint=('f'*64);$staleWrongKindPackage=Update-PackageId $staleWrongKindPackage;$staleWrongKind=Run-Kernel @($riskFacts) @($staleWrongKindPackage)
+if($staleWrongKind.status-cne'Failed'-or$staleWrongKind.issues-cnotcontains'Capability suitability package identity mismatch.'-or$staleWrongKind.suitabilityStaleCount-ne0){throw 'Staleness masked an LF-15 capability evidence identity failure.'}
 $repeat=Run-Kernel @($riskFacts) @();if(($base|ConvertTo-Json -Depth 100)-cne($repeat|ConvertTo-Json -Depth 100)){throw 'C5-0 determinism failed.'}
 if(Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublication')){throw 'C5-0 touched publication state.'}
 
@@ -90,6 +124,8 @@ if(Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublicatio
 'capabilitySuitabilityPartition=3/8/0/0/0/0'
 'unavailableRiskCount=1'
 'unavailableSuitabilityCount=1'
+'acceptedStaleRejectedRiskCount=1/1/1'
+'acceptedStaleRejectedSuitabilityCount=1/1/1'
 'audioSuitabilityRequirementCount=4'
 'executorLaunchCount=0'
 'publicationWriteCount=0'
