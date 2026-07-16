@@ -3,7 +3,7 @@
   "generatedAt": "2026-07-16T04:00:00Z",
   "stageId": "C4",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "262eefbfb591bb202548e8c1aaf1ae10e973da0f99a8c75d04bd13c4eb0db09a",
+  "inputFingerprint": "9b7173bbb5692e888696eb40a0e2468856baa447607d14a9ddc80bd3f554128e",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "toolVersions": [
     "C4StaticQualificationGate:1.0.0"
@@ -12,79 +12,84 @@
     {
       "artifactId": "LC-I01",
       "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json",
-      "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+      "sha256": "707f6da4a0fd7481cfa0278118d5fb0d78d838f1856262b77c3070b318b4319c"
     },
     {
       "artifactId": "LC-I03",
       "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json",
-      "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+      "sha256": "6ad9f84b43ab957b0320d61d06c33ea8ae4735562e36045ade7eb142f74f298f"
     },
     {
       "artifactId": "LC-I02",
       "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json",
-      "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      "sha256": "c7b52f5927ed6b807583a26155083a2cf555eeffd21beda2c8c1eb8d5c9dae88"
     },
     {
       "artifactId": "LC-I06",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json",
-      "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+      "sha256": "8c48b5ac443efb7dafd5eb72099086c4f11812cddf12992b73bca89884a64205"
     },
     {
       "artifactId": "C3-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md",
-      "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+      "sha256": "b8d65fe7c33a69a5de6c2921289cd1ad07659a1468c2fd1f624f86cf6eb6c443"
     },
     {
       "artifactId": "C3-O04-Summary",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json",
-      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      "sha256": "afd67086da282f2902b18f6cc17eb74db195d012232b0c4c99848e25a7e858b3"
+    },
+    {
+      "artifactId": "LC-I14",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-static-observation-package.json",
+      "sha256": "24644162a3885feb544f5ff6ccf7411be4f25a5252ece18957372afa38217605"
     },
     {
       "artifactId": "C3-O03",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json",
-      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+      "sha256": "82e4d099eef442d3118fa2de20a8cac4f1834cea31fd3e7bf540892cfd06af4e"
     },
     {
       "artifactId": "C3-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json",
-      "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      "sha256": "bddd276591ee6c503fad17455583782df5c4f78eb65567738f15d2bfcc2e2a6a"
     },
     {
       "artifactId": "C3-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json",
-      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      "sha256": "16d99362852991105c7c4fe4db59ba97899f4910a2c32f9e17148d42eee09ba4"
     },
     {
       "artifactId": "LC-I13",
       "path": "docs/asset-migration/schemas/c2-lane-fact-package.schema.json",
-      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      "sha256": "b9cf901ff4897cc7bcecd4cf2ca4cf1f4801909a0fae5a723fc93af479c964da"
     },
     {
       "artifactId": "LC-I07",
       "path": "docs/asset-migration/schemas/c3-c6-lane-policy-registry.json",
-      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "sha256": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862"
     },
     {
       "artifactId": "LC-I08",
       "path": "docs/asset-migration/schemas/status-vocabulary.json",
-      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      "sha256": "9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6"
     }
   ],
   "directOutputs": [
     {
       "artifactId": "C4-O03-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
-      "sha256": "f5023ca84ca93ae23c2d1b5002cb8d8fecc25a36bda6a1acebae4146615cf22b"
+      "sha256": "ea2655b15b2ccd6daee602d16e77ed82608679ccdb605a3898cb6ea8b98980d2"
     },
     {
       "artifactId": "C4-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
-      "sha256": "8a54a11bc4ccddb36fe95569d7b8a9b9046f9520c5414acef790a6b0aacd0454"
+      "sha256": "41622f9ed4c55dab51c964e598aeaa9e3b28a9d0383f8e34e497e52b4e4fd1a4"
     },
     {
       "artifactId": "C4-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json",
-      "sha256": "b52ec88dacca21950e8355a18c48e258f825ed50958253c1aa89121ddba20fb4"
+      "sha256": "9c589667ea6cb15728f50a9eb019c21a2fc871107f68d0e8c65f9fe8c19ee219"
     }
   ],
   "coverage": {
@@ -103,8 +108,8 @@
     "uncheckedCheckCount": 1
   },
   "failureAccounting": {
-    "inputSubjectCount": 59,
-    "acceptedInputSubjectCount": 59,
+    "inputSubjectCount": 60,
+    "acceptedInputSubjectCount": 60,
     "inputFailureCount": 0,
     "notEvaluatedInputSubjectCount": 0,
     "outputCandidateCount": 3,

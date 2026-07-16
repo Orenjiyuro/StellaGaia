@@ -1,0 +1,578 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T03:30:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "rows": [
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "BankProvenance",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "ec19bd4387c27fecfaadf6ed5d6b5351c9dcd9441df8aa83b0dbe124f651dce1",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "ChannelLayoutValidity",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "fd639a95c8b0dc33616d68288ea3b1805a8f8c728a71d65a20ccc2b3303baf53",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "AudioMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "DecodeOutcome",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "e8345b02e4b7c818ae3b1520aabbad8d3b5b89f1cf97482002bdce20d42ebb74",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DecoderProbe"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "DependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "1b59edf7a13bac1d56ba64fe6c723632244b5f33a4588bf417069822c95959b5",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "EventRelationship",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "d2070425fded5ee879129622a6ec3d9f55da9c1d804babfcbf49326b52e5a6e2",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "LoopValidity",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "ab7e49709f8e66859969fbd5f6d0576d988adba40f38f8ae7e206e8174f62fd1",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "AudioMetadata",
+        "LoopBehavior"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "checkId": "MediaReadability",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "649ce29244127b54ceb89b0da6c0aac536be5879a0385a5848f76c57d4737fad",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "ColliderValidity",
+      "outcome": "Failed",
+      "reasonCode": "PolicyViolation",
+      "observedFingerprint": null,
+      "failureClasses": [
+        "ImportSettingMismatch"
+      ],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "LightmapValidity",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "d283b8191712af6aa6c1547efc3ae14fbf717b4d2cdb5851e4c8980fc7ebfb44",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "MaterialDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "400da1edadcbd1b9f1dbe7926b81d0b8b361c3888ada93053f001ea72b572a35",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "MeshReadability",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "64ce0a3b9d01fdc8d84c373998ab50b22983e8817818a7668f8883115606f996",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "NavMeshValidity",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "36b18b17e13d8b85f5e70d070dbb370b3f2ae28b23ce4f4d0bba1d809486b0ff",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "PrefabDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "ccf6c1d4f5ab8525766f1dffbfe2f9ca7ba59584af5838cab6cbad622f8ab458",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "PrefabYaml"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "ShaderDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "5324d5f8e8f3b25673b7d116c3b223e7f09c87a738911db7b0379404ec969570",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "checkId": "TextureDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "81b64e83ee8ef1cec53ef3027a5b481dc1bc43f4a7ad3019ba0a9dedfce65903",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "TextureMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "AnimationClipReadability",
+      "outcome": "Unchecked",
+      "reasonCode": "ToolUnavailable",
+      "observedFingerprint": null,
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "AvatarClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "78a30fbd8d4ee0e421b708c53cfa9e2534f40cdead9fbe4665666ee9f4d3cf60",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "ControllerReferenceClassification",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "3cea1c99587dc6e0d3dfd30d7564a5c3608655cfb054ee63913b05752baefde3",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "DependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "8d28d99cc3794034ef1214783bd17a2dcfb5fd83dd698ebe09f0c79c0f11c0a2",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "MaterialDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "5ba7902245da51956b2068bf67cc6155935509f52d3bfacf9eea8009bf7627b8",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "MeshReadability",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "12ab8746808c9c20914dc9fa2c2b7c713ec83a76d7f96c0834e04d85d75a3171",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "SkeletonClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "b93c6e2fb5adec264ed53af73910b4f90a9e7adc7c28aee6ed8be1d5cb74d52d",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "checkId": "TextureDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "7fc43f95cf2c202aa6d8af67c0538bd632285e39741541a412d53d90ef1a5f34",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "TextureMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "FontDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "12f032792d87a275538f755822410652c118fdde6ba1b740e5fb567dba4bf4bb",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "MaterialDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "d5c3b031bac2d2ab2346a451ee91311a3b96f7ea89f51aab8bd359dbce51998f",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "PrefabDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "7fcdb192657d60d56fc12d17c658f3d0a2b87237d195c3b3e2c65420aa567ac0",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "PrefabYaml"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "SpriteAtlasClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "30e063a91fed6abbf1b6d6991bafee58749071e2a10b1db10580390ec3172c23",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "TextureMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "TextureReadability",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "9a7798c86f9e61935d9224a1740ea03ae6da647dbda3bbd4b9ba8fb906d06c8a",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability",
+        "TextureMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "checkId": "UiRouteValidity",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "e3ea1bda79e5d34fcf4cfa54fc6461a5837580d1ab9efdf7b32099ae28281860",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "AudioDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "2ae89146ee516543bc0ba8be9dd88f10559e0eae33327b2b0c762d6e0021bb02",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "AudioMetadata",
+        "DependencyGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "EffectSystemReadability",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "9ed2eed4034666a02009950d8f90e8d3a40167bff91fb5784f08ebc8a7fa0302",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "FileReadability",
+        "ObjectReadability",
+        "SerializedMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "MaterialDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "5bc6d52eb9636ba0a80b32318cf0a971fad20dfdc62bffbfaf70e6b4f936a292",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "MeshDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "4bdfb4b00f4cb22981edbfb2dee42c152f8201d2842a10d7eb77935dca46e3e2",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "ObjectReadability"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "PrefabDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "1cd39589546c7e39b4b33cf18fa559425015b314d6f262ee27b6e687002d2b5f",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "PrefabYaml"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "ShaderDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "3244da745993fc029185f8b366bfdb7a3d4feb545b5fca3f2de33bbb383e9906",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "MaterialShaderGraph"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "checkId": "TextureDependencyClosure",
+      "outcome": "Passed",
+      "reasonCode": "None",
+      "observedFingerprint": "a5e52e3dab8fe40e2a2e35029e64a3ac452021f89f69ca9a447cc266fcdf6778",
+      "failureClasses": [],
+      "evidenceKinds": [
+        "DependencyGraph",
+        "TextureMetadata"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}

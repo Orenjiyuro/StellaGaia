@@ -205,6 +205,8 @@ if ($UpdateFixtures) {
         [IO.File]::WriteAllText((Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name"), $fixturePayloads[$name], $utf8)
     }
     [IO.File]::WriteAllText((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-authoring-reuse-ledger.json'), $gate.texts.authoringReuseLedger, $utf8)
+    [IO.File]::WriteAllText((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json'), $historyBytes, $utf8)
+    [IO.File]::WriteAllText((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-c3-c6-repair-attempt-history.json'), $historyBytes, $utf8)
     'fixtures=Updated'
     return
 }

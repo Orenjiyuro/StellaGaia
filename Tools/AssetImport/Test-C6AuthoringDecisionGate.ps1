@@ -210,6 +210,13 @@ function Run-Kernel(
         -DirectInputs $DirectInputs
 }
 
+$baseExecutionArtifacts = New-ExecutionArtifacts $familyRegistry $memberLedger $references $memberStatic $familyStatic $requirements $assessments
+$baseDirectInputs = New-DirectInputs $historyBytes $baseExecutionArtifacts
+$history.inputFingerprint = Get-StageInputFingerprint @($baseDirectInputs | Where-Object artifactId -CNE 'LC-I12')
+$historyBytes = Canonical-Json $history
+$script:C6TestBaseHistory = $history
+$script:C6TestBaseHistoryBytes = $historyBytes
+
 $result = Run-Kernel
 if ($result.status -cne 'Passed') { throw "C6-0 positive result failed: $($result.issues -join '; ')" }
 $shape = 'status,failureId,reasonCode,issues,policySetFingerprint,decisionPolicyFingerprint,repairHistoryFingerprint,inputFingerprint,familyDecisions,memberProjections,capabilityResults,totalFamilyCount,needsDiagnosisFamilyCount,useOriginalAssetFamilyCount,repairOnceFamilyCount,prototypeReplacementFamilyCount,retainForLaterFamilyCount,diagnosticOnlyFamilyCount,stopFamilyCount,requiredCapabilityCount,satisfiedCapabilityCount,unsatisfiedCapabilityCount,blockedCapabilityCount,executorLaunchCount,heavyOperationCount'

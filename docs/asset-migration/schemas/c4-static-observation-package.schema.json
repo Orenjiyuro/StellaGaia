@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/c4-static-observation-package.schema.json",
+  "title": "StellaSora C4 Static Observation Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "snapshotId",
+    "rows"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!\\.{1,2}(?:[\\\\/]|$))(?!.*[\\\\/]\\.{1,2}(?:[\\\\/]|$)).+$"
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetObjectId",
+        "familyId",
+        "checkId",
+        "outcome",
+        "reasonCode",
+        "observedFingerprint",
+        "failureClasses",
+        "evidenceKinds",
+        "evidence"
+      ],
+      "properties": {
+        "assetObjectId": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "familyId": {
+          "type": "string",
+          "pattern": "^family-sha256:[0-9a-f]{64}$"
+        },
+        "checkId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "outcome": {
+          "enum": [
+            "Passed",
+            "Failed",
+            "Unchecked"
+          ]
+        },
+        "reasonCode": {
+          "enum": [
+            "None",
+            "MissingInputFact",
+            "PrerequisiteFailed",
+            "ToolUnavailable",
+            "UnsupportedFormat",
+            "ReadFailure",
+            "DependencyMissing",
+            "ConflictDetected",
+            "PolicyViolation"
+          ]
+        },
+        "observedFingerprint": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureClasses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "ReadFailure",
+              "MissingDependency",
+              "ShaderMismatch",
+              "MaterialMismatch",
+              "ImportSettingMismatch",
+              "ControllerMissing",
+              "DecodeFailure",
+              "SemanticUnknown",
+              "PrefabDependencyMissing",
+              "FontAtlasMissing",
+              "EffectBehaviorMissing",
+              "CoreDataMissing"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "evidenceKinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "Passed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "const": "None"
+              },
+              "failureClasses": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "Failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "not": {
+                  "const": "None"
+                }
+              },
+              "failureClasses": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "Unchecked"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "enum": [
+                  "MissingInputFact",
+                  "PrerequisiteFailed",
+                  "ToolUnavailable",
+                  "UnsupportedFormat"
+                ]
+              },
+              "failureClasses": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

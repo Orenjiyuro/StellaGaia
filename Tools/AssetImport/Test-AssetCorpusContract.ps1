@@ -1565,6 +1565,11 @@ $schemaContracts = @(
         Name = 'c3-c6-repair-attempt-history.schema.json'
         Id = 'https://stellagaia.dev/schemas/c3-c6-repair-attempt-history.schema.json'
         Required = @('schemaVersion', 'generatedAt', 'inputFingerprint', 'attempts')
+    },
+    [pscustomobject]@{
+        Name = 'c4-static-observation-package.schema.json'
+        Id = 'https://stellagaia.dev/schemas/c4-static-observation-package.schema.json'
+        Required = @('schemaVersion', 'generatedAt', 'snapshotId', 'rows')
     }
 )
 
@@ -1596,6 +1601,10 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-c3-c6-repair-attempt-history.json'
         SchemaName = 'c3-c6-repair-attempt-history.schema.json'
+    },
+    [pscustomobject]@{
+        Name = 'valid-c4-static-observation-package.json'
+        SchemaName = 'c4-static-observation-package.schema.json'
     }
 )
 
@@ -2015,6 +2024,28 @@ if ($null -ne $decisionPolicyFixture) {
     }
 }
 
+$c4StaticSchemaPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'docs/asset-migration/schemas/c4-static-observation-package.schema.json'))
+$c4StaticSchemaFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([System.IO.File]::ReadAllBytes($c4StaticSchemaPath))).ToLowerInvariant()
+if ($c4StaticSchemaFingerprint -cne '6079857ee160c2b2bbbc38931a2356840533a7734d67eee706149a7b4114dba2') {
+    $issues.Add("LC-I14 schema exact-byte fingerprint is unexpected: '$c4StaticSchemaFingerprint'.")
+}
+$c4StaticRuntimePath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-static-observation-package.json'))
+$c4StaticContractPath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot 'valid-c4-static-observation-package.json'))
+if (-not [System.IO.File]::Exists($c4StaticRuntimePath)) {
+    $issues.Add("LC-I14 runtime fixture '$c4StaticRuntimePath' does not exist.")
+}
+else {
+    $c4StaticRuntimeBytes = [System.IO.File]::ReadAllBytes($c4StaticRuntimePath)
+    $c4StaticContractBytes = [System.IO.File]::ReadAllBytes($c4StaticContractPath)
+    if (-not [System.Linq.Enumerable]::SequenceEqual[byte]($c4StaticRuntimeBytes, $c4StaticContractBytes)) {
+        $issues.Add('LC-I14 runtime and positive contract fixtures are not byte-identical.')
+    }
+    $c4StaticFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($c4StaticRuntimeBytes)).ToLowerInvariant()
+    if ($c4StaticFingerprint -cne '24644162a3885feb544f5ff6ccf7411be4f25a5252ece18957372afa38217605') {
+        $issues.Add("LC-I14 exact-byte fingerprint is unexpected: '$c4StaticFingerprint'.")
+    }
+}
+
 $repairHistoryFixture = $fixtures['valid-c3-c6-repair-attempt-history.json']
 if ($null -ne $repairHistoryFixture) {
     $repairHistoryPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json'))
@@ -2028,7 +2059,7 @@ if ($null -ne $repairHistoryFixture) {
             $issues.Add('Repair-attempt history and its positive fixture are not byte-identical.')
         }
         $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($historyBytes)).ToLowerInvariant()
-        if ($actualFingerprint -cne '603b5a9cd5e69c5ce2112e526560bb499d2ae14165d6df5ac5512ef5730d0280') {
+        if ($actualFingerprint -cne '31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3') {
             $issues.Add("Repair-attempt history exact-byte fingerprint is unexpected: '$actualFingerprint'.")
         }
         $historyText = [Text.Encoding]::UTF8.GetString($historyBytes)

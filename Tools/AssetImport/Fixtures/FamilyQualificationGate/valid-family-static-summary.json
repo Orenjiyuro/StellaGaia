@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "generatedAt": "2026-07-16T04:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "262eefbfb591bb202548e8c1aaf1ae10e973da0f99a8c75d04bd13c4eb0db09a",
+  "inputFingerprint": "9b7173bbb5692e888696eb40a0e2468856baa447607d14a9ddc80bd3f554128e",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "families": [
     {
@@ -36,7 +36,7 @@
       "failureAttribution": "None; every family member is StaticPassed.",
       "nextAllowedAction": "Provide family static qualification to C5.",
       "memberStaticResultIds": [
-        "member-static-sha256:650456a35aa2e1212b55326ac99ab9fd5568bea361e0fbd260eb73ce15f25385"
+        "member-static-sha256:848740ea29541aeae83effa8b53990bf48a19079e05a0b1e2dd00241652f6f0d"
       ],
       "evidence": [
         "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
@@ -77,7 +77,7 @@
       "failureAttribution": "LF-08:ColliderValidity",
       "nextAllowedAction": "Apply C6 decision rules later.",
       "memberStaticResultIds": [
-        "member-static-sha256:a22192b2b30d77733fd03f7466bdbf1944fcb5d479d7837543966e7ae7b1c594"
+        "member-static-sha256:4ebd9bcc645a017c85d9d3f5f663b922d0da4f3ca73f89b8b9ee829eaf18b218"
       ],
       "evidence": [
         "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
@@ -116,7 +116,7 @@
       "failureAttribution": "None; every family member is StaticPassed.",
       "nextAllowedAction": "Provide family static qualification to C5.",
       "memberStaticResultIds": [
-        "member-static-sha256:9b641b876eb4aecc8fe90c8e8fcf630fd54dc8c3215ff8f486862741eda98968"
+        "member-static-sha256:b0ec587a58855ff2429cdc78ef98ed3775b47c8799d11ff5a72713116159ad78"
       ],
       "evidence": [
         "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
@@ -153,7 +153,7 @@
       "failureAttribution": "LF-07:AnimationClipReadability",
       "nextAllowedAction": "Resolve unchecked member reasons before original-asset reuse.",
       "memberStaticResultIds": [
-        "member-static-sha256:58cacec42e76bed426b9ed0a4bbfe776a9d27f419b9498217417cddf1467e8ed"
+        "member-static-sha256:fd87ae5da8ddb79ac1a137d90cc4b952965b3d1b6452f19d96d86536a87c460a"
       ],
       "evidence": [
         "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
@@ -190,7 +190,7 @@
       "failureAttribution": "None; every family member is StaticPassed.",
       "nextAllowedAction": "Provide family static qualification to C5.",
       "memberStaticResultIds": [
-        "member-static-sha256:822c82e80753a47128d72cd4bd2131bd215bd4b1ef8663e0134e15e2f518b566"
+        "member-static-sha256:d2898478b37bd3f9ca25793c3237644a64ddef82d8075136dbf03867393bc623"
       ],
       "evidence": [
         "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"

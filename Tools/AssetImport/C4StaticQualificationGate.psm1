@@ -3,6 +3,21 @@ $ErrorActionPreference = 'Stop'
 
 $script:C4Utf8 = [Text.UTF8Encoding]::new($false)
 $script:C4Ordinal = [StringComparer]::Ordinal
+$script:C4DirectInputPaths = [ordered]@{
+    'C3-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json'
+    'C3-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json'
+    'C3-O03'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json'
+    'C3-O04-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json'
+    'C3-O04-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md'
+    'LC-I01'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json'
+    'LC-I02'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json'
+    'LC-I03'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json'
+    'LC-I06'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json'
+    'LC-I07'='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
+    'LC-I08'='docs/asset-migration/schemas/status-vocabulary.json'
+    'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
+    'LC-I14'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-static-observation-package.json'
+}
 
 function Get-C4Sha256([string]$Text) {
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($script:C4Utf8.GetBytes($Text))).ToLowerInvariant()
@@ -23,6 +38,26 @@ function Get-C4OrdinalRows([object[]]$Rows,[string[]]$Properties) {
 function Test-C4JsonObjectBytesBinding([object]$Value,[string]$Bytes) {
     try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false}
     ($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)
+}
+
+function Test-C4JsonProjectionBytesBinding([object]$Value,[string]$Bytes,[string]$Property) {
+    try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false}
+    if(-not[string]::IsNullOrEmpty($Property)){
+        if($null-eq$parsed.PSObject.Properties[$Property]){return $false}
+        $parsed=$parsed.$Property
+    }
+    ($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)
+}
+
+function New-C4ArtifactMap([object[]]$Rows,[string]$KeyProperty) {
+    $map=[Collections.Generic.Dictionary[string,object]]::new($script:C4Ordinal)
+    foreach($row in $Rows){
+        if($null-eq$row-or$null-eq$row.PSObject.Properties[$KeyProperty]){return $null}
+        $key=[string]$row.$KeyProperty
+        if([string]::IsNullOrWhiteSpace($key)-or$map.ContainsKey($key)){return $null}
+        $map.Add($key,$row)
+    }
+    $map
 }
 
 function ConvertTo-C4ScalarLine([string]$Name, [string]$Value) {
@@ -67,32 +102,106 @@ function ConvertTo-C4CanonicalJson([object]$Value) {
 }
 
 function Get-C4StageInputFingerprint([object[]]$Entries) {
-    $expected = [ordered]@{
-        'C3-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json'
-        'C3-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json'
-        'C3-O03'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json'
-        'C3-O04-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json'
-        'C3-O04-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md'
-        'LC-I01'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json'
-        'LC-I02'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json'
-        'LC-I03'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json'
-        'LC-I06'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json'
-        'LC-I07'='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
-        'LC-I08'='docs/asset-migration/schemas/status-vocabulary.json'
-        'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
-    }
-    if ($Entries.Count -ne $expected.Count) { throw 'C4 direct input set is invalid.' }
+    if ($Entries.Count -ne $script:C4DirectInputPaths.Count) { throw 'C4 direct input set is invalid.' }
     $ordered = @(Get-C4OrdinalRows $Entries @('path'))
     $seen = [Collections.Generic.HashSet[string]]::new($script:C4Ordinal)
     $countText = [string]$ordered.Count
     $text = "LifecycleStageInputV1`nentries.count:$($script:C4Utf8.GetByteCount($countText)):$countText`n"
     for ($index=0; $index -lt $ordered.Count; $index++) {
         $entry = $ordered[$index]
-        if ((@($entry.PSObject.Properties.Name)-join',') -cne 'artifactId,path,sha256' -or -not $expected.Contains([string]$entry.artifactId) -or $expected[[string]$entry.artifactId] -cne [string]$entry.path -or -not $seen.Add([string]$entry.path) -or $entry.sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'C4 direct input contract is invalid.' }
-        $nested = "C2ArtifactEntryV1`n" + (ConvertTo-C4ScalarLine path ([string]$entry.path)) + (ConvertTo-C4ScalarLine sha256 ([string]$entry.sha256))
+        if ((@($entry.PSObject.Properties.Name)-join',') -cne 'artifactId,path,sha256' -or -not $script:C4DirectInputPaths.Contains([string]$entry.artifactId) -or $script:C4DirectInputPaths[[string]$entry.artifactId] -cne [string]$entry.path -or -not $seen.Add([string]$entry.path) -or $entry.sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'C4 direct input contract is invalid.' }
+        $nested = "C2ArtifactEntryV1`n" + (ConvertTo-C4ScalarLine artifactId ([string]$entry.artifactId)) + (ConvertTo-C4ScalarLine path ([string]$entry.path)) + (ConvertTo-C4ScalarLine sha256 ([string]$entry.sha256))
         $text += "entries[$index]:$($script:C4Utf8.GetByteCount($nested)):$nested`n"
     }
     Get-C4Sha256 $text
+}
+
+function Get-C4InputAuthorityState(
+    [object[]]$DirectInputs,
+    [object[]]$ExecutionArtifacts,
+    [object]$FamilyRegistry,
+    [object]$FamilyMemberLedger,
+    [object]$CrossLaneReferencePackage,
+    [object[]]$TypedFactRows,
+    [object]$LanePolicyRegistry,
+    [string]$LanePolicyBytes,
+    [string[]]$MemberStaticStatuses,
+    [object[]]$StaticObservationRows,
+    [string]$StageSnapshotId
+) {
+    $issues=[Collections.Generic.List[string]]::new()
+    $directById=New-C4ArtifactMap $DirectInputs artifactId
+    $directByPath=New-C4ArtifactMap $DirectInputs path
+    $executionById=New-C4ArtifactMap $ExecutionArtifacts artifactId
+    if($null-eq$directById-or$null-eq$directByPath-or$DirectInputs.Count-ne$script:C4DirectInputPaths.Count){$issues.Add('C4 direct input set is invalid.')}
+    else {
+        for($index=1;$index-lt$DirectInputs.Count;$index++){
+            if($script:C4Ordinal.Compare([string]$DirectInputs[$index-1].path,[string]$DirectInputs[$index].path)-ge0){$issues.Add('C4 direct inputs are not Ordinal sorted.');break}
+        }
+        foreach($expected in $script:C4DirectInputPaths.GetEnumerator()){
+            if(-not$directById.ContainsKey([string]$expected.Key)-or
+                (@($directById[[string]$expected.Key].PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or
+                [string]$directById[[string]$expected.Key].path-cne[string]$expected.Value-or
+                [string]$directById[[string]$expected.Key].sha256-cnotmatch'^[0-9a-f]{64}$'){$issues.Add('C4 direct input set is invalid.');break}
+        }
+    }
+    if($null-eq$executionById-or$ExecutionArtifacts.Count-ne$script:C4DirectInputPaths.Count){$issues.Add('C4 execution artifact byte set is invalid.')}
+    else {
+        foreach($expected in $script:C4DirectInputPaths.GetEnumerator()){
+            if(-not$executionById.ContainsKey([string]$expected.Key)-or
+                (@($executionById[[string]$expected.Key].PSObject.Properties.Name)-join',')-cne'artifactId,bytes'-or
+                $null-eq$executionById[[string]$expected.Key].bytes){$issues.Add('C4 execution artifact byte set is invalid.');break}
+        }
+    }
+    if(-not$issues.Count){
+        foreach($expected in $script:C4DirectInputPaths.GetEnumerator()){
+            $id=[string]$expected.Key;$bytes=[string]$executionById[$id].bytes
+            if($id-cne'C3-O04-Report'){try{$null=$bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{$issues.Add("C4 exact bytes are not valid JSON for $id.");break}}
+            if([string]$directById[$id].sha256-cne(Get-C4Sha256 $bytes)){$issues.Add("C4 exact-byte direct input hash mismatch for $id.");break}
+        }
+    }
+    if(-not$issues.Count){
+        if(-not(Test-C4JsonObjectBytesBinding $FamilyRegistry ([string]$executionById['C3-O01'].bytes))){$issues.Add('C3-O01 execution object does not match accepted bytes.')}
+        elseif(-not(Test-C4JsonObjectBytesBinding $FamilyMemberLedger ([string]$executionById['C3-O02'].bytes))){$issues.Add('C3-O02 execution object does not match accepted bytes.')}
+        elseif(-not(Test-C4JsonObjectBytesBinding $CrossLaneReferencePackage ([string]$executionById['C3-O03'].bytes))){$issues.Add('C3-O03 execution object does not match accepted bytes.')}
+        elseif(-not(Test-C4JsonProjectionBytesBinding $TypedFactRows ([string]$executionById['LC-I06'].bytes) rows)){$issues.Add('LC-I06 execution object does not match accepted bytes.')}
+        elseif([string]$executionById['LC-I07'].bytes-cne$LanePolicyBytes-or-not(Test-C4JsonObjectBytesBinding $LanePolicyRegistry ([string]$executionById['LC-I07'].bytes))){$issues.Add('LC-I07 execution object does not match accepted bytes.')}
+        elseif(-not(Test-C4JsonProjectionBytesBinding $MemberStaticStatuses ([string]$executionById['LC-I08'].bytes) memberStaticStatus)){$issues.Add('LC-I08 execution vocabulary does not match accepted bytes.')}
+        elseif(-not(Test-C4JsonProjectionBytesBinding $StaticObservationRows ([string]$executionById['LC-I14'].bytes) rows)){$issues.Add('LC-I14 execution object does not match accepted bytes.')}
+    }
+    if(-not$issues.Count){
+        $c3Summary=([string]$executionById['C3-O04-Summary'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc1=([string]$executionById['LC-I01'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc2=([string]$executionById['LC-I02'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc3=([string]$executionById['LC-I03'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc6=([string]$executionById['LC-I06'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc14=([string]$executionById['LC-I14'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        foreach($c3Input in @($FamilyMemberLedger,$CrossLaneReferencePackage)){
+            if($c3Input.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Input.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Input.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Input.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Input.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint){$issues.Add('C4 C3 generation identity is invalid.');break}
+        }
+        if(-not$issues.Count-and($StageSnapshotId-cne[string]$FamilyRegistry.snapshotId-or$c3Summary.failureAccounting.gateStatus-cne'Passed'-or$c3Summary.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Summary.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Summary.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Summary.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Summary.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint)){$issues.Add('C4 C3 summary generation identity is invalid.')}
+        if(-not$issues.Count){
+            $outputById=New-C4ArtifactMap @($c3Summary.directOutputs) artifactId
+            foreach($id in @('C3-O01','C3-O02','C3-O03','C3-O04-Report')){
+                if($null-eq$outputById-or$outputById.Count-ne4-or-not$outputById.ContainsKey($id)-or
+                    (@($outputById[$id].PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or
+                    [string]$outputById[$id].path-cne[string]$script:C4DirectInputPaths[$id]-or
+                    [string]$outputById[$id].sha256-cne(Get-C4Sha256 ([string]$executionById[$id].bytes))){$issues.Add('C4 C3 summary does not bind the accepted C3 output bytes.');break}
+            }
+        }
+        $snapshotMismatches=@(@($lc1,$lc2,$lc3,$lc6,$lc14)|Where-Object{$_.snapshotId-cne$StageSnapshotId})
+        if(-not$issues.Count-and$snapshotMismatches.Count){$issues.Add('C4 direct input snapshot identity is invalid.')}
+        if(-not$issues.Count-and((@($lc14.PSObject.Properties.Name)-join',')-cne'schemaVersion,generatedAt,snapshotId,rows'-or$lc14.schemaVersion-cne'1.0.0')){$issues.Add('LC-I14 package shape is invalid.')}
+        if(-not$issues.Count){
+            $rows=@($lc14.rows)
+            for($index=1;$index-lt$rows.Count;$index++){
+                $comparison=$script:C4Ordinal.Compare([string]$rows[$index-1].assetObjectId,[string]$rows[$index].assetObjectId)
+                if($comparison-gt0-or($comparison-eq0-and$script:C4Ordinal.Compare([string]$rows[$index-1].checkId,[string]$rows[$index].checkId)-ge0)){$issues.Add('LC-I14 rows are not unique Ordinal order.');break}
+            }
+        }
+    }
+    $fingerprint=if($issues.Count){$null}else{Get-C4StageInputFingerprint $DirectInputs}
+    [pscustomobject][ordered]@{valid=$issues.Count-eq0;issues=$issues.ToArray();inputFingerprint=$fingerprint}
 }
 
 function Add-C4Issue([Collections.Generic.List[string]]$Issues, [string]$Issue) {
@@ -261,7 +370,7 @@ function Invoke-C4StaticQualificationKernel {
         if ($outcome -ceq 'Unchecked' -and $allowedUncheckedReasons -cnotcontains $reasonCode) { Add-C4Issue $issues 'Unchecked static observation uses an invalid reasonCode.' }
         if ([bool]$required.missingInput -and ($outcome -cne 'Unchecked' -or $reasonCode -cne 'MissingInputFact')) { Add-C4Issue $issues 'Missing static fact must produce Unchecked with MissingInputFact.' }
         $fingerprint = $observation.observedFingerprint
-        if ($null -ne $fingerprint -and [string]$fingerprint -cnotmatch '^sha256:[0-9a-f]{64}$') { Add-C4Issue $issues 'Invalid observedFingerprint.' }
+        if ($null -ne $fingerprint -and [string]$fingerprint -cnotmatch '^[0-9a-f]{64}$') { Add-C4Issue $issues 'Invalid observedFingerprint.' }
         if ($outcome -ceq 'Passed' -and $null -eq $fingerprint) { Add-C4Issue $issues 'Passed static observation requires observedFingerprint.' }
         $rawEvidenceKinds = @($observation.evidenceKinds)
         $evidenceKinds = @(Get-C4OrdinalValues $rawEvidenceKinds -Unique)
@@ -422,18 +531,27 @@ function Invoke-C4StaticQualificationGate {
         [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$MemberStaticStatuses,
         [Parameter(Mandatory)][object[]]$StaticObservationRows,
+        [Parameter(Mandatory)][object[]]$ExecutionArtifacts,
         [Parameter(Mandatory)][object]$Stage
     )
-    foreach($c3Input in @($FamilyMemberLedger,$CrossLaneReferencePackage)){
-        if($c3Input.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Input.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Input.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Input.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Input.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint){throw'C4 C3 generation identity is invalid.'}
-    }
-    $directInputs = @(Get-C4OrdinalRows $Stage.directInputs @('path'))
-    $inputFingerprint = Get-C4StageInputFingerprint $directInputs
+    $directInputs = @($Stage.directInputs)
+    $authority = Get-C4InputAuthorityState $directInputs $ExecutionArtifacts $FamilyRegistry $FamilyMemberLedger $CrossLaneReferencePackage $TypedFactRows $LanePolicyRegistry $LanePolicyBytes $MemberStaticStatuses $StaticObservationRows ([string]$Stage.snapshotId)
+    $inputFingerprint = $authority.inputFingerprint
     $policySetFingerprint = Get-C4Sha256 $LanePolicyBytes
     $prefix = [ordered]@{schemaVersion='1.0.0';generatedAt=[string]$Stage.generatedAt;snapshotId=[string]$Stage.snapshotId;inputFingerprint=$inputFingerprint;policySetFingerprint=$policySetFingerprint}
     $paths = [ordered]@{memberStaticQualification='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json';familyStaticSummary='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json';report='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md'}
-    $kernel = Invoke-C4StaticQualificationKernel $FamilyRegistry $FamilyMemberLedger $TypedFactRows $LanePolicyRegistry $LanePolicyBytes $MemberStaticStatuses $StaticObservationRows
     $assignedMembers = @($FamilyMemberLedger.rows | Where-Object parentStatus -CEQ 'AssignedFamilyMember')
+    $kernel = if($authority.valid){
+        Invoke-C4StaticQualificationKernel $FamilyRegistry $FamilyMemberLedger $TypedFactRows $LanePolicyRegistry $LanePolicyBytes $MemberStaticStatuses $StaticObservationRows
+    } else {
+        [pscustomobject][ordered]@{
+            status='Failed';issues=@($authority.issues)
+            assignedMemberCount=$assignedMembers.Count;assignedMemberBytes=[long]0
+            staticPassedCount=0;staticPassedBytes=[long]0;staticFailedCount=0;staticFailedBytes=[long]0;uncheckedCount=0;uncheckedBytes=[long]0
+            requiredCheckCount=0;passedCheckCount=0;failedCheckCount=0;uncheckedCheckCount=0
+            memberResults=@();familyResults=@();checkResults=@()
+        }
+    }
     $coverage = [ordered]@{
         familyCount=@($FamilyRegistry.families).Count;memberCount=$assignedMembers.Count;memberBytes=[long](($assignedMembers.serializedSizeBytes|Measure-Object -Sum).Sum)
         staticPassedCount=$kernel.staticPassedCount;staticPassedBytes=$kernel.staticPassedBytes;staticFailedCount=$kernel.staticFailedCount;staticFailedBytes=$kernel.staticFailedBytes;uncheckedCount=$kernel.uncheckedCount;uncheckedBytes=$kernel.uncheckedBytes
@@ -441,15 +559,25 @@ function Invoke-C4StaticQualificationGate {
     }
 
     if ($kernel.status -cne 'Passed') {
-        $subjectId='C4:StaticConservation';$attribution="LF-09:$subjectId";$evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')
-        $failure=New-C4AccountingRow inputFailures ConservationCheck $subjectId StaticContractInvalid $attribution $evidence
+        $authorityFailure=-not$authority.valid
+        $subjectId=if($authorityFailure){'C4:DirectInputs'}else{'C4:StaticConservation'}
+        $reasonCode=if($authorityFailure){'PrerequisiteInvalid'}else{'StaticContractInvalid'}
+        $failureCode=if($authorityFailure){'LF-01'}else{'LF-09'}
+        $subjectKind=if($authorityFailure){'FreshnessCheck'}else{'ConservationCheck'}
+        $attribution="${failureCode}:$subjectId"
+        $evidence=if($authorityFailure){@($script:C4DirectInputPaths.Values)}else{@($paths.memberStaticQualification)}
+        $failure=New-C4AccountingRow inputFailures $subjectKind $subjectId $reasonCode $attribution $evidence
         $outputFailures=@(
-            New-C4AccountingRow outputFailures OutputArtifact 'C4-O01' SuppressedByGate 'LF-09:C4-O01' @($paths.memberStaticQualification)
-            New-C4AccountingRow outputFailures OutputArtifact 'C4-O02' SuppressedByGate 'LF-09:C4-O02' @($paths.familyStaticSummary)
+            New-C4AccountingRow outputFailures OutputArtifact 'C4-O01' SuppressedByGate "${failureCode}:C4-O01" @($paths.memberStaticQualification)
+            New-C4AccountingRow outputFailures OutputArtifact 'C4-O02' SuppressedByGate "${failureCode}:C4-O02" @($paths.familyStaticSummary)
         )
-        $inputSubjectCount=$directInputs.Count+$coverage.familyCount+$coverage.memberCount+$coverage.requiredCheckCount+1
-        $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=$directInputs.Count+$coverage.familyCount+$coverage.memberCount+[Math]::Max(0,$coverage.requiredCheckCount-1);inputFailureCount=1;notEvaluatedInputSubjectCount=1;outputCandidateCount=3;projectedOutputCount=1;outputFailureCount=2;issueCount=1;gateStatus='Failed';inputFailures=@($failure);inputSuppressions=@();outputFailures=$outputFailures}
-        $decision=[pscustomobject][ordered]@{failureAttribution=$attribution;nextAllowedAction='Correct C4 producer; no C5/C6.'}
+        $nonDirectSubjectCount=$coverage.familyCount+$coverage.memberCount+$(if($authorityFailure){$StaticObservationRows.Count}else{$coverage.requiredCheckCount})+1
+        $inputSubjectCount=$directInputs.Count+$nonDirectSubjectCount
+        $acceptedInputSubjectCount=if($authorityFailure){0}else{$directInputs.Count+$coverage.familyCount+$coverage.memberCount+[Math]::Max(0,$coverage.requiredCheckCount-1)}
+        $notEvaluatedInputSubjectCount=if($authorityFailure){$nonDirectSubjectCount}else{1}
+        $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=$acceptedInputSubjectCount;inputFailureCount=1;notEvaluatedInputSubjectCount=$notEvaluatedInputSubjectCount;outputCandidateCount=3;projectedOutputCount=1;outputFailureCount=2;issueCount=1;gateStatus='Failed';inputFailures=@($failure);inputSuppressions=@();outputFailures=$outputFailures}
+        $nextAllowedAction=if($authorityFailure){'Restore the exact, complete, same-generation C4 prerequisite set; no C5/C6.'}else{'Correct C4 producer; no C5/C6.'}
+        $decision=[pscustomobject][ordered]@{failureAttribution=$attribution;nextAllowedAction=$nextAllowedAction}
         $report=New-C4Report $Stage $inputFingerprint $policySetFingerprint $accounting $decision
         $directOutputs=@([pscustomobject][ordered]@{artifactId='C4-O03-Report';path=$paths.report;sha256=Get-C4Sha256 $report})
         $summary=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;stageId='C4';snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;toolVersions=@($Stage.toolVersions);directInputs=$directInputs;directOutputs=$directOutputs;coverage=[pscustomobject]$coverage;failureAccounting=$accounting;decision=$decision}

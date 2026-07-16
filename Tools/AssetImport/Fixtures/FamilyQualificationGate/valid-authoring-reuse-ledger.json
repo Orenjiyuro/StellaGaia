@@ -2,7 +2,7 @@
   "schemaVersion": "2.0.0",
   "generatedAt": "2026-07-16T10:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b",
+  "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "toolVersions": [
@@ -15,7 +15,7 @@
     {
       "artifactId": "LC-I12",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json",
-      "sha256": "603b5a9cd5e69c5ce2112e526560bb499d2ae14165d6df5ac5512ef5730d0280"
+      "sha256": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3"
     },
     {
       "artifactId": "C3-O04-Report",
@@ -30,22 +30,22 @@
     {
       "artifactId": "C4-O03-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
-      "sha256": "f5023ca84ca93ae23c2d1b5002cb8d8fecc25a36bda6a1acebae4146615cf22b"
+      "sha256": "ea2655b15b2ccd6daee602d16e77ed82608679ccdb605a3898cb6ea8b98980d2"
     },
     {
       "artifactId": "C4-O03-Summary",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json",
-      "sha256": "fde81cf98d09f087afe56e94882804a49036c0a3141dec7c3c090a7ca617114c"
+      "sha256": "7078008d5bf675ce7564648fda8c6931ae2ec2bc927f009aaa8b6ec3c681ea99"
     },
     {
       "artifactId": "C5-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md",
-      "sha256": "8bd6bb9cc95eb35d5b9b3a47e52a1d9210160518448e307b094562b0fc248191"
+      "sha256": "34efbaeefbad3d146bbfc3eeb3bc68d98399d3799a104a1a1dc1a70e21679f8c"
     },
     {
       "artifactId": "C5-O04-Summary",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-summary.json",
-      "sha256": "9caa3a3500fd706da651dc273f76dbe58d52af817cb8a2cd7275b8b6542fe183"
+      "sha256": "7cb1df96aa7300753ab49b5ddb6c5d65c99d46f4f5337b2de5d48c0ae5a86ac9"
     },
     {
       "artifactId": "C3-O03",
@@ -55,7 +55,7 @@
     {
       "artifactId": "C5-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
-      "sha256": "5604a3df603876d0f4057853500e77eff5c9d5f3442781c2bd1058ae376d4811"
+      "sha256": "d0a4f1dad15098e37adb141517d40f98c5fc093b3fb181a8af37b7b399eabb8c"
     },
     {
       "artifactId": "C3-O02",
@@ -70,17 +70,17 @@
     {
       "artifactId": "C4-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
-      "sha256": "8a54a11bc4ccddb36fe95569d7b8a9b9046f9520c5414acef790a6b0aacd0454"
+      "sha256": "41622f9ed4c55dab51c964e598aeaa9e3b28a9d0383f8e34e497e52b4e4fd1a4"
     },
     {
       "artifactId": "C4-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json",
-      "sha256": "b52ec88dacca21950e8355a18c48e258f825ed50958253c1aa89121ddba20fb4"
+      "sha256": "9c589667ea6cb15728f50a9eb019c21a2fc871107f68d0e8c65f9fe8c19ee219"
     },
     {
       "artifactId": "C5-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json",
-      "sha256": "65468da6f12cad309b9f8d51b8c10824037f230de0b1a42a1d8b9251deda3d29"
+      "sha256": "e2c73bec9b76416146ea40a65a0459bb934e6be48a00f622aab09835a8071568"
     },
     {
       "artifactId": "LC-I11",
@@ -179,7 +179,7 @@
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
       "acceptedEvidenceAssessmentIds": [],
       "residualIssueIds": [
-        "residual-issue-sha256:4a85e2c5b8408dd1db4f0e40a9a8074acd1c8b68a02b99cc85db18502df30fff"
+        "residual-issue-sha256:79d55378d4020e73d07112571550818352c54d66806df022a4c6ed33edcef8dd"
       ],
       "qualifiedMemberIds": [],
       "isolatedMemberIds": [
@@ -195,7 +195,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
+      "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621"
     },
     {
       "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
@@ -329,7 +329,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
+      "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621"
     },
     {
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
@@ -420,7 +420,7 @@
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
       "acceptedEvidenceAssessmentIds": [],
       "residualIssueIds": [
-        "residual-issue-sha256:5a43603d6b78a30323a6295727519c3410635f820f7e2d861b379cbd1b556772"
+        "residual-issue-sha256:c948d031f804d6599da9e94737a72ae0ce00e0d08030477c7572e423484e2e0e"
       ],
       "qualifiedMemberIds": [],
       "isolatedMemberIds": [
@@ -436,7 +436,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
+      "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621"
     },
     {
       "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
@@ -552,7 +552,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
+      "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621"
     },
     {
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
@@ -643,7 +643,7 @@
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
       "acceptedEvidenceAssessmentIds": [],
       "residualIssueIds": [
-        "residual-issue-sha256:9404a639b41b83c8feb3e222205403ed9189b7f6b897267ea87cfc2437ce89e8"
+        "residual-issue-sha256:6a3bd6fb0e809350c00b6f7bc54f561f430f530a90ce210e22662a1e8c59a916"
       ],
       "qualifiedMemberIds": [],
       "isolatedMemberIds": [
@@ -659,7 +659,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
+      "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621"
     }
   ],
   "members": [
