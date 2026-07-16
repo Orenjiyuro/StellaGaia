@@ -9,20 +9,29 @@ $module=Import-Module (Join-Path $PSScriptRoot 'C5RequirementEvidenceGate.psm1')
 if($module.ExportedFunctions.Keys-cnotcontains'Invoke-C5RequirementEvidenceGate'){throw 'C5-2 output-vector gate entry point is missing.'}
 $moduleAst=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'C5RequirementEvidenceGate.psm1'),[ref]$null,[ref]$null)
 if(@($moduleAst.FindAll({param($node)$node-is[Management.Automation.Language.CommandAst]-and$node.GetCommandName()-ceq'Sort-Object'},$true)).Count){throw 'C5 module reintroduced culture-sensitive Sort-Object.'}
-$familyRegistry=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json')|ConvertFrom-Json -Depth 100 -DateKind String
-$memberStatic=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json')|ConvertFrom-Json -Depth 100 -DateKind String
+$familyRegistryPath=Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json'
+$memberStaticPath=Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json'
+$familyRegistryBytes=[IO.File]::ReadAllText($familyRegistryPath,[Text.UTF8Encoding]::new($false))
+$memberStaticBytes=[IO.File]::ReadAllText($memberStaticPath,[Text.UTF8Encoding]::new($false))
+$familyRegistry=$familyRegistryBytes|ConvertFrom-Json -Depth 100 -DateKind String
+$memberStatic=$memberStaticBytes|ConvertFrom-Json -Depth 100 -DateKind String
 $lanePolicyPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
 $decisionPolicyPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-decision-policy-registry.json'
 $lanePolicyBytes=[IO.File]::ReadAllText($lanePolicyPath,[Text.UTF8Encoding]::new($false))
 $decisionPolicyBytes=[IO.File]::ReadAllText($decisionPolicyPath,[Text.UTF8Encoding]::new($false))
 $lanePolicy=$lanePolicyBytes|ConvertFrom-Json -Depth 100 -DateKind String
 $decisionPolicy=$decisionPolicyBytes|ConvertFrom-Json -Depth 100 -DateKind String
-$vocabulary=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset-migration/schemas/status-vocabulary.json')|ConvertFrom-Json -Depth 100 -DateKind String
+$vocabularyPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/status-vocabulary.json'
+$factSchemaPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
+$vocabularyBytes=[IO.File]::ReadAllText($vocabularyPath,[Text.UTF8Encoding]::new($false))
+$factSchemaBytes=[IO.File]::ReadAllText($factSchemaPath,[Text.UTF8Encoding]::new($false))
+$vocabulary=$vocabularyBytes|ConvertFrom-Json -Depth 100 -DateKind String
 
 function Clone-Value($Value){$Value|ConvertTo-Json -Depth 100|ConvertFrom-Json -Depth 100 -DateKind String}
 function Get-Sha256([string]$Text){[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text))).ToLowerInvariant()}
 function CanonicalJson($Value){(($Value|ConvertTo-Json -Depth 100)-replace"`r`n","`n")+"`n"}
 function Scalar([string]$Name,[string]$Value){"${Name}:$([Text.Encoding]::UTF8.GetByteCount($Value)):${Value}`n"}
+function OrdinalRows([object[]]$Rows,[string]$Property){$list=[Collections.Generic.List[object]]::new();foreach($row in $Rows){$list.Add($row)};$list.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.$Property,[string]$b.$Property)});@($list.ToArray())}
 function SetFrame([string]$Name,[string[]]$Values){$ordered=@($Values|Sort-Object -CaseSensitive -Unique);$count=[string]$ordered.Count;$text="${Name}.count:$([Text.Encoding]::UTF8.GetByteCount($count)):$count`n";for($i=0;$i-lt$ordered.Count;$i++){$text+=Scalar "${Name}[$i]" $ordered[$i]};$text}
 function ObservationFrame($Observation){"C5EvidenceObservationV1`n"+(Scalar evidenceKind $Observation.evidenceKind)+(Scalar outcome $Observation.outcome)+(Scalar contentFingerprint $Observation.contentFingerprint)+(SetFrame evidence @($Observation.evidence))}
 function Update-PackageId($Package){$digests=@($Package.observations|ForEach-Object{Get-Sha256 (ObservationFrame $_)});$text="C5EvidencePackageV1`n"+(Scalar requirementId $Package.requirementId)+(Scalar requirementKind $Package.requirementKind)+(Scalar representativeAssetObjectId $Package.representativeAssetObjectId)+(Scalar executorKind $Package.executorKind)+(Scalar executionStatus $Package.executionStatus)+(Scalar inputFingerprint $Package.inputFingerprint)+(SetFrame observationDigests $digests)+(SetFrame evidencePaths @($Package.evidencePaths));$Package.evidencePackageId="evidence-package-sha256:$(Get-Sha256 $text)";$Package}
@@ -31,10 +40,10 @@ function New-Package($Requirement,[string]$Kind,[string]$Executor,[string]$Execu
     Update-PackageId ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T05:00:00Z';evidencePackageId=('evidence-package-sha256:'+('0'*64));requirementId=$id;requirementKind=$Kind;representativeAssetObjectId=$Requirement.selectedRepresentativeAssetObjectId;executorKind=$Executor;executionStatus=$ExecutionStatus;inputFingerprint=$Requirement.expectedInputFingerprint;toolVersions=@('ImmutableFixture:1.0.0');observations=@($Observations);evidencePaths=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')})
 }
 function Get-StaticInputFingerprint {
-    $paths=@('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md')
-    $entryList=[Collections.Generic.List[object]]::new();foreach($path in $paths){$entryList.Add([pscustomobject][ordered]@{path=$path;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $path)).Hash.ToLowerInvariant()})};$entryList.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.path,[string]$b.path)});$entries=@($entryList.ToArray())
+    $specs=[ordered]@{'C4-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json';'C4-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json';'C4-O03-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json';'C4-O03-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md'}
+    $entryList=[Collections.Generic.List[object]]::new();foreach($entry in $specs.GetEnumerator()){$entryList.Add([pscustomobject][ordered]@{artifactId=[string]$entry.Key;path=[string]$entry.Value;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $entry.Value)).Hash.ToLowerInvariant()})};$entryList.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.path,[string]$b.path)});$entries=@($entryList.ToArray())
     $count=[string]$entries.Count;$text="LifecycleStageInputV1`nentries.count:$([Text.Encoding]::UTF8.GetByteCount($count)):$count`n"
-    for($index=0;$index-lt$entries.Count;$index++){$nested="C2ArtifactEntryV1`n"+(Scalar path $entries[$index].path)+(Scalar sha256 $entries[$index].sha256);$text+="entries[$index]:$([Text.Encoding]::UTF8.GetByteCount($nested)):$nested`n"}
+    for($index=0;$index-lt$entries.Count;$index++){$nested="C2ArtifactEntryV1`n"+(Scalar artifactId $entries[$index].artifactId)+(Scalar path $entries[$index].path)+(Scalar sha256 $entries[$index].sha256);$text+="entries[$index]:$([Text.Encoding]::UTF8.GetByteCount($nested)):$nested`n"}
     Get-Sha256 $text
 }
 
@@ -43,10 +52,11 @@ foreach($family in $familyRegistry.families){
     $member=@($memberStatic.memberResults|Where-Object familyId -CEQ $family.familyId)[0]
     foreach($key in $family.familyKey){
         $value=if($family.lane-ceq'Actor'-and$key.dimensionId-ceq'ActorRole'){'Player'}else{$key.stringValue}
-        $riskFacts.Add([pscustomobject][ordered]@{assetObjectId=$member.assetObjectId;familyId=$family.familyId;factKind=$key.dimensionId;factStatus=$key.factStatus;valueKind=$key.valueKind;stringValue=$value;integerValue=$key.integerValue;booleanValue=$key.booleanValue;idValues=@($key.idValues)})
+        $riskFacts.Add([pscustomobject][ordered]@{factId="lane-fact-sha256:$(Get-Sha256 "$($member.assetObjectId)|$($key.dimensionId)")";assetObjectId=$member.assetObjectId;lane=$family.lane;factKind=$key.dimensionId;factStatus=$key.factStatus;valueKind=$key.valueKind;stringValue=$value;integerValue=$key.integerValue;booleanValue=$key.booleanValue;idValues=@($key.idValues);evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')})
     }
-    $riskFacts.Add([pscustomobject][ordered]@{assetObjectId=$member.assetObjectId;familyId=$family.familyId;factKind='PlatformVariant';factStatus='Known';valueKind='String';stringValue='Pc';integerValue=$null;booleanValue=$null;idValues=@()})
+    $riskFacts.Add([pscustomobject][ordered]@{factId="lane-fact-sha256:$(Get-Sha256 "$($member.assetObjectId)|PlatformVariant")";assetObjectId=$member.assetObjectId;lane=$family.lane;factKind='PlatformVariant';factStatus='Known';valueKind='String';stringValue='Pc';integerValue=$null;booleanValue=$null;idValues=@();evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')})
 }
+$riskFacts.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.factId,[string]$b.factId)})
 $inputStaticFingerprint=Get-StaticInputFingerprint
 
 function Run-Kernel($Facts,$Packages){
@@ -88,7 +98,8 @@ foreach($requirement in $base.capabilitySuitabilityRequirements){if(($requiremen
 $audioFamily=@($familyRegistry.families|Where-Object lane -CEQ Audio)[0]
 $audioRequirements=@($base.capabilitySuitabilityRequirements|Where-Object familyId -CEQ $audioFamily.familyId)
 if($audioRequirements.Count-ne4-or@($audioRequirements|Where-Object capabilityId -CEQ PlayableBgmRoute).Count-ne2-or@($audioRequirements|Where-Object capabilityId -CEQ PlayableCombatSfx).Count-ne2-or@($audioRequirements.suitabilityRequirementId|Sort-Object -Unique).Count-ne4){throw 'Audio capability/route suitability independence failed.'}
-$loopMutation=Clone-Value $riskFacts;$loopFact=@($loopMutation|Where-Object{$_.familyId-ceq$audioFamily.familyId-and$_.factKind-ceq'LoopMode'})[0];$loopFact.stringValue='OneShot'
+$audioMemberId=@($memberStatic.memberResults|Where-Object familyId -CEQ $audioFamily.familyId)[0].assetObjectId
+$loopMutation=Clone-Value $riskFacts;$loopFact=@($loopMutation|Where-Object{$_.assetObjectId-ceq$audioMemberId-and$_.factKind-ceq'LoopMode'})[0];$loopFact.stringValue='OneShot'
 $loopResult=Run-Kernel $loopMutation @()
 if((@($loopResult.capabilitySuitabilityRequirements.suitabilityRequirementId|Sort-Object)-join',')-cne(@($base.capabilitySuitabilityRequirements.suitabilityRequirementId|Sort-Object)-join',')){throw 'LoopMode changed capability-suitability identity.'}
 
@@ -141,7 +152,37 @@ $directInputSpecs=[ordered]@{
     'C4-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json';'C4-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json';'C4-O03-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json';'C4-O03-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md'
     'LC-I06'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json';'LC-I07'='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json';'LC-I08'='docs/asset-migration/schemas/status-vocabulary.json';'LC-I11'='docs/asset-migration/schemas/c3-c6-decision-policy-registry.json';'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
 }
-$directInputs=@($directInputSpecs.GetEnumerator()|ForEach-Object{[pscustomobject][ordered]@{artifactId=[string]$_.Key;path=[string]$_.Value;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $_.Value)).Hash.ToLowerInvariant()}})
+function New-LaneFactPackage($Facts){
+    [pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId=$familyRegistry.snapshotId;c2GenerationFingerprint=('3'*64);factContractFingerprint=Get-Sha256 $factSchemaBytes;inputFingerprint=('4'*64);rows=@($Facts)}
+}
+function Read-FixtureBytes([string]$Path){[IO.File]::ReadAllText((Join-Path $repositoryRoot $Path),[Text.UTF8Encoding]::new($false))}
+function New-BaseExecutionArtifacts($Facts=$riskFacts){
+    @(
+        [pscustomobject][ordered]@{artifactId='C3-O01';bytes=$familyRegistryBytes}
+        [pscustomobject][ordered]@{artifactId='C3-O02';bytes=Read-FixtureBytes $directInputSpecs['C3-O02']}
+        [pscustomobject][ordered]@{artifactId='C3-O03';bytes=Read-FixtureBytes $directInputSpecs['C3-O03']}
+        [pscustomobject][ordered]@{artifactId='C3-O04-Summary';bytes=Read-FixtureBytes $directInputSpecs['C3-O04-Summary']}
+        [pscustomobject][ordered]@{artifactId='C3-O04-Report';bytes=Read-FixtureBytes $directInputSpecs['C3-O04-Report']}
+        [pscustomobject][ordered]@{artifactId='C4-O01';bytes=$memberStaticBytes}
+        [pscustomobject][ordered]@{artifactId='C4-O02';bytes=Read-FixtureBytes $directInputSpecs['C4-O02']}
+        [pscustomobject][ordered]@{artifactId='C4-O03-Summary';bytes=Read-FixtureBytes $directInputSpecs['C4-O03-Summary']}
+        [pscustomobject][ordered]@{artifactId='C4-O03-Report';bytes=Read-FixtureBytes $directInputSpecs['C4-O03-Report']}
+        [pscustomobject][ordered]@{artifactId='LC-I06';bytes=CanonicalJson (New-LaneFactPackage $Facts)}
+        [pscustomobject][ordered]@{artifactId='LC-I07';bytes=$lanePolicyBytes}
+        [pscustomobject][ordered]@{artifactId='LC-I08';bytes=$vocabularyBytes}
+        [pscustomobject][ordered]@{artifactId='LC-I11';bytes=$decisionPolicyBytes}
+        [pscustomobject][ordered]@{artifactId='LC-I13';bytes=$factSchemaBytes}
+    )
+}
+function New-BaseDirectInputs([object[]]$ExecutionArtifacts){
+    $byId=@{};foreach($artifact in $ExecutionArtifacts){$byId[[string]$artifact.artifactId]=[string]$artifact.bytes}
+    $rows=[Collections.Generic.List[object]]::new();foreach($entry in $directInputSpecs.GetEnumerator()){$rows.Add([pscustomobject][ordered]@{artifactId=[string]$entry.Key;path=[string]$entry.Value;sha256=Get-Sha256 $byId[[string]$entry.Key]})}
+    $rows.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.path,[string]$b.path)});@($rows.ToArray())
+}
+$baseExecutionArtifacts=New-BaseExecutionArtifacts
+$laneFactPackageText=[string]@($baseExecutionArtifacts|Where-Object artifactId -CEQ 'LC-I06')[0].bytes
+if(-not($laneFactPackageText|Test-Json -Schema $factSchemaBytes -ErrorAction Stop)){throw 'C5 LC-I06 authority fixture is not schema-valid.'}
+$directInputs=New-BaseDirectInputs $baseExecutionArtifacts
 $stage=[pscustomobject][ordered]@{generatedAt='2026-07-16T06:00:00Z';snapshotId=$familyRegistry.snapshotId;toolVersions=@('C5RequirementEvidenceGate:1.0.0');directInputs=$directInputs}
 function New-EvidenceAuthority($Packages,[string]$RequirementGenerationFingerprint){
     $packageBytes=@($Packages|ForEach-Object{CanonicalJson $_})
@@ -155,11 +196,12 @@ function New-EvidenceAuthority($Packages,[string]$RequirementGenerationFingerpri
     $manifestBytes=CanonicalJson $manifest
     $authorityStage=Clone-Value $stage
     $authorityStage.directInputs=@($authorityStage.directInputs)+@([pscustomobject][ordered]@{artifactId='LC-I09';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json';sha256=Get-Sha256 $manifestBytes})+@($manifest.entries|ForEach-Object{[pscustomobject][ordered]@{artifactId='LC-I10';path=$_.path;sha256=$_.sha256}})
+    $authorityStage.directInputs=@(OrdinalRows $authorityStage.directInputs path)
     [pscustomobject]@{manifest=$manifest;manifestBytes=$manifestBytes;packages=$Packages;packageBytes=$packageBytes;stage=$authorityStage}
 }
-function Run-Gate($Packages,$StageValue=$stage,$Manifest=$null,$ManifestBytes=$null,$PackageBytes=$null){
+function Run-Gate($Packages,$StageValue=$stage,$Manifest=$null,$ManifestBytes=$null,$PackageBytes=$null,$Family=$familyRegistry,$Member=$memberStatic,$Facts=$riskFacts,$ExecutionArtifacts=$baseExecutionArtifacts){
     if($null-eq$PackageBytes){$PackageBytes=@($Packages|ForEach-Object{CanonicalJson $_})}
-    Invoke-C5RequirementEvidenceGate -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -EvidenceManifest $Manifest -EvidenceManifestBytes $ManifestBytes -EvidencePackages $Packages -EvidencePackageBytes $PackageBytes -Stage $StageValue
+    Invoke-C5RequirementEvidenceGate -FamilyRegistry $Family -MemberStaticQualification $Member -RiskFactRows @($Facts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -EvidenceManifest $Manifest -EvidenceManifestBytes $ManifestBytes -EvidencePackages $Packages -EvidencePackageBytes $PackageBytes -ExecutionArtifacts $ExecutionArtifacts -Stage $StageValue
 }
 $gate=Run-Gate @()
 if($gate.gateStatus-cne'Passed'-or(@($gate.PSObject.Properties.Name)-join',')-cne'gateStatus,representativeRequirements,evidenceAssessment,c7EvidenceRequest,summary,report,texts,executorLaunchCount,heavyOperationCount'){throw 'C5-2 Passed result vector shape failed.'}
@@ -178,7 +220,7 @@ foreach($request in $gate.c7EvidenceRequest.requests){if((@($request.PSObject.Pr
 if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.policySetFingerprint-cne'7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862'-or$gate.summary.decisionPolicyFingerprint-cne'82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a'){throw 'C5 exact-byte input/policy fingerprints failed.'}
 $authority=New-EvidenceAuthority @($riskAcceptedPackage) $gate.summary.inputFingerprint
 $authorityGate=Run-Gate $authority.packages $authority.stage $authority.manifest $authority.manifestBytes $authority.packageBytes
-if($authorityGate.gateStatus-cne'Passed'-or$authorityGate.summary.directInputs.Count-ne16-or$authorityGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint-or$authorityGate.summary.coverage.evidenceAcceptedCount-ne1-or$authorityGate.summary.coverage.evidenceMissingCount-ne11){throw 'LC-I09/LC-I10 authority did not produce one exact accepted evidence result.'}
+if($authorityGate.gateStatus-cne'Passed'-or$authorityGate.summary.directInputs.Count-ne16-or$authorityGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint-or$authorityGate.summary.coverage.evidenceAcceptedCount-ne1-or$authorityGate.summary.coverage.evidenceMissingCount-ne11){throw "LC-I09/LC-I10 authority did not produce one exact accepted evidence result: status=$($authorityGate.gateStatus) attribution=$($authorityGate.summary.decision.failureAttribution) accepted=$($authorityGate.summary.coverage.evidenceAcceptedCount) missing=$($authorityGate.summary.coverage.evidenceMissingCount) inputs=$($authorityGate.summary.directInputs.Count)"}
 $newGenerationPackage=Clone-Value $riskAcceptedPackage;$newGenerationPackage.generatedAt='2026-07-16T05:00:02Z'
 $newAuthority=New-EvidenceAuthority @($newGenerationPackage) $gate.summary.inputFingerprint
 $newGenerationGate=Run-Gate $newAuthority.packages $newAuthority.stage $newAuthority.manifest $newAuthority.manifestBytes $newAuthority.packageBytes
@@ -209,8 +251,25 @@ foreach($output in $gate.summary.directOutputs){if($output.sha256-cne(Get-Sha256
 $artifactShape='artifactId,path,sha256';foreach($entry in @($gate.summary.directInputs)+@($gate.summary.directOutputs)){if((@($entry.PSObject.Properties.Name)-join',')-cne$artifactShape){throw 'C5 direct artifact row shape failed.'}}
 for($index=1;$index-lt$gate.summary.directInputs.Count;$index++){if([StringComparer]::Ordinal.Compare([string]$gate.summary.directInputs[$index-1].path,[string]$gate.summary.directInputs[$index].path)-ge0){throw 'C5 direct inputs are not Ordinal sorted.'}}
 $changedStage=Clone-Value $stage;$changedStage.directInputs[0].sha256=('0'*64);$changedGate=Run-Gate @() $changedStage
-if($changedGate.gateStatus-cne'Passed'-or$changedGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint){throw 'LX-HI-14 C5 direct-input mutation sensitivity failed.'}
-$missingInputStage=Clone-Value $stage;$missingInputStage.directInputs=@($missingInputStage.directInputs|Select-Object -Skip 1);$rejected=$false;try{Run-Gate @() $missingInputStage|Out-Null}catch{$rejected=$_.Exception.Message-ceq'C5 direct input set is invalid.'};if(-not$rejected){throw 'C5 missing direct input was not rejected.'}
+if($changedGate.gateStatus-cne'Failed'-or$changedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 base direct-input SHA mutation did not fail closed.'}
+$missingInputStage=Clone-Value $stage;$missingInputStage.directInputs=@($missingInputStage.directInputs|Select-Object -Skip 1);$missingInputGate=Run-Gate @() $missingInputStage
+if($missingInputGate.gateStatus-cne'Failed'-or$missingInputGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 missing base direct input did not fail closed.'}
+$duplicateInputStage=Clone-Value $stage;$duplicateInputStage.directInputs=@($duplicateInputStage.directInputs)+@($duplicateInputStage.directInputs[0]);$duplicateInputStage.directInputs=@(OrdinalRows $duplicateInputStage.directInputs path);$duplicateInputGate=Run-Gate @() $duplicateInputStage
+if($duplicateInputGate.gateStatus-cne'Failed'-or$duplicateInputGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 duplicate base direct input did not fail closed.'}
+$extraExecutionArtifacts=@($baseExecutionArtifacts)+@([pscustomobject][ordered]@{artifactId='Unexpected';bytes='{}'})
+$extraExecutionGate=Run-Gate @() $stage $null $null @() $familyRegistry $memberStatic $riskFacts $extraExecutionArtifacts
+if($extraExecutionGate.gateStatus-cne'Failed'-or$extraExecutionGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 extra base execution artifact did not fail closed.'}
+$unboundFamily=Clone-Value $familyRegistry;$unboundFamily.snapshotId='snapshot-unbound'
+$unboundFamilyGate=Run-Gate @() $stage $null $null @() $unboundFamily $memberStatic $riskFacts $baseExecutionArtifacts
+if($unboundFamilyGate.gateStatus-cne'Failed'-or$unboundFamilyGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 C3-O01 execution object/bytes mismatch did not fail closed.'}
+$unboundMember=Clone-Value $memberStatic;$unboundMember.generatedAt='2026-07-16T04:00:01Z'
+$unboundMemberGate=Run-Gate @() $stage $null $null @() $familyRegistry $unboundMember $riskFacts $baseExecutionArtifacts
+if($unboundMemberGate.gateStatus-cne'Failed'-or$unboundMemberGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 C4-O01 execution object/bytes mismatch did not fail closed.'}
+$unboundFacts=Clone-Value $riskFacts;$unboundFacts[0].stringValue='detached'
+$unboundFactsGate=Run-Gate @() $stage $null $null @() $familyRegistry $memberStatic $unboundFacts $baseExecutionArtifacts
+if($unboundFactsGate.gateStatus-cne'Failed'-or$unboundFactsGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 LC-I06 execution object/bytes mismatch did not fail closed.'}
+$misorderedStage=Clone-Value $stage;[Array]::Reverse($misorderedStage.directInputs);$misorderedGate=Run-Gate @() $misorderedStage
+if($misorderedGate.gateStatus-cne'Failed'-or$misorderedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C5:DirectInputs'){throw 'C5 misordered direct inputs did not fail closed.'}
 $fixturePayloads=[ordered]@{'valid-representative-requirements.json'=$gate.texts.representativeRequirements;'valid-evidence-assessment.json'=$gate.texts.evidenceAssessment;'valid-c7-evidence-request.json'=$gate.texts.c7EvidenceRequest;'valid-c5-summary.json'=$gate.texts.summary;'valid-c5-report.md'=$gate.report}
 if($UpdateFixtures){$utf8=[Text.UTF8Encoding]::new($false);foreach($name in $fixturePayloads.Keys){[IO.File]::WriteAllText((Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name"),$fixturePayloads[$name],$utf8)};'fixtures=Updated';return}
 foreach($name in $fixturePayloads.Keys){$path=Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name";if(-not(Test-Path -LiteralPath $path)){throw "C5-2 expected fixture missing: $name"};if([IO.File]::ReadAllText($path,[Text.UTF8Encoding]::new($false))-cne$fixturePayloads[$name]){throw "C5-2 fixture bytes mismatch: $name"}}

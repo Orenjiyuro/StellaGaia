@@ -2,20 +2,20 @@
   "schemaVersion": "1.0.0",
   "generatedAt": "2026-07-16T10:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "a924c79a6ec9a8ccfe81e71026adce51ed407cb2df4a5651a6401383d9d3c621",
+  "inputFingerprint": "ec485213f6405e07346e9bd7f6b894b628c5ead26b572eafb0bbb2e169673a05",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "decisions": [
     {
-      "decisionId": "family-decision-sha256:71f331ca05434c08ef25a7b8e989a678d7aa6fd29e24ad99f9b31dd2493ea6a2",
+      "decisionId": "family-decision-sha256:c02bb29faf40469cb4df5a84aa93fc17cfbe01aaec4d53b18444e973881de5b0",
       "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
       "decision": "RetainForLater",
       "repairClass": null,
       "replacementRouteKind": null,
       "ruleId": "RetainForLaterRule",
       "inputStaticFingerprint": "7b09c0b55ff4ae3e6b7f3ebd9f636904c9c2ba5692f635e3bf30f2524e843d3b",
-      "inputEvidenceFingerprint": "e2fae9c4a7191f7efa767b81f5f6dca88104135d905bad50d8ccc596bcc1cecb",
-      "repairHistoryFingerprint": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3",
+      "inputEvidenceFingerprint": "4d388610b01876414cbb4258ca937560cc5ae019247b939f22dfd31a06b24050",
+      "repairHistoryFingerprint": "7733686afbda299cd55b985e57231438aef78877bde8c453281f1724572a8213",
       "acceptedEvidenceAssessmentIds": [],
       "failureAttribution": "C6:EvidenceMissing:family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
@@ -25,15 +25,15 @@
       ]
     },
     {
-      "decisionId": "family-decision-sha256:512e2825ad4d0c3889d94fc9b778f59e1df6ccf7bbe81a8cee0cc394f60d8830",
+      "decisionId": "family-decision-sha256:f3899728514d90d155de4cc16db4c4d5c8b58ebfb580696d5b6558774db61a48",
       "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
       "decision": "RepairOnce",
       "repairClass": "ImportSettingsRepair",
       "replacementRouteKind": null,
       "ruleId": "RepairOnceRule",
       "inputStaticFingerprint": "7b09c0b55ff4ae3e6b7f3ebd9f636904c9c2ba5692f635e3bf30f2524e843d3b",
-      "inputEvidenceFingerprint": "e2fae9c4a7191f7efa767b81f5f6dca88104135d905bad50d8ccc596bcc1cecb",
-      "repairHistoryFingerprint": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3",
+      "inputEvidenceFingerprint": "4d388610b01876414cbb4258ca937560cc5ae019247b939f22dfd31a06b24050",
+      "repairHistoryFingerprint": "7733686afbda299cd55b985e57231438aef78877bde8c453281f1724572a8213",
       "acceptedEvidenceAssessmentIds": [],
       "failureAttribution": "C6:RepairPending:family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
       "nextAllowedAction": "Run only the named focused repair in a separately authorized Task.",
@@ -43,15 +43,15 @@
       ]
     },
     {
-      "decisionId": "family-decision-sha256:91f43f9bdb95123ccd16f29853bd7ac4ef886cb4cda4eb229ee2aefdf963a3f8",
+      "decisionId": "family-decision-sha256:b2214621b5e87eb04ac2bdf8c9d87fcbd4f5fc758621ddc1cf2b4488e6741aa1",
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
       "decision": "RetainForLater",
       "repairClass": null,
       "replacementRouteKind": null,
       "ruleId": "RetainForLaterRule",
       "inputStaticFingerprint": "7b09c0b55ff4ae3e6b7f3ebd9f636904c9c2ba5692f635e3bf30f2524e843d3b",
-      "inputEvidenceFingerprint": "e2fae9c4a7191f7efa767b81f5f6dca88104135d905bad50d8ccc596bcc1cecb",
-      "repairHistoryFingerprint": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3",
+      "inputEvidenceFingerprint": "4d388610b01876414cbb4258ca937560cc5ae019247b939f22dfd31a06b24050",
+      "repairHistoryFingerprint": "7733686afbda299cd55b985e57231438aef78877bde8c453281f1724572a8213",
       "acceptedEvidenceAssessmentIds": [],
       "failureAttribution": "C6:EvidenceMissing:family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
@@ -61,15 +61,15 @@
       ]
     },
     {
-      "decisionId": "family-decision-sha256:b36d32eecc5ef657f89561c1cd31728e3b432774b8bd5429ca40381ce2351b2c",
+      "decisionId": "family-decision-sha256:1aaee10a08cc9ab91a514d28167ca531ebe700f23e09bd7c1e7814a06a1de612",
       "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
       "decision": "NeedsDiagnosis",
       "repairClass": null,
       "replacementRouteKind": null,
       "ruleId": "NeedsDiagnosisRule",
       "inputStaticFingerprint": "7b09c0b55ff4ae3e6b7f3ebd9f636904c9c2ba5692f635e3bf30f2524e843d3b",
-      "inputEvidenceFingerprint": "e2fae9c4a7191f7efa767b81f5f6dca88104135d905bad50d8ccc596bcc1cecb",
-      "repairHistoryFingerprint": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3",
+      "inputEvidenceFingerprint": "4d388610b01876414cbb4258ca937560cc5ae019247b939f22dfd31a06b24050",
+      "repairHistoryFingerprint": "7733686afbda299cd55b985e57231438aef78877bde8c453281f1724572a8213",
       "acceptedEvidenceAssessmentIds": [],
       "failureAttribution": "C6:UncheckedStatic:family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
       "nextAllowedAction": "Resolve the named diagnostic evidence before reuse.",
@@ -79,15 +79,15 @@
       ]
     },
     {
-      "decisionId": "family-decision-sha256:caba6325324fe85d6b84ed2e6539c854235a10d72cd1280f40afa79d80b1aea2",
+      "decisionId": "family-decision-sha256:59c96aa67bcfc96aae2c3fa1423880d4e3e24fb3ce38ea5d3b8d4ca30712f57e",
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "decision": "RetainForLater",
       "repairClass": null,
       "replacementRouteKind": null,
       "ruleId": "RetainForLaterRule",
       "inputStaticFingerprint": "7b09c0b55ff4ae3e6b7f3ebd9f636904c9c2ba5692f635e3bf30f2524e843d3b",
-      "inputEvidenceFingerprint": "e2fae9c4a7191f7efa767b81f5f6dca88104135d905bad50d8ccc596bcc1cecb",
-      "repairHistoryFingerprint": "31f4e0d3bbdb722824b712661323b4341254c693e69be49775b8b40d51607cd3",
+      "inputEvidenceFingerprint": "4d388610b01876414cbb4258ca937560cc5ae019247b939f22dfd31a06b24050",
+      "repairHistoryFingerprint": "7733686afbda299cd55b985e57231438aef78877bde8c453281f1724572a8213",
       "acceptedEvidenceAssessmentIds": [],
       "failureAttribution": "C6:EvidenceMissing:family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
@@ -99,26 +99,14 @@
   ],
   "issues": [
     {
-      "issueId": "residual-issue-sha256:2b45ea275f629470d16fcd62f2957bfb3365ba8cad45106732c2369df436d264",
-      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
-      "issueClass": "RepairPending",
-      "subjectIds": [
-        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-      ],
-      "failureAttribution": "C6:RepairPending:family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
-      "evidence": [
-        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
-      ]
-    },
-    {
-      "issueId": "residual-issue-sha256:6a3bd6fb0e809350c00b6f7bc54f561f430f530a90ce210e22662a1e8c59a916",
+      "issueId": "residual-issue-sha256:277c334d331ee47dc56366b9fa68b2c72d62100d5befccddc489f02dd6eba432",
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "issueClass": "EvidenceMissing",
       "subjectIds": [
-        "evidence-assessment-sha256:234a40d417ed2876193ab1044fedd13bcf16946ac633b53dfc4f2e2fef69ddf0",
-        "evidence-assessment-sha256:26bb8b9139c76f4552f7376649ff24757e49d164cccb3eb090f206f79b606e38",
-        "evidence-assessment-sha256:50afc6f7b44b56f3863bf7891523be59ccc22b2dbeb941d454ba87c75cd25cae",
-        "evidence-assessment-sha256:c061dd9e59f712d856eefa4e86b2f7b404e29b125f8f391e7294b7064a902ac4"
+        "evidence-assessment-sha256:486aecf60e3b1f0e79c65c49d444762cbb633f6d7f0287affa6b01a64989b171",
+        "evidence-assessment-sha256:c018170a153b3c18d2f1e63c31d154eee94c4fcec3a46a9af57687bebb5290fa",
+        "evidence-assessment-sha256:d2d307386c76427e7b41f207df47966b249b17692d4eacf46798b8d06daac0af",
+        "evidence-assessment-sha256:f1d41c795436436e2c38cfa0c840bf3054929c70a5ac642624f02599efcd937d"
       ],
       "failureAttribution": "C6:EvidenceMissing:family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "evidence": [
@@ -126,16 +114,13 @@
       ]
     },
     {
-      "issueId": "residual-issue-sha256:79d55378d4020e73d07112571550818352c54d66806df022a4c6ed33edcef8dd",
-      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
-      "issueClass": "EvidenceMissing",
+      "issueId": "residual-issue-sha256:2b45ea275f629470d16fcd62f2957bfb3365ba8cad45106732c2369df436d264",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "issueClass": "RepairPending",
       "subjectIds": [
-        "evidence-assessment-sha256:28cea3c377637ce9fabae3b5fa185dd4005b9b9fff679e68251befbfd60079f7",
-        "evidence-assessment-sha256:51538a7734b2ac966d4bfc3cbade20a9154dac59372e2af9ad78c8080e727a71",
-        "evidence-assessment-sha256:540e10b6c888d18ea202b99154868692d89c82bd5afc9ad6337c2128013c31c6",
-        "evidence-assessment-sha256:b952f45f467d5fc9600e3924890fcac5f53e1fc01dd0bee2867bf91b52a57c4b"
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       ],
-      "failureAttribution": "C6:EvidenceMissing:family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "failureAttribution": "C6:RepairPending:family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
       ]
@@ -153,16 +138,31 @@
       ]
     },
     {
-      "issueId": "residual-issue-sha256:c948d031f804d6599da9e94737a72ae0ce00e0d08030477c7572e423484e2e0e",
+      "issueId": "residual-issue-sha256:d106b58bf1681f61ed6aac0f5e3c84deb9462003d101fcfd10052ba432d1f598",
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
       "issueClass": "EvidenceMissing",
       "subjectIds": [
-        "evidence-assessment-sha256:2f8226c6132d2f0662ac8441d91ced31cb702fe2cfd3e87f13b8161bc23b32df",
-        "evidence-assessment-sha256:45b36420aefac1273cafad50a6972325d6d53a09db79085efb3b8a1dc96d5b92",
-        "evidence-assessment-sha256:6921f18c19f7fdf3480f14b3992a75dc28d1aad1ba7a446cd91106648ac06d97",
-        "evidence-assessment-sha256:a91f2df6bb3184a8c4611ffa63722cc5009d8bf5e26fd4802fb5e43926f7701e"
+        "evidence-assessment-sha256:3c24f88ee33262848133bd1965f3a451720ebce2fc364a1a6ad0102d985e23e0",
+        "evidence-assessment-sha256:528e5a7980fdce349494dcb34cc88a815f2fc5452abb972b8432f72273bef067",
+        "evidence-assessment-sha256:9fb43792153b0be38fd4311c6f7f0ba9d18f2265b4f6ef7a1c226f09f457f044",
+        "evidence-assessment-sha256:a790f5c2e60bdeb1e88950beb2a49f843b37e3d6479d7c72a000182d1bc0a368"
       ],
       "failureAttribution": "C6:EvidenceMissing:family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "issueId": "residual-issue-sha256:e69e9dc3c6e4c1a671d19b17ce0338b50604737943fc698db8feba25908a63b3",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "issueClass": "EvidenceMissing",
+      "subjectIds": [
+        "evidence-assessment-sha256:382cd318098fd3c07fbae6bcd1f8d977ea874c77d6b9c3b2bdbb938ac9054f00",
+        "evidence-assessment-sha256:5ce87ad3311c9c11efe56115180a4b90d68a77aa8c5ff7aa8c06739193d55733",
+        "evidence-assessment-sha256:d4cfbcdf07d7195342897641a2f33fff4615cee121be8d102b8d25503c1f0ae3",
+        "evidence-assessment-sha256:e17d6ab53c34682fb6a62ee6628692a4cd058a7cf150727fefabfd2267a1e276"
+      ],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
       ]

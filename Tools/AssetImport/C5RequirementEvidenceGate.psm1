@@ -13,6 +13,8 @@ function Add-C5Issue([Collections.Generic.List[string]]$Issues,[string]$Issue){i
 function Test-C5ExactArray([object[]]$Actual,[string[]]$Expected){if($Actual.Count-ne$Expected.Count){return $false};for($i=0;$i-lt$Expected.Count;$i++){if([string]$Actual[$i]-cne$Expected[$i]){return $false}};$true}
 function Get-C5OrdinalRows([object[]]$Rows,[string]$Property){$list=[Collections.Generic.List[object]]::new();foreach($row in $Rows){$list.Add($row)};$list.Sort([Comparison[object]]{param($a,$b)$script:C5Ordinal.Compare([string]$a.$Property,[string]$b.$Property)});@($list.ToArray())}
 function Test-C5JsonObjectBytesBinding([object]$Value,[string]$Bytes){try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false};($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)}
+function Test-C5JsonProjectionBytesBinding([object]$Value,[string]$Bytes,[string]$Property){try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false};if($null-eq$parsed.PSObject.Properties[$Property]){return $false};($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed.$Property|ConvertTo-Json -Depth 100 -Compress)}
+function New-C5ArtifactMap([object[]]$Rows,[string]$KeyProperty){$map=[Collections.Generic.Dictionary[string,object]]::new($script:C5Ordinal);foreach($row in $Rows){if($null-eq$row-or$null-eq$row.PSObject.Properties[$KeyProperty]){return $null};$key=[string]$row.$KeyProperty;if([string]::IsNullOrWhiteSpace($key)-or$map.ContainsKey($key)){return $null};$map.Add($key,$row)};$map}
 function Test-C5PortablePath([string]$Path){$null-ne$Path-and$Path.Length-gt0-and-not$Path.StartsWith('/')-and-not$Path.Contains('\')-and-not@($Path.Split('/')|Where-Object{$_-ceq''-or$_-ceq'.'-or$_-ceq'..'}).Count}
 
 function ConvertTo-C5FactFrame([object]$Fact){
@@ -194,7 +196,7 @@ function ConvertTo-C5CanonicalJson([object]$Value){(($Value|ConvertTo-Json -Dept
 
 function Get-C5ArtifactSetFingerprint([object[]]$Entries){
     $ordered=@(Get-C5OrdinalRows $Entries path);$count=[string]$ordered.Count;$text="LifecycleStageInputV1`nentries.count:$($script:C5Utf8.GetByteCount($count)):$count`n"
-    for($index=0;$index-lt$ordered.Count;$index++){$nested="C2ArtifactEntryV1`n"+(ConvertTo-C5ScalarLine path ([string]$ordered[$index].path))+(ConvertTo-C5ScalarLine sha256 ([string]$ordered[$index].sha256));$text+="entries[$index]:$($script:C5Utf8.GetByteCount($nested)):$nested`n"}
+    for($index=0;$index-lt$ordered.Count;$index++){$nested="C2ArtifactEntryV1`n"+(ConvertTo-C5ScalarLine artifactId ([string]$ordered[$index].artifactId))+(ConvertTo-C5ScalarLine path ([string]$ordered[$index].path))+(ConvertTo-C5ScalarLine sha256 ([string]$ordered[$index].sha256));$text+="entries[$index]:$($script:C5Utf8.GetByteCount($nested)):$nested`n"}
     Get-C5Sha256 $text
 }
 
@@ -220,6 +222,67 @@ function Get-C5StageInputFingerprint([object[]]$Entries){
     foreach($entry in $Entries){if((@($entry.PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or-not$seen.Add([string]$entry.path)-or-not(Test-C5PortablePath ([string]$entry.path))-or$entry.sha256-cnotmatch'^[0-9a-f]{64}$'){throw 'C5 direct input contract is invalid.'}}
     Get-C5BaseDirectInputs $Entries|Out-Null
     Get-C5ArtifactSetFingerprint $Entries
+}
+
+function Get-C5BaseInputAuthority {
+    param(
+        [object[]]$DirectInputs,[object[]]$ExecutionArtifacts,
+        [object]$FamilyRegistry,[object]$MemberStaticQualification,[object[]]$RiskFactRows,
+        [object]$LanePolicyRegistry,[string]$LanePolicyBytes,[object]$DecisionPolicyRegistry,[string]$DecisionPolicyBytes,
+        [string[]]$RepresentativeStatuses,[string[]]$SuitabilityStatuses,[string]$StageSnapshotId
+    )
+    $issues=[Collections.Generic.List[string]]::new();$expected=Get-C5BaseDirectInputSpecs
+    for($index=0;$index-lt$DirectInputs.Count;$index++){
+        $entry=$DirectInputs[$index]
+        if((@($entry.PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or-not(Test-C5PortablePath ([string]$entry.path))-or$entry.sha256-cnotmatch'^[0-9a-f]{64}$'-or($entry.artifactId-cne'LC-I09'-and$entry.artifactId-cne'LC-I10'-and-not$expected.Contains([string]$entry.artifactId))){Add-C5Issue $issues 'C5 direct input set is invalid.';break}
+        if($index-gt0-and$script:C5Ordinal.Compare([string]$DirectInputs[$index-1].path,[string]$entry.path)-ge0){Add-C5Issue $issues 'C5 direct inputs are not unique Ordinal path order.';break}
+    }
+    $base=@($DirectInputs|Where-Object{$_.artifactId-cne'LC-I09'-and$_.artifactId-cne'LC-I10'})
+    $directById=New-C5ArtifactMap $base artifactId;$executionById=New-C5ArtifactMap $ExecutionArtifacts artifactId
+    if($null-eq$directById-or$base.Count-ne$expected.Count){Add-C5Issue $issues 'C5 base direct input registry is invalid.'}
+    else{foreach($item in $expected.GetEnumerator()){if(-not$directById.ContainsKey([string]$item.Key)-or[string]$directById[[string]$item.Key].path-cne[string]$item.Value){Add-C5Issue $issues 'C5 base direct input registry is invalid.';break}}}
+    if($null-eq$executionById-or$ExecutionArtifacts.Count-ne$expected.Count){Add-C5Issue $issues 'C5 base execution artifact set is invalid.'}
+    else{foreach($item in $expected.GetEnumerator()){if(-not$executionById.ContainsKey([string]$item.Key)-or(@($executionById[[string]$item.Key].PSObject.Properties.Name)-join',')-cne'artifactId,bytes'-or$null-eq$executionById[[string]$item.Key].bytes){Add-C5Issue $issues 'C5 base execution artifact set is invalid.';break}}}
+    if(-not$issues.Count){
+        foreach($item in $expected.GetEnumerator()){
+            $id=[string]$item.Key;$bytes=[string]$executionById[$id].bytes
+            if($id-cnotlike'*-Report'){try{$null=$bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{Add-C5Issue $issues "C5 exact bytes are not valid JSON for $id.";break}}
+            if([string]$directById[$id].sha256-cne(Get-C5Sha256 $bytes)){Add-C5Issue $issues "C5 exact-byte direct input hash mismatch for $id.";break}
+        }
+    }
+    if(-not$issues.Count){
+        if(-not(Test-C5JsonObjectBytesBinding $FamilyRegistry ([string]$executionById['C3-O01'].bytes))){Add-C5Issue $issues 'C3-O01 execution object does not match accepted bytes.'}
+        elseif(-not(Test-C5JsonObjectBytesBinding $MemberStaticQualification ([string]$executionById['C4-O01'].bytes))){Add-C5Issue $issues 'C4-O01 execution object does not match accepted bytes.'}
+        elseif(-not(Test-C5JsonProjectionBytesBinding $RiskFactRows ([string]$executionById['LC-I06'].bytes) rows)){Add-C5Issue $issues 'LC-I06 execution object does not match accepted bytes.'}
+        elseif([string]$executionById['LC-I07'].bytes-cne$LanePolicyBytes-or-not(Test-C5JsonObjectBytesBinding $LanePolicyRegistry ([string]$executionById['LC-I07'].bytes))){Add-C5Issue $issues 'LC-I07 execution object does not match accepted bytes.'}
+        elseif([string]$executionById['LC-I11'].bytes-cne$DecisionPolicyBytes-or-not(Test-C5JsonObjectBytesBinding $DecisionPolicyRegistry ([string]$executionById['LC-I11'].bytes))){Add-C5Issue $issues 'LC-I11 execution object does not match accepted bytes.'}
+        elseif(-not(Test-C5JsonProjectionBytesBinding $RepresentativeStatuses ([string]$executionById['LC-I08'].bytes) representativeAssessment)-or-not(Test-C5JsonProjectionBytesBinding $SuitabilityStatuses ([string]$executionById['LC-I08'].bytes) capabilitySuitabilityStatus)){Add-C5Issue $issues 'LC-I08 execution vocabulary does not match accepted bytes.'}
+    }
+    if(-not$issues.Count){
+        $c3Member=([string]$executionById['C3-O02'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $c3References=([string]$executionById['C3-O03'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $c3Summary=([string]$executionById['C3-O04-Summary'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $c4Family=([string]$executionById['C4-O02'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $c4Summary=([string]$executionById['C4-O03-Summary'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $laneFacts=([string]$executionById['LC-I06'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        foreach($c3Input in @($c3Member,$c3References)){if($c3Input.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Input.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Input.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Input.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Input.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint){Add-C5Issue $issues 'C5 C3 generation identity is invalid.';break}}
+        if(-not$issues.Count-and($c3Summary.failureAccounting.gateStatus-cne'Passed'-or$c3Summary.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Summary.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Summary.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Summary.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Summary.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint)){Add-C5Issue $issues 'C5 C3 summary generation identity is invalid.'}
+        if(-not$issues.Count-and($c4Family.schemaVersion-cne$MemberStaticQualification.schemaVersion-or$c4Family.generatedAt-cne$MemberStaticQualification.generatedAt-or$c4Family.snapshotId-cne$MemberStaticQualification.snapshotId-or$c4Family.inputFingerprint-cne$MemberStaticQualification.inputFingerprint-or$c4Family.policySetFingerprint-cne$MemberStaticQualification.policySetFingerprint)){Add-C5Issue $issues 'C5 C4 generation identity is invalid.'}
+        if(-not$issues.Count-and($c4Summary.failureAccounting.gateStatus-cne'Passed'-or$c4Summary.schemaVersion-cne$MemberStaticQualification.schemaVersion-or$c4Summary.generatedAt-cne$MemberStaticQualification.generatedAt-or$c4Summary.snapshotId-cne$MemberStaticQualification.snapshotId-or$c4Summary.inputFingerprint-cne$MemberStaticQualification.inputFingerprint-or$c4Summary.policySetFingerprint-cne$MemberStaticQualification.policySetFingerprint)){Add-C5Issue $issues 'C5 C4 summary generation identity is invalid.'}
+        if(-not$issues.Count-and($StageSnapshotId-cne$FamilyRegistry.snapshotId-or$StageSnapshotId-cne$MemberStaticQualification.snapshotId-or$StageSnapshotId-cne$laneFacts.snapshotId)){Add-C5Issue $issues 'C5 base input snapshot identity is invalid.'}
+        $acceptedPolicyFingerprint=Get-C5Sha256 $LanePolicyBytes;$acceptedFactSchemaFingerprint=Get-C5Sha256 ([string]$executionById['LC-I13'].bytes)
+        if(-not$issues.Count-and($FamilyRegistry.policySetFingerprint-cne$acceptedPolicyFingerprint-or$MemberStaticQualification.policySetFingerprint-cne$acceptedPolicyFingerprint-or$laneFacts.factContractFingerprint-cne$acceptedFactSchemaFingerprint)){Add-C5Issue $issues 'C5 base policy/schema fingerprint identity is invalid.'}
+        foreach($binding in @(
+            @($c3Summary,@('C3-O01','C3-O02','C3-O03','C3-O04-Report')),
+            @($c4Summary,@('C4-O01','C4-O02','C4-O03-Report'))
+        )){
+            if($issues.Count){break};$summary=$binding[0];$ids=[string[]]$binding[1];$outputs=New-C5ArtifactMap @($summary.directOutputs) artifactId
+            if($null-eq$outputs-or$outputs.Count-ne$ids.Count){Add-C5Issue $issues 'C5 child summary output registry is invalid.';break}
+            foreach($id in $ids){$acceptedOutputSha=Get-C5Sha256 ([string]$executionById[$id].bytes);if(-not$outputs.ContainsKey($id)-or(@($outputs[$id].PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or[string]$outputs[$id].path-cne[string]$expected[$id]-or[string]$outputs[$id].sha256-cne$acceptedOutputSha){Add-C5Issue $issues 'C5 child summary does not bind accepted output bytes.';break}}
+        }
+    }
+    $baseFingerprint=if($issues.Count){$null}else{Get-C5ArtifactSetFingerprint $base}
+    [pscustomobject][ordered]@{valid=$issues.Count-eq0;issues=@($issues);baseInputFingerprint=$baseFingerprint}
 }
 
 function Get-C5EvidenceAuthority {
@@ -295,16 +358,21 @@ function Invoke-C5RequirementEvidenceGate {
         [Parameter(Mandatory)][string[]]$RepresentativeStatuses,[Parameter(Mandatory)][string[]]$SuitabilityStatuses,
         [Parameter()][AllowNull()][object]$EvidenceManifest=$null,[Parameter()][AllowNull()][string]$EvidenceManifestBytes=$null,
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$EvidencePackages,[Parameter(Mandatory)][AllowEmptyCollection()][string[]]$EvidencePackageBytes,
+        [Parameter(Mandatory)][object[]]$ExecutionArtifacts,
         [Parameter(Mandatory)][object]$Stage
     )
-    $directInputs=@(Get-C5OrdinalRows $Stage.directInputs path);$inputFingerprint=Get-C5StageInputFingerprint $directInputs
+    $directInputs=@($Stage.directInputs)
     $policySetFingerprint=Get-C5Sha256 $LanePolicyBytes;$decisionPolicyFingerprint=Get-C5Sha256 $DecisionPolicyBytes
-    if($Stage.snapshotId-cne$FamilyRegistry.snapshotId-or$Stage.snapshotId-cne$MemberStaticQualification.snapshotId-or$FamilyRegistry.policySetFingerprint-cne$policySetFingerprint-or$MemberStaticQualification.policySetFingerprint-cne$policySetFingerprint){throw 'C5 prerequisite generation identity is invalid.'}
-    $baseEntries=Get-C5BaseDirectInputs $directInputs;$baseInputFingerprint=Get-C5ArtifactSetFingerprint $baseEntries
-    $authority=Get-C5EvidenceAuthority -DirectInputs $directInputs -Manifest $EvidenceManifest -ManifestBytes $EvidenceManifestBytes -Packages $EvidencePackages -PackageBytes $EvidencePackageBytes -BaseInputFingerprint $baseInputFingerprint
+    $baseAuthority=Get-C5BaseInputAuthority -DirectInputs $directInputs -ExecutionArtifacts $ExecutionArtifacts -FamilyRegistry $FamilyRegistry -MemberStaticQualification $MemberStaticQualification -RiskFactRows $RiskFactRows -LanePolicyRegistry $LanePolicyRegistry -LanePolicyBytes $LanePolicyBytes -DecisionPolicyRegistry $DecisionPolicyRegistry -DecisionPolicyBytes $DecisionPolicyBytes -RepresentativeStatuses $RepresentativeStatuses -SuitabilityStatuses $SuitabilityStatuses -StageSnapshotId ([string]$Stage.snapshotId)
+    $authority=if($baseAuthority.valid){Get-C5EvidenceAuthority -DirectInputs $directInputs -Manifest $EvidenceManifest -ManifestBytes $EvidenceManifestBytes -Packages $EvidencePackages -PackageBytes $EvidencePackageBytes -BaseInputFingerprint $baseAuthority.baseInputFingerprint}else{[pscustomobject]@{issues=@();manifestPath='Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json'}}
+    $inputFingerprint=if($baseAuthority.valid-and-not@($authority.issues).Count){Get-C5StageInputFingerprint $directInputs}else{$null}
     $c4Entries=@($directInputs|Where-Object artifactId -CIn @('C4-O01','C4-O02','C4-O03-Summary','C4-O03-Report'))
-    $inputStaticFingerprint=Get-C5ArtifactSetFingerprint $c4Entries
-    $kernel=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $FamilyRegistry -MemberStaticQualification $MemberStaticQualification -RiskFactRows $RiskFactRows -LanePolicyRegistry $LanePolicyRegistry -LanePolicyBytes $LanePolicyBytes -DecisionPolicyRegistry $DecisionPolicyRegistry -DecisionPolicyBytes $DecisionPolicyBytes -RepresentativeStatuses $RepresentativeStatuses -SuitabilityStatuses $SuitabilityStatuses -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages $EvidencePackages -EvidencePackageBytes $EvidencePackageBytes -EvidenceAuthorityIssues @($authority.issues)
+    $inputStaticFingerprint=if($baseAuthority.valid){Get-C5ArtifactSetFingerprint $c4Entries}else{$null}
+    $kernel=if($baseAuthority.valid){
+        Invoke-C5RequirementEvidenceKernel -FamilyRegistry $FamilyRegistry -MemberStaticQualification $MemberStaticQualification -RiskFactRows $RiskFactRows -LanePolicyRegistry $LanePolicyRegistry -LanePolicyBytes $LanePolicyBytes -DecisionPolicyRegistry $DecisionPolicyRegistry -DecisionPolicyBytes $DecisionPolicyBytes -RepresentativeStatuses $RepresentativeStatuses -SuitabilityStatuses $SuitabilityStatuses -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages $EvidencePackages -EvidencePackageBytes $EvidencePackageBytes -EvidenceAuthorityIssues @($authority.issues)
+    }else{
+        [pscustomobject][ordered]@{status='Failed';issues=@($baseAuthority.issues);policySetFingerprint=$policySetFingerprint;decisionPolicyFingerprint=$decisionPolicyFingerprint;inputStaticFingerprint=$null;riskVariantCount=0;representativeRequirementCount=0;representativeRequiredCount=0;evidenceAcceptedCount=0;evidenceMissingCount=0;evidenceStaleCount=0;unityExecutionUnavailableCount=0;representativeRejectedCount=0;capabilitySuitabilityRequirementCount=0;suitabilityRequiredCount=0;suitabilityAcceptedCount=0;suitabilityMissingCount=0;suitabilityStaleCount=0;suitabilityExecutionUnavailableCount=0;suitabilityRejectedCount=0;requirements=@();assessments=@();capabilitySuitabilityRequirements=@();capabilitySuitabilityAssessments=@();executorLaunchCount=0;heavyOperationCount=0}
+    }
     $prefix=[ordered]@{schemaVersion='1.0.0';generatedAt=[string]$Stage.generatedAt;snapshotId=[string]$Stage.snapshotId;inputFingerprint=$inputFingerprint;policySetFingerprint=$policySetFingerprint;decisionPolicyFingerprint=$decisionPolicyFingerprint}
     $paths=[ordered]@{requirements='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json';assessments='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json';requests='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c7-evidence-request.json';report='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md'}
     $familyLane=@{};foreach($family in $FamilyRegistry.families){$familyLane[[string]$family.familyId]=[string]$family.lane}
@@ -315,11 +383,13 @@ function Invoke-C5RequirementEvidenceGate {
     $coverage=[pscustomobject][ordered]@{familyCount=@($FamilyRegistry.families).Count;riskVariantCount=$kernel.riskVariantCount;representativeRequirementCount=$kernel.representativeRequirementCount;representativeRequiredCount=$kernel.representativeRequiredCount;evidenceAcceptedCount=$kernel.evidenceAcceptedCount;evidenceMissingCount=$kernel.evidenceMissingCount;evidenceStaleCount=$kernel.evidenceStaleCount;unityExecutionUnavailableCount=$kernel.unityExecutionUnavailableCount;representativeRejectedCount=$kernel.representativeRejectedCount;capabilitySuitabilityRequirementCount=$kernel.capabilitySuitabilityRequirementCount;suitabilityRequiredCount=$kernel.suitabilityRequiredCount;suitabilityAcceptedCount=$kernel.suitabilityAcceptedCount;suitabilityMissingCount=$kernel.suitabilityMissingCount;suitabilityStaleCount=$kernel.suitabilityStaleCount;suitabilityExecutionUnavailableCount=$kernel.suitabilityExecutionUnavailableCount;suitabilityRejectedCount=$kernel.suitabilityRejectedCount;c7RequestCount=$orderedRequests.Count}
     $inputSubjectCount=$directInputs.Count+$coverage.familyCount+$coverage.representativeRequirementCount+$coverage.capabilitySuitabilityRequirementCount+$EvidencePackages.Count+2
     if($kernel.status-cne'Passed'){
-        $subjectId='C5:EvidenceContract';$attribution="LF-15:$subjectId";$evidence=@(Get-C5OrdinalValues @($EvidencePackages|ForEach-Object evidencePaths|ForEach-Object{$_}) -Unique);if($null-ne$EvidenceManifest){$evidence=@(Get-C5OrdinalValues (@($evidence)+@($authority.manifestPath)) -Unique)};if(-not$evidence.Count){$evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
-        $failure=New-C5AccountingRow inputFailures ConservationCheck $subjectId EvidenceContractInvalid $attribution $evidence
-        $outputFailures=@(New-C5AccountingRow outputFailures OutputArtifact 'C5-O01' SuppressedByGate 'LF-15:C5-O01' @($paths.requirements);New-C5AccountingRow outputFailures OutputArtifact 'C5-O02' SuppressedByGate 'LF-15:C5-O02' @($paths.assessments);New-C5AccountingRow outputFailures OutputArtifact 'C5-O03' SuppressedByGate 'LF-15:C5-O03' @($paths.requests))
-        $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=[Math]::Max(0,$inputSubjectCount-2);inputFailureCount=1;notEvaluatedInputSubjectCount=1;outputCandidateCount=4;projectedOutputCount=1;outputFailureCount=3;issueCount=1;gateStatus='Failed';inputFailures=@($failure);inputSuppressions=@();outputFailures=$outputFailures}
-        $decision=[pscustomobject][ordered]@{failureAttribution=$attribution;nextAllowedAction='Correct evidence authority/producer.'};$report=New-C5Report $Stage $inputFingerprint $policySetFingerprint $accounting $decision
+        $baseFailure=-not$baseAuthority.valid;$failureCode=if($baseFailure){'LF-01'}else{'LF-15'};$subjectId=if($baseFailure){'C5:DirectInputs'}else{'C5:EvidenceContract'};$attribution="${failureCode}:$subjectId"
+        $evidence=if($baseFailure){@((Get-C5BaseDirectInputSpecs).Values)}else{@(Get-C5OrdinalValues @($EvidencePackages|ForEach-Object evidencePaths|ForEach-Object{$_}) -Unique)};$evidence=@($evidence);if(-not$baseFailure-and$null-ne$EvidenceManifest){$evidence=@(Get-C5OrdinalValues (@($evidence)+@($authority.manifestPath)) -Unique)};if($evidence.Count-eq0){$evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
+        $failure=New-C5AccountingRow inputFailures $(if($baseFailure){'FreshnessCheck'}else{'ConservationCheck'}) $subjectId $(if($baseFailure){'PrerequisiteInvalid'}else{'EvidenceContractInvalid'}) $attribution $evidence
+        $outputFailures=@(New-C5AccountingRow outputFailures OutputArtifact 'C5-O01' SuppressedByGate "${failureCode}:C5-O01" @($paths.requirements);New-C5AccountingRow outputFailures OutputArtifact 'C5-O02' SuppressedByGate "${failureCode}:C5-O02" @($paths.assessments);New-C5AccountingRow outputFailures OutputArtifact 'C5-O03' SuppressedByGate "${failureCode}:C5-O03" @($paths.requests))
+        $acceptedInputCount=if($baseFailure){0}else{[Math]::Max(0,$inputSubjectCount-2)};$notEvaluatedCount=if($baseFailure){[Math]::Max(1,$inputSubjectCount-$directInputs.Count)}else{1}
+        $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=$acceptedInputCount;inputFailureCount=1;notEvaluatedInputSubjectCount=$notEvaluatedCount;outputCandidateCount=4;projectedOutputCount=1;outputFailureCount=3;issueCount=1;gateStatus='Failed';inputFailures=@($failure);inputSuppressions=@();outputFailures=$outputFailures}
+        $nextAction=if($baseFailure){'Restore the exact, complete, same-generation C5 prerequisite set.'}else{'Correct evidence authority/producer.'};$decision=[pscustomobject][ordered]@{failureAttribution=$attribution;nextAllowedAction=$nextAction};$report=New-C5Report $Stage $inputFingerprint $policySetFingerprint $accounting $decision
         $directOutputs=@([pscustomobject][ordered]@{artifactId='C5-O04-Report';path=$paths.report;sha256=Get-C5Sha256 $report})
         $summary=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;stageId='C5';snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;decisionPolicyFingerprint=$prefix.decisionPolicyFingerprint;toolVersions=@($Stage.toolVersions);directInputs=$directInputs;directOutputs=$directOutputs;coverage=$coverage;failureAccounting=$accounting;decision=$decision}
         return [pscustomobject][ordered]@{gateStatus='Failed';representativeRequirements=$null;evidenceAssessment=$null;c7EvidenceRequest=$null;summary=$summary;report=$report;texts=[pscustomobject][ordered]@{representativeRequirements=$null;evidenceAssessment=$null;c7EvidenceRequest=$null;summary=ConvertTo-C5CanonicalJson $summary};executorLaunchCount=$kernel.executorLaunchCount;heavyOperationCount=$kernel.heavyOperationCount}

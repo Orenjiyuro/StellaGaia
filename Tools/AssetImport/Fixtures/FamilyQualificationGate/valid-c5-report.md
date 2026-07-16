@@ -3,7 +3,7 @@ schemaVersion: 1.0.0
 generatedAt: 2026-07-16T06:00:00Z
 stageId: C5
 snapshotId: snapshot-pc-install-001
-inputFingerprint: 6ea24e3a936c7ca004971758ae53129535045adac7b2612f5e9851ed516b64a0
+inputFingerprint: 076c4c7c08525bffec9f3c39640230bd63aaf614ecbb93f169d58a5ae80d0647
 policySetFingerprint: 7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862
 gateStatus: Passed
 inputSubjectCount: 53
