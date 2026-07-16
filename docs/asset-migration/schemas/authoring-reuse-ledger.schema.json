@@ -1,167 +1,524 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://stellagaia.dev/schemas/authoring-reuse-ledger.schema.json",
-  "title": "StellaGaia Authoring Reuse Ledger",
+  "title": "StellaGaia Authoring Reuse Ledger V2",
   "type": "object",
   "required": [
     "schemaVersion",
     "generatedAt",
+    "snapshotId",
     "inputFingerprint",
+    "policySetFingerprint",
+    "decisionPolicyFingerprint",
     "toolVersions",
-    "families"
+    "sourceArtifacts",
+    "families",
+    "members",
+    "coverage",
+    "capabilities"
   ],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "generatedAt": {
       "type": "string",
       "format": "date-time"
     },
-    "inputFingerprint": {
+    "snapshotId": {
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "minLength": 1
+    },
+    "inputFingerprint": {
+      "$ref": "#/$defs/fingerprint"
+    },
+    "policySetFingerprint": {
+      "$ref": "#/$defs/fingerprint"
+    },
+    "decisionPolicyFingerprint": {
+      "$ref": "#/$defs/fingerprint"
     },
     "toolVersions": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/$defs/toolVersion"
+      }
+    },
+    "sourceArtifacts": {
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "items": {
+        "$ref": "#/$defs/artifact"
       }
     },
     "families": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "familyId",
-          "category",
-          "memberSelector",
-          "memberCount",
-          "staticPassedCount",
-          "staticFailedCount",
-          "uncheckedCount",
-          "representativeAssetIds",
-          "representativeSelectionReason",
-          "unityEvidence",
-          "residualIssues",
-          "failureAttribution",
-          "decision",
-          "nextAllowedAction",
-          "generatedAt",
-          "inputFingerprint",
-          "toolVersions",
-          "directGateSummary",
-          "directGateReport",
-          "staticOutcome"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "familyId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "category": {
-            "type": "string",
-            "minLength": 1
-          },
-          "memberSelector": {
-            "type": "string",
-            "minLength": 1
-          },
-          "memberCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "staticPassedCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "staticFailedCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "uncheckedCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "representativeAssetIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "representativeSelectionReason": {
-            "type": "string",
-            "minLength": 1
-          },
-          "unityEvidence": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/repositoryPath"
-            }
-          },
-          "residualIssues": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "failureAttribution": {
-            "type": "string",
-            "minLength": 1
-          },
-          "decision": {
-            "type": "string",
-            "enum": [
-              "NeedsDiagnosis",
-              "UseOriginalAsset",
-              "RepairOnce",
-              "PrototypeReplacement",
-              "RetainForLater",
-              "DiagnosticOnly",
-              "Stop"
-            ]
-          },
-          "nextAllowedAction": {
-            "type": "string",
-            "minLength": 1
-          },
-          "generatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "inputFingerprint": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$"
-          },
-          "toolVersions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/toolVersion"
-            }
-          },
-          "directGateSummary": {
-            "$ref": "#/$defs/repositoryPath"
-          },
-          "directGateReport": {
-            "$ref": "#/$defs/repositoryPath"
-          },
-          "staticOutcome": {
-            "type": "string",
-            "enum": [
-              "StaticQualified",
-              "StaticRejected",
-              "NeedsDiagnosis"
-            ]
-          }
-        }
+        "$ref": "#/$defs/family"
+      }
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/member"
+      }
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "#/$defs/capability"
       }
     }
   },
   "$defs": {
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stringSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "artifactId",
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/fingerprint"
+        }
+      }
+    },
+    "familyKeyDimension": {
+      "type": "object",
+      "required": [
+        "dimensionId",
+        "factStatus",
+        "valueKind",
+        "stringValue",
+        "integerValue",
+        "booleanValue",
+        "idValues"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dimensionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "factStatus": {
+          "enum": [
+            "Known",
+            "Unknown",
+            "NotApplicable"
+          ]
+        },
+        "valueKind": {
+          "enum": [
+            "String",
+            "Integer",
+            "Boolean",
+            "IdSet"
+          ]
+        },
+        "stringValue": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "integerValue": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "booleanValue": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idValues": {
+          "$ref": "#/$defs/stringSet"
+        }
+      }
+    },
+    "family": {
+      "type": "object",
+      "required": [
+        "familyId",
+        "lane",
+        "familyKindId",
+        "familyKeyFingerprint",
+        "memberSelector",
+        "memberCount",
+        "memberBytes",
+        "staticPassedCount",
+        "staticFailedCount",
+        "uncheckedCount",
+        "representativeRequirementCount",
+        "evidenceAcceptedCount",
+        "evidenceMissingCount",
+        "evidenceStaleCount",
+        "unityExecutionUnavailableCount",
+        "representativeRejectedCount",
+        "staticOutcome",
+        "decision",
+        "repairClass",
+        "replacementRouteKind",
+        "failureAttribution",
+        "nextAllowedAction",
+        "acceptedEvidenceAssessmentIds",
+        "residualIssueIds",
+        "qualifiedMemberIds",
+        "isolatedMemberIds",
+        "directGateSummaries",
+        "directGateReports",
+        "inputFingerprint"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "familyId": {
+          "type": "string",
+          "pattern": "^family-sha256:[0-9a-f]{64}$"
+        },
+        "lane": {
+          "enum": [
+            "Audio",
+            "Environment",
+            "Actor",
+            "UI",
+            "Effects"
+          ]
+        },
+        "familyKindId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "familyKeyFingerprint": {
+          "$ref": "#/$defs/fingerprint"
+        },
+        "memberSelector": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/familyKeyDimension"
+          }
+        },
+        "memberCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "memberBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "staticPassedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "staticFailedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncheckedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "representativeRequirementCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidenceAcceptedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidenceMissingCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidenceStaleCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unityExecutionUnavailableCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "representativeRejectedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "staticOutcome": {
+          "enum": [
+            "StaticQualified",
+            "StaticRejected",
+            "NeedsDiagnosis"
+          ]
+        },
+        "decision": {
+          "enum": [
+            "NeedsDiagnosis",
+            "UseOriginalAsset",
+            "RepairOnce",
+            "PrototypeReplacement",
+            "RetainForLater",
+            "DiagnosticOnly",
+            "Stop"
+          ]
+        },
+        "repairClass": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replacementRouteKind": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureAttribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nextAllowedAction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptedEvidenceAssessmentIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "residualIssueIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "qualifiedMemberIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "isolatedMemberIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "directGateSummaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repositoryPath"
+          }
+        },
+        "directGateReports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repositoryPath"
+          }
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/fingerprint"
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "required": [
+        "assetObjectId",
+        "familyId",
+        "lane",
+        "serializedSizeBytes",
+        "staticStatus",
+        "representativeRequirementIds",
+        "disposition",
+        "poolStatus",
+        "failureAttribution",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "assetObjectId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "familyId": {
+          "type": "string",
+          "pattern": "^family-sha256:[0-9a-f]{64}$"
+        },
+        "lane": {
+          "enum": [
+            "Audio",
+            "Environment",
+            "Actor",
+            "UI",
+            "Effects"
+          ]
+        },
+        "serializedSizeBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "staticStatus": {
+          "enum": [
+            "StaticPassed",
+            "StaticFailed",
+            "Unchecked"
+          ]
+        },
+        "representativeRequirementIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "disposition": {
+          "enum": [
+            "NeedsDiagnosis",
+            "UseOriginalAsset",
+            "RepairOnce",
+            "PrototypeReplacement",
+            "RetainForLater",
+            "DiagnosticOnly",
+            "Stop"
+          ]
+        },
+        "poolStatus": {
+          "enum": [
+            "AcceptedOriginalPool",
+            "AcceptedReplacementSourcePool",
+            "Isolated"
+          ]
+        },
+        "failureAttribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "$ref": "#/$defs/stringSet"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "dispatchEligibleObjectCount",
+        "dispatchEligibleObjectBytes",
+        "assignedFamilyMemberCount",
+        "assignedFamilyMemberBytes",
+        "retainedForDiagnosisObjectCount",
+        "retainedForDiagnosisObjectBytes",
+        "configurationOnlyObjectCount",
+        "configurationOnlyObjectBytes",
+        "totalFamilyCount",
+        "reusableFamilyCount",
+        "totalMemberCount",
+        "reusableMemberCount",
+        "isolatedMemberCount",
+        "totalBytes",
+        "reusableBytes",
+        "isolatedBytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dispatchEligibleObjectCount": { "type": "integer", "minimum": 0 },
+        "dispatchEligibleObjectBytes": { "type": "integer", "minimum": 0 },
+        "assignedFamilyMemberCount": { "type": "integer", "minimum": 0 },
+        "assignedFamilyMemberBytes": { "type": "integer", "minimum": 0 },
+        "retainedForDiagnosisObjectCount": { "type": "integer", "minimum": 0 },
+        "retainedForDiagnosisObjectBytes": { "type": "integer", "minimum": 0 },
+        "configurationOnlyObjectCount": { "type": "integer", "minimum": 0 },
+        "configurationOnlyObjectBytes": { "type": "integer", "minimum": 0 },
+        "totalFamilyCount": { "type": "integer", "minimum": 0 },
+        "reusableFamilyCount": { "type": "integer", "minimum": 0 },
+        "totalMemberCount": { "type": "integer", "minimum": 0 },
+        "reusableMemberCount": { "type": "integer", "minimum": 0 },
+        "isolatedMemberCount": { "type": "integer", "minimum": 0 },
+        "totalBytes": { "type": "integer", "minimum": 0 },
+        "reusableBytes": { "type": "integer", "minimum": 0 },
+        "isolatedBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "capabilityId",
+        "status",
+        "satisfyingFamilyIds",
+        "routeKinds",
+        "suitabilityAssessmentIds",
+        "failureAttribution",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "capabilityId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "Satisfied",
+            "Unsatisfied",
+            "Blocked"
+          ]
+        },
+        "satisfyingFamilyIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "routeKinds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "suitabilityAssessmentIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "failureAttribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "$ref": "#/$defs/stringSet"
+        }
+      }
+    },
     "repositoryPath": {
       "type": "string",
       "minLength": 1,

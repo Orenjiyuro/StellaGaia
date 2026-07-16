@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T10:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
+  "capabilities": [
+    {
+      "capabilityId": "CombatEffectRoute",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:CombatEffectRoute",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "EnemyModelSkeletonAnimationSet",
+      "status": "Unsatisfied",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Unsatisfied:EnemyModelSkeletonAnimationSet",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "PlayableBgmRoute",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:PlayableBgmRoute",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "PlayableCombatSfx",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:PlayableCombatSfx",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "PlayerModelSkeletonAnimationSet",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:PlayerModelSkeletonAnimationSet",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "RecognizableEnvironmentOrMapModules",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:RecognizableEnvironmentOrMapModules",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "capabilityId": "ReusableUiGraphicsAndConstructionRoute",
+      "status": "Blocked",
+      "satisfyingFamilyIds": [],
+      "routeKinds": [],
+      "suitabilityAssessmentIds": [],
+      "failureAttribution": "C6:Blocked:ReusableUiGraphicsAndConstructionRoute",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    }
+  ]
+}

@@ -165,7 +165,8 @@ function Test-SchemaPropertyConstraints {
                     }
 
                     if ($property.Name -cmatch '(?:Fingerprint|sha256)$') {
-                        $directSha = (Get-PropertyByPath -Value $definition -Path 'type') -ceq 'string' -and (Get-PropertyByPath -Value $definition -Path 'pattern') -ceq '^[0-9a-f]{64}$'
+                        $directSha = ((Get-PropertyByPath -Value $definition -Path 'type') -ceq 'string' -and (Get-PropertyByPath -Value $definition -Path 'pattern') -ceq '^[0-9a-f]{64}$') -or
+                            (Get-PropertyByPath -Value $definition -Path '$ref') -ceq '#/$defs/fingerprint'
                         $nullableSha = $false
                         $branches = @(Get-PropertyByPath -Value $definition -Path 'oneOf')
                         if ($branches.Count -eq 2) {
@@ -1522,7 +1523,7 @@ $schemaContracts = @(
     [pscustomobject]@{
         Name = 'authoring-reuse-ledger.schema.json'
         Id = 'https://stellagaia.dev/schemas/authoring-reuse-ledger.schema.json'
-        Required = @('schemaVersion', 'generatedAt', 'inputFingerprint', 'toolVersions', 'families')
+        Required = @('schemaVersion', 'generatedAt', 'snapshotId', 'inputFingerprint', 'policySetFingerprint', 'decisionPolicyFingerprint', 'toolVersions', 'sourceArtifacts', 'families', 'members', 'coverage', 'capabilities')
     },
     [pscustomobject]@{
         Name = 'root-gate-summary.schema.json'
@@ -1712,8 +1713,9 @@ foreach ($contract in $schemaContracts) {
     }
 
     $schemaVersion = Get-PropertyByPath -Value $schema -Path 'properties.schemaVersion.const'
-    if ($schemaVersion -cne '1.0.0') {
-        $issues.Add("Schema '$($contract.Name)' does not freeze schemaVersion 1.0.0.")
+    $expectedSchemaVersion = if ($contract.Name -ceq 'authoring-reuse-ledger.schema.json') { '2.0.0' } else { '1.0.0' }
+    if ($schemaVersion -cne $expectedSchemaVersion) {
+        $issues.Add("Schema '$($contract.Name)' does not freeze schemaVersion $expectedSchemaVersion.")
     }
 
     Test-SchemaObjectClosure -Node $schema -SchemaName $contract.Name -Location '$'
@@ -1741,9 +1743,12 @@ if ($schemas.ContainsKey('source-corpus-ledger.schema.json')) {
 
 if ($schemas.ContainsKey('authoring-reuse-ledger.schema.json')) {
     $schema = $schemas['authoring-reuse-ledger.schema.json']
-    Test-SchemaRequiredSet -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path 'properties.families.items.required' -Expected @('familyId', 'category', 'memberSelector', 'memberCount', 'staticPassedCount', 'staticFailedCount', 'uncheckedCount', 'representativeAssetIds', 'representativeSelectionReason', 'unityEvidence', 'residualIssues', 'failureAttribution', 'decision', 'nextAllowedAction', 'generatedAt', 'inputFingerprint', 'toolVersions', 'directGateSummary', 'directGateReport', 'staticOutcome')
-    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path 'properties.families.items.properties.decision.enum' -VocabularyDimension 'disposition'
-    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path 'properties.families.items.properties.staticOutcome.enum' -VocabularyDimension 'familyStaticOutcome'
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.family.required' -Expected @('familyId', 'lane', 'familyKindId', 'familyKeyFingerprint', 'memberSelector', 'memberCount', 'memberBytes', 'staticPassedCount', 'staticFailedCount', 'uncheckedCount', 'representativeRequirementCount', 'evidenceAcceptedCount', 'evidenceMissingCount', 'evidenceStaleCount', 'unityExecutionUnavailableCount', 'representativeRejectedCount', 'staticOutcome', 'decision', 'repairClass', 'replacementRouteKind', 'failureAttribution', 'nextAllowedAction', 'acceptedEvidenceAssessmentIds', 'residualIssueIds', 'qualifiedMemberIds', 'isolatedMemberIds', 'directGateSummaries', 'directGateReports', 'inputFingerprint')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.member.required' -Expected @('assetObjectId', 'familyId', 'lane', 'serializedSizeBytes', 'staticStatus', 'representativeRequirementIds', 'disposition', 'poolStatus', 'failureAttribution', 'evidence')
+    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.family.properties.decision.enum' -VocabularyDimension 'disposition'
+    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.family.properties.staticOutcome.enum' -VocabularyDimension 'familyStaticOutcome'
+    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.member.properties.poolStatus.enum' -VocabularyDimension 'authoringPoolStatus'
+    Test-SchemaEnum -Schema $schema -SchemaName 'authoring-reuse-ledger.schema.json' -Path '$defs.capability.properties.status.enum' -VocabularyDimension 'capabilityStatus'
 }
 
 if ($schemas.ContainsKey('root-gate-summary.schema.json')) {
@@ -1838,8 +1843,9 @@ foreach ($contract in $fixtureContracts) {
     }
 
     $schemaVersion = $fixture.PSObject.Properties['schemaVersion']
-    if ($null -eq $schemaVersion -or $schemaVersion.Value -cne '1.0.0') {
-        $issues.Add("Fixture '$($contract.Name)' schemaVersion must be exactly 1.0.0.")
+    $expectedFixtureVersion = if ($contract.Name -ceq 'valid-authoring-reuse-ledger.json') { '2.0.0' } else { '1.0.0' }
+    if ($null -eq $schemaVersion -or $schemaVersion.Value -cne $expectedFixtureVersion) {
+        $issues.Add("Fixture '$($contract.Name)' schemaVersion must be exactly $expectedFixtureVersion.")
     }
 
     foreach ($forbiddenPropertyName in @(Get-ForbiddenPropertyNames -Value $fixture)) {
@@ -1875,6 +1881,12 @@ if ($null -ne $authoringFixture) {
     foreach ($family in @(Get-PropertyByPath -Value $authoringFixture -Path 'families')) {
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $family -Path 'decision') -Dimension 'decision' -VocabularyDimension 'disposition' -FixtureName 'valid-authoring-reuse-ledger.json'
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $family -Path 'staticOutcome') -Dimension 'staticOutcome' -VocabularyDimension 'familyStaticOutcome' -FixtureName 'valid-authoring-reuse-ledger.json'
+    }
+    foreach ($member in @(Get-PropertyByPath -Value $authoringFixture -Path 'members')) {
+        Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $member -Path 'poolStatus') -Dimension 'poolStatus' -VocabularyDimension 'authoringPoolStatus' -FixtureName 'valid-authoring-reuse-ledger.json'
+    }
+    foreach ($capability in @(Get-PropertyByPath -Value $authoringFixture -Path 'capabilities')) {
+        Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $capability -Path 'status') -Dimension 'status' -VocabularyDimension 'capabilityStatus' -FixtureName 'valid-authoring-reuse-ledger.json'
     }
 }
 

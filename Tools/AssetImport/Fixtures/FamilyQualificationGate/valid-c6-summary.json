@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T10:00:00Z",
+  "stageId": "C6",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
+  "toolVersions": [
+    {
+      "toolName": "c6-authoring-output-gate",
+      "version": "1.0.0"
+    }
+  ],
+  "directInputs": [
+    {
+      "artifactId": "LC-I12",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json",
+      "sha256": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff"
+    },
+    {
+      "artifactId": "C3-O04-Report",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md",
+      "sha256": "9967b3b74ca3c0522b3a30056962c9a38c19b34928bd60b77854ddd7e9f4fc4b"
+    },
+    {
+      "artifactId": "C3-O04-Summary",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json",
+      "sha256": "de9dfb9de5238307b8fea1deab96d7d134dc7ff71db5246852da73416a302f35"
+    },
+    {
+      "artifactId": "C4-O03-Report",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
+      "sha256": "f5023ca84ca93ae23c2d1b5002cb8d8fecc25a36bda6a1acebae4146615cf22b"
+    },
+    {
+      "artifactId": "C4-O03-Summary",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json",
+      "sha256": "fde81cf98d09f087afe56e94882804a49036c0a3141dec7c3c090a7ca617114c"
+    },
+    {
+      "artifactId": "C5-O04-Report",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md",
+      "sha256": "fc1b48b00e8509cc82b7d76ac1320c9031778e76ce95378d98d88fac23413a3d"
+    },
+    {
+      "artifactId": "C5-O04-Summary",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-summary.json",
+      "sha256": "c4bdd33ba62d6fb1eae731838dcc53ccd7727fedde6d4b3b77b5f703fbfe02bc"
+    },
+    {
+      "artifactId": "C3-O03",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json",
+      "sha256": "57ded64880ec930ce7c794c79978339d818ac1742e850b81d1c008ce40c5a437"
+    },
+    {
+      "artifactId": "C5-O02",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
+      "sha256": "86e6ce2073f3ca9a1bb25936a3bb10fc2b0111ef86b070546aa97a99b700c9e3"
+    },
+    {
+      "artifactId": "C3-O02",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json",
+      "sha256": "5213fae019c6b4c831f83320f5ee5bf5983d9083a9058c769556651f0eda6e21"
+    },
+    {
+      "artifactId": "C3-O01",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json",
+      "sha256": "5460b2ef3e8af4cd6d60f2cc34e11740f63b711298ec540079510c38a14375b2"
+    },
+    {
+      "artifactId": "C4-O02",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+      "sha256": "8a54a11bc4ccddb36fe95569d7b8a9b9046f9520c5414acef790a6b0aacd0454"
+    },
+    {
+      "artifactId": "C4-O01",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json",
+      "sha256": "b52ec88dacca21950e8355a18c48e258f825ed50958253c1aa89121ddba20fb4"
+    },
+    {
+      "artifactId": "C5-O01",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json",
+      "sha256": "97665ce6017f9d9eaa38b56bfa100f527d3cea8b3cba2142040490487768abad"
+    },
+    {
+      "artifactId": "LC-I11",
+      "path": "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json",
+      "sha256": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a"
+    },
+    {
+      "artifactId": "LC-I07",
+      "path": "docs/asset-migration/schemas/c3-c6-lane-policy-registry.json",
+      "sha256": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862"
+    },
+    {
+      "artifactId": "LC-I08",
+      "path": "docs/asset-migration/schemas/status-vocabulary.json",
+      "sha256": "9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6"
+    }
+  ],
+  "directOutputs": [
+    {
+      "artifactId": "C6-O01",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-authoring-reuse-ledger.json",
+      "sha256": "ebe7fd2e236fd817ed604a271fe2bc697383de7214e5bc554ac23e422fc36546"
+    },
+    {
+      "artifactId": "C6-O04",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
+      "sha256": "e99314b2d10d9173e39d550b796ef750280181caf3b8ac1ed765c97d9fac502c"
+    },
+    {
+      "artifactId": "C6-O05-Report",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c6-report.md",
+      "sha256": "62f2d61073724b02020f37ca4f1ea66524946da52d7bb39d96d4dc1ff25b79d6"
+    },
+    {
+      "artifactId": "C6-O03",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-capability-projection.json",
+      "sha256": "11723e26f32d539300e7f62f5fa1626656d46ee8d39b602b9ddf2ce7ff82a310"
+    },
+    {
+      "artifactId": "C6-O02",
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-decision-package.json",
+      "sha256": "b271563dd68aff1e9309649368b758eb3d284bf450780cc6652e16ed3d0a1f82"
+    }
+  ],
+  "coverage": {
+    "dispatchEligibleObjectCount": 7,
+    "dispatchEligibleObjectBytes": 2800,
+    "assignedFamilyMemberCount": 5,
+    "assignedFamilyMemberBytes": 1500,
+    "retainedForDiagnosisObjectCount": 1,
+    "retainedForDiagnosisObjectBytes": 600,
+    "configurationOnlyObjectCount": 1,
+    "configurationOnlyObjectBytes": 700,
+    "totalFamilyCount": 5,
+    "needsDiagnosisFamilyCount": 1,
+    "useOriginalAssetFamilyCount": 0,
+    "repairOnceFamilyCount": 1,
+    "prototypeReplacementFamilyCount": 0,
+    "retainForLaterFamilyCount": 3,
+    "diagnosticOnlyFamilyCount": 0,
+    "stopFamilyCount": 0,
+    "totalMemberCount": 5,
+    "totalMemberBytes": 1500,
+    "acceptedOriginalPoolMemberCount": 0,
+    "acceptedOriginalPoolMemberBytes": 0,
+    "acceptedReplacementSourcePoolMemberCount": 0,
+    "acceptedReplacementSourcePoolMemberBytes": 0,
+    "isolatedMemberCount": 5,
+    "isolatedMemberBytes": 1500,
+    "requiredCapabilityCount": 7,
+    "satisfiedCapabilityCount": 0,
+    "unsatisfiedCapabilityCount": 1,
+    "blockedCapabilityCount": 6
+  },
+  "failureAccounting": {
+    "inputSubjectCount": 69,
+    "acceptedInputSubjectCount": 69,
+    "inputFailureCount": 0,
+    "notEvaluatedInputSubjectCount": 0,
+    "outputCandidateCount": 5,
+    "projectedOutputCount": 5,
+    "outputFailureCount": 0,
+    "issueCount": 0,
+    "gateStatus": "Passed",
+    "inputFailures": [],
+    "inputSuppressions": [],
+    "outputFailures": []
+  },
+  "decision": {
+    "failureAttribution": "None; C6 lifecycle contract passed.",
+    "nextAllowedAction": "Provide only the current C6 G5 handoff to G5."
+  }
+}

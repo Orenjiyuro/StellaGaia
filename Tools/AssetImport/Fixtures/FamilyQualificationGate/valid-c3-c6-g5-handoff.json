@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T10:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da",
+  "authoringReuseLedgerPath": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-authoring-reuse-ledger.json",
+  "authoringReuseLedgerSha256": "ebe7fd2e236fd817ed604a271fe2bc697383de7214e5bc554ac23e422fc36546",
+  "familyDecisionPackagePath": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-decision-package.json",
+  "familyDecisionPackageSha256": "b271563dd68aff1e9309649368b758eb3d284bf450780cc6652e16ed3d0a1f82",
+  "capabilityProjectionPath": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-capability-projection.json",
+  "capabilityProjectionSha256": "11723e26f32d539300e7f62f5fa1626656d46ee8d39b602b9ddf2ce7ff82a310",
+  "familyConstructionCoverage": {
+    "dispatchEligibleObjectCount": 7,
+    "dispatchEligibleObjectBytes": 2800,
+    "assignedFamilyMemberCount": 5,
+    "assignedFamilyMemberBytes": 1500,
+    "retainedForDiagnosisObjectCount": 1,
+    "retainedForDiagnosisObjectBytes": 600,
+    "configurationOnlyObjectCount": 1,
+    "configurationOnlyObjectBytes": 700
+  },
+  "originalAssetBatchCoverage": {
+    "reusableFamilyCount": 0,
+    "totalFamilyCount": 5,
+    "reusableMemberCount": 0,
+    "totalMemberCount": 5,
+    "reusableBytes": 0,
+    "totalBytes": 1500
+  },
+  "stellaSora2AuthoringReady": {
+    "value": false,
+    "requiredCapabilityIds": [
+      "CombatEffectRoute",
+      "EnemyModelSkeletonAnimationSet",
+      "PlayableBgmRoute",
+      "PlayableCombatSfx",
+      "PlayerModelSkeletonAnimationSet",
+      "RecognizableEnvironmentOrMapModules",
+      "ReusableUiGraphicsAndConstructionRoute"
+    ],
+    "satisfiedCapabilityIds": [],
+    "unsatisfiedCapabilityIds": [
+      "EnemyModelSkeletonAnimationSet"
+    ],
+    "blockedCapabilityIds": [
+      "CombatEffectRoute",
+      "PlayableBgmRoute",
+      "PlayableCombatSfx",
+      "PlayerModelSkeletonAnimationSet",
+      "RecognizableEnvironmentOrMapModules",
+      "ReusableUiGraphicsAndConstructionRoute"
+    ],
+    "isolatedMemberCount": 5
+  },
+  "failureAttribution": "None; C6 lifecycle contract passed.",
+  "nextAllowedAction": "Provide only the current C6 G5 handoff to G5."
+}

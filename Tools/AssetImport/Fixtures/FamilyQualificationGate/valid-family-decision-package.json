@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T10:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
+  "decisions": [
+    {
+      "decisionId": "family-decision-sha256:3a5177beedffd94a4d5c5548f062a1145fa3eff0bfe52a5b5fe00a15faaf5e3f",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "decision": "RetainForLater",
+      "repairClass": null,
+      "replacementRouteKind": null,
+      "ruleId": "RetainForLaterRule",
+      "inputStaticFingerprint": "e0265687e32ba474f0d7fed1d4b44c2a02aa5d6cd12044e820b44a0f9bd8a592",
+      "inputEvidenceFingerprint": "54ca26423a04b567f934d989dcd161b753b386ab919b7407499b3093b1ac35d1",
+      "repairHistoryFingerprint": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff",
+      "acceptedEvidenceAssessmentIds": [],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "decisionId": "family-decision-sha256:b734fc069ed2fc6805c092da78a578e9ee37f047f2e215d7a374cc49fbc893cb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "decision": "RepairOnce",
+      "repairClass": "ImportSettingsRepair",
+      "replacementRouteKind": null,
+      "ruleId": "RepairOnceRule",
+      "inputStaticFingerprint": "e0265687e32ba474f0d7fed1d4b44c2a02aa5d6cd12044e820b44a0f9bd8a592",
+      "inputEvidenceFingerprint": "54ca26423a04b567f934d989dcd161b753b386ab919b7407499b3093b1ac35d1",
+      "repairHistoryFingerprint": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff",
+      "acceptedEvidenceAssessmentIds": [],
+      "failureAttribution": "C6:RepairPending:family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "nextAllowedAction": "Run only the named focused repair in a separately authorized Task.",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "decisionId": "family-decision-sha256:821b50ecd88f03b6fb1be2dd8e4658a0211f2f59dc760cd975755794901d72e8",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "decision": "RetainForLater",
+      "repairClass": null,
+      "replacementRouteKind": null,
+      "ruleId": "RetainForLaterRule",
+      "inputStaticFingerprint": "e0265687e32ba474f0d7fed1d4b44c2a02aa5d6cd12044e820b44a0f9bd8a592",
+      "inputEvidenceFingerprint": "54ca26423a04b567f934d989dcd161b753b386ab919b7407499b3093b1ac35d1",
+      "repairHistoryFingerprint": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff",
+      "acceptedEvidenceAssessmentIds": [],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "decisionId": "family-decision-sha256:3e3cbfe65db06321da1dba054a7244a2107afa704444284c2374d6abcae32c2b",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "decision": "NeedsDiagnosis",
+      "repairClass": null,
+      "replacementRouteKind": null,
+      "ruleId": "NeedsDiagnosisRule",
+      "inputStaticFingerprint": "e0265687e32ba474f0d7fed1d4b44c2a02aa5d6cd12044e820b44a0f9bd8a592",
+      "inputEvidenceFingerprint": "54ca26423a04b567f934d989dcd161b753b386ab919b7407499b3093b1ac35d1",
+      "repairHistoryFingerprint": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff",
+      "acceptedEvidenceAssessmentIds": [],
+      "failureAttribution": "C6:UncheckedStatic:family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "nextAllowedAction": "Resolve the named diagnostic evidence before reuse.",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "decisionId": "family-decision-sha256:0601480122372f47d5ddc886f43c55c518da9f913acfac9bbf68650ace41eb84",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "decision": "RetainForLater",
+      "repairClass": null,
+      "replacementRouteKind": null,
+      "ruleId": "RetainForLaterRule",
+      "inputStaticFingerprint": "e0265687e32ba474f0d7fed1d4b44c2a02aa5d6cd12044e820b44a0f9bd8a592",
+      "inputEvidenceFingerprint": "54ca26423a04b567f934d989dcd161b753b386ab919b7407499b3093b1ac35d1",
+      "repairHistoryFingerprint": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff",
+      "acceptedEvidenceAssessmentIds": [],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "nextAllowedAction": "Acquire only the missing or stale representative evidence.",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "issueId": "residual-issue-sha256:2b45ea275f629470d16fcd62f2957bfb3365ba8cad45106732c2369df436d264",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "issueClass": "RepairPending",
+      "subjectIds": [
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "failureAttribution": "C6:RepairPending:family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "issueId": "residual-issue-sha256:4a85e2c5b8408dd1db4f0e40a9a8074acd1c8b68a02b99cc85db18502df30fff",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "issueClass": "EvidenceMissing",
+      "subjectIds": [
+        "evidence-assessment-sha256:311b42824614bf395346c742d9c05c2bcbca00d763e18b38994632f4dccdd48e",
+        "evidence-assessment-sha256:3503b84cff1d880d755ccd67792b93b25064ebe1e1b1d79503170402591d78f9",
+        "evidence-assessment-sha256:59a63925e35d60621502a364f222d3a6456a34ae1fd9c1f9700790a83c131c5a",
+        "evidence-assessment-sha256:e6ca5af0f54b862da498c225bbbd37255666e9b5213c5569ba66d5a9002c72bd"
+      ],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "issueId": "residual-issue-sha256:5a43603d6b78a30323a6295727519c3410635f820f7e2d861b379cbd1b556772",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "issueClass": "EvidenceMissing",
+      "subjectIds": [
+        "evidence-assessment-sha256:9b0c1b848ec724d3ffda6c9da651038e69c36670298a9b65aa60bfc58fc50bc4",
+        "evidence-assessment-sha256:b5c47fe53dd6a8f58345617551eb7b272600993fd17e34aeb09ec7712606913d",
+        "evidence-assessment-sha256:d0cedcfecf0b6a3062f65d267eb1123e592630e173e7df148d4a7d09228d8c66",
+        "evidence-assessment-sha256:e5f7a0b526aef9d400bc7aa59c51fa95bc5b68fd428262c1b20f69ecefed3aae"
+      ],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "issueId": "residual-issue-sha256:8fcdb058b9ee43723dbe77e394076639bb00d1d5acc865fb750bdf0e45fd5d6f",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "issueClass": "UncheckedStatic",
+      "subjectIds": [
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      ],
+      "failureAttribution": "C6:UncheckedStatic:family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    },
+    {
+      "issueId": "residual-issue-sha256:9404a639b41b83c8feb3e222205403ed9189b7f6b897267ea87cfc2437ce89e8",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "issueClass": "EvidenceMissing",
+      "subjectIds": [
+        "evidence-assessment-sha256:392207e4df82c4cf8c7ab6bf291776d9830ccc303ca1812b240b440e8ef92b7e",
+        "evidence-assessment-sha256:7a25996567c636c5f633bd480cb33cce4c5b84326feec07fcb7dc389ce74095a",
+        "evidence-assessment-sha256:d09d087b8f40afb8ef11e7540dc11c243a0c036a6ad2788a9eb9e88dd7c00804",
+        "evidence-assessment-sha256:f945acea1ba5ef4ea9339d041291b669da685b6fcb93c16d7980883e1dfa1871"
+      ],
+      "failureAttribution": "C6:EvidenceMissing:family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json"
+      ]
+    }
+  ]
+}
