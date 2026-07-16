@@ -57,7 +57,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I03 | C2 canonical package | C2 AR-O03 registered path | C2 | C3/C4 | Required Passed locked C2 generation |
 | LC-I04 | C2 dispatch | C2 AR-O04 registered path | C2 | C3 | Required Passed locked C2 generation |
 | LC-I05 | C2 diagnostic summary | C2 AR-O05 registered summary | C2 | C3-C6 freshness | Must be Passed and bind LC-I01-I04 |
-| LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Pure fixture-only C2 typed projection | C3-C5 | Frozen projection is implemented and fixture-verified; it is not an SP-09 publication output, and remaining Phase A preconditions still block C3 implementation |
+| LC-I06 | Typed lane-fact package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json` | Pure fixture-only C2 typed projection | C3-C5 | Frozen projection is implemented and fixture-verified; it is not an SP-09 publication output, and C3 consumes it only in the reviewed fixture-only path |
 | LC-I07 | Lane policy registry | `docs/asset-migration/schemas/c3-c6-lane-policy-registry.json` | C0 contract Task | C3-C6 | Runtime registry, strict JSON Schema, byte-identical positive fixture, focused negative fixtures, and executable contract validation are implemented; consumers compute its exact-byte fingerprint externally |
 | LC-I08 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json` | C0 | C3-C6 | Required exact accepted C0 artifact |
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
@@ -1484,7 +1484,7 @@ No refresh may launch Unity, extraction, import, or another stage unless its exa
 
 ## Phase A Implementation Preconditions And Sequence
 
-The C3-0 walking skeleton is the first authorized implementation increment: it consumes LC-I06/LC-I07 and the minimal `familyParentStatus` vocabulary to prove executable family-membership conservation without publication. LC-I12 is required only before C6 RepairOnce evaluation, authoring reuse ledger v2 only before C6 output implementation, and every remaining vocabulary dimension only when its direct stage consumer begins.
+The C3-0/C3-1 fixture-only path consumes LC-I06/LC-I07 and the minimal `familyParentStatus` vocabulary, proves executable family/reference conservation, and emits the complete byte-frozen C3 success and diagnostic output vectors without publication. LC-I12 is required only before C6 RepairOnce evaluation, authoring reuse ledger v2 only before C6 output implementation, and every remaining vocabulary dimension only when its direct stage consumer begins.
 
 The later implementation sequence is:
 

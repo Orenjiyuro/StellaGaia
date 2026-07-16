@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T02:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "94a145f524e1595ee759ac58e7f1c8fc6f9ecfdad0a12bb57e61e3c4ce970a8e",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "rows": [
+    {
+      "memberRecordId": "family-member-sha256:3c4ef01572cc8ad5ee3f1c4b007499646211c2ccb80f56042200e5ef1be8d7f2",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "canonicalAssetId": "canonical-sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "lane": "Audio",
+      "parentStatus": "AssignedFamilyMember",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "familyKindId": "AudioRouteFamily",
+      "serializedSizeBytes": 100,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [],
+      "policyId": "AudioPolicyV1",
+      "policyVersion": "1.0.0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:05c56d4f82695e4a00bec999e3f5de95338db06cd27dd9a7247c3bd6b6e06f7b",
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "canonicalAssetId": "canonical-sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+      "lane": "Environment",
+      "parentStatus": "AssignedFamilyMember",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "familyKindId": "EnvironmentModuleFamily",
+      "serializedSizeBytes": 200,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [
+        "cross-lane-reference-sha256:0da0f4139eee5f4bda2ce145ee8cf5cab137d15360f51aa11ad3eb5758185c17"
+      ],
+      "policyId": "EnvironmentPolicyV1",
+      "policyVersion": "1.0.0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:28f51e3f2843255a105a4a713bc0b33a3642849ad66175589d02798bce0bf21c",
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "canonicalAssetId": "canonical-sha256:hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+      "lane": "Actor",
+      "parentStatus": "AssignedFamilyMember",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "familyKindId": "ActorRouteFamily",
+      "serializedSizeBytes": 300,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "crossLaneReferenceIds": [
+        "cross-lane-reference-sha256:0da0f4139eee5f4bda2ce145ee8cf5cab137d15360f51aa11ad3eb5758185c17"
+      ],
+      "policyId": "ActorPolicyV1",
+      "policyVersion": "1.0.0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:1836f568029c8690f646f08c28faed4e3419067b84ee93939d4f9bc6153622ed",
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "canonicalAssetId": "canonical-sha256:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+      "lane": "UI",
+      "parentStatus": "AssignedFamilyMember",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "familyKindId": "UiRouteFamily",
+      "serializedSizeBytes": 400,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [],
+      "policyId": "UiPolicyV1",
+      "policyVersion": "1.0.0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:e4ee56996784c018fce69ca7febc0120d91c9cbf73950b00e9cc8d10ad25b22b",
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "canonicalAssetId": "canonical-sha256:jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj",
+      "lane": "Effects",
+      "parentStatus": "AssignedFamilyMember",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "familyKindId": "EffectRouteFamily",
+      "serializedSizeBytes": 500,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [],
+      "policyId": "EffectsPolicyV1",
+      "policyVersion": "1.0.0",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:7f5c9a9ef21d6bb191e7c23baaf385c5aaaa29e434868151fc8267eb917f5b3b",
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeef",
+      "canonicalAssetId": "canonical-sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeef",
+      "lane": "Unassigned",
+      "parentStatus": "RetainedForDiagnosis",
+      "familyId": null,
+      "familyKindId": null,
+      "serializedSizeBytes": 600,
+      "configurationCandidateId": null,
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [],
+      "policyId": null,
+      "policyVersion": null,
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "memberRecordId": "family-member-sha256:5632a9161adc7f615aade39ffe5d9d4d51c8e11a32d5a2c2979b9cc89f62236b",
+      "assetObjectId": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "canonicalAssetId": "canonical-sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "lane": "Unassigned",
+      "parentStatus": "ConfigurationOnly",
+      "familyId": null,
+      "familyKindId": null,
+      "serializedSizeBytes": 700,
+      "configurationCandidateId": "config-sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "dependencyObjectIds": [],
+      "crossLaneReferenceIds": [],
+      "policyId": null,
+      "policyVersion": null,
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}

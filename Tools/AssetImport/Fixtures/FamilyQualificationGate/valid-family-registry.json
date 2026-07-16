@@ -1,0 +1,481 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T02:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "94a145f524e1595ee759ac58e7f1c8fc6f9ecfdad0a12bb57e61e3c4ce970a8e",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "families": [
+    {
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "familyKindId": "EffectRouteFamily",
+      "policyId": "EffectsPolicyV1",
+      "policyVersion": "1.0.0",
+      "familyKeyFingerprint": "db65f47dd4eec7f8640595141d11b5ca33887ada37202cb86bb0521bf9909f1a",
+      "familyKey": [
+        {
+          "dimensionId": "AudioDependencyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-AudioDependencyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "EffectSystemKind",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-EffectSystemKind",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ObjectType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-ObjectType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "PrefabDependencyShapeId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-PrefabDependencyShapeId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "RendererType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-RendererType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ShaderFamilyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Effects-ShaderFamilyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        }
+      ],
+      "memberCount": 1,
+      "memberBytes": 500.0,
+      "memberObjectIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "crossLaneReferenceIds": [],
+      "riskDimensionIds": [
+        "AudioCoupling",
+        "EffectSystem",
+        "PrefabDependencyShape",
+        "RendererShaderCombination"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "familyKindId": "EnvironmentModuleFamily",
+      "policyId": "EnvironmentPolicyV1",
+      "policyVersion": "1.0.0",
+      "familyKeyFingerprint": "a501a36fa0749da7b7f073d23ad0c62e44d2b39468c81f7c7c23d2ad0b9635d0",
+      "familyKey": [
+        {
+          "dimensionId": "ColliderMode",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-ColliderMode",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "EnvironmentModuleType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-EnvironmentModuleType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "EnvironmentThemeId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-EnvironmentThemeId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "LightmapMode",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-LightmapMode",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "MeshTopologyId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-MeshTopologyId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "NavMeshMode",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-NavMeshMode",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ObjectType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-ObjectType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "PrefabDependencyShapeId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-PrefabDependencyShapeId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "RendererType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-RendererType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ShaderFamilyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Environment-ShaderFamilyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        }
+      ],
+      "memberCount": 1,
+      "memberBytes": 200.0,
+      "memberObjectIds": [
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "crossLaneReferenceIds": [
+        "cross-lane-reference-sha256:0da0f4139eee5f4bda2ce145ee8cf5cab137d15360f51aa11ad3eb5758185c17"
+      ],
+      "riskDimensionIds": [
+        "PhysicsNavigationShape",
+        "PrefabDependencyShape",
+        "RendererShaderCombination",
+        "ThemeModule"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "familyKindId": "AudioRouteFamily",
+      "policyId": "AudioPolicyV1",
+      "policyVersion": "1.0.0",
+      "familyKeyFingerprint": "4d9ed08338ba2926fa0a81e17a4e5891d9a6fe2719a57d3ba245835cdc0b01a1",
+      "familyKey": [
+        {
+          "dimensionId": "AudioEncoding",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-AudioEncoding",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "BankStructureId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-BankStructureId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ChannelLayout",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-ChannelLayout",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "EventStructureId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-EventStructureId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "LoopMode",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-LoopMode",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ObjectType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-ObjectType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "SampleRate",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Audio-SampleRate",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        }
+      ],
+      "memberCount": 1,
+      "memberBytes": 100.0,
+      "memberObjectIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "crossLaneReferenceIds": [],
+      "riskDimensionIds": [
+        "BankEventStructure",
+        "ChannelLayout",
+        "Encoding",
+        "LoopRoute"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "familyKindId": "ActorRouteFamily",
+      "policyId": "ActorPolicyV1",
+      "policyVersion": "1.0.0",
+      "familyKeyFingerprint": "605a46fd54e4630fff2ed8d0e74598d5c5770a451eadda7db557a6acd8df188f",
+      "familyKey": [
+        {
+          "dimensionId": "ActorRole",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-ActorRole",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "AnimationSetShapeId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-AnimationSetShapeId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "AvatarId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-AvatarId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ControllerReferenceState",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-ControllerReferenceState",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ObjectType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-ObjectType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "RendererType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-RendererType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ShaderFamilyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-ShaderFamilyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "SkeletonId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "Actor-SkeletonId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        }
+      ],
+      "memberCount": 1,
+      "memberBytes": 300.0,
+      "memberObjectIds": [
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      ],
+      "crossLaneReferenceIds": [
+        "cross-lane-reference-sha256:0da0f4139eee5f4bda2ce145ee8cf5cab137d15360f51aa11ad3eb5758185c17"
+      ],
+      "riskDimensionIds": [
+        "ActorRole",
+        "AnimationSetShape",
+        "ControllerRoute",
+        "RendererShaderCombination",
+        "SkeletonAvatar"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "familyKindId": "UiRouteFamily",
+      "policyId": "UiPolicyV1",
+      "policyVersion": "1.0.0",
+      "familyKeyFingerprint": "dc6c096b274f2d7928aac5087ccbedbf86a6b29ccc063f43ff32be172f46f9dc",
+      "familyKey": [
+        {
+          "dimensionId": "AtlasId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-AtlasId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "FontDependencyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-FontDependencyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ObjectType",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-ObjectType",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "PrefabDependencyShapeId",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-PrefabDependencyShapeId",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "ShaderFamilyIds",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-ShaderFamilyIds",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "TextureFormat",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-TextureFormat",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        },
+        {
+          "dimensionId": "UiRouteKind",
+          "factStatus": "Known",
+          "valueKind": "String",
+          "stringValue": "UI-UiRouteKind",
+          "integerValue": null,
+          "booleanValue": null,
+          "idValues": []
+        }
+      ],
+      "memberCount": 1,
+      "memberBytes": 400.0,
+      "memberObjectIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "crossLaneReferenceIds": [],
+      "riskDimensionIds": [
+        "AtlasFontCombination",
+        "PrefabDependencyRisk",
+        "TextureFormat",
+        "UiRoute"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}
