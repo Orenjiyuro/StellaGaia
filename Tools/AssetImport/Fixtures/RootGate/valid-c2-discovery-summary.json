@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "generatedAt": "2026-07-15T00:00:00Z",
+    "snapshotId": "snapshot-pc-install-001",
+    "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ledgerInputFingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "discoveryInputFingerprint": "e9cfb162b7aa6ade4f99548a14fe027cf43ba793fd78727f7e66b504ceb85354",
+    "discoveryArtifactFingerprint": "3ddf0cf737027f0074e545bb65307565652ad6b0a757a498e45c1ab4b3101d13"
+  },
+  "provenance": {
+    "toolVersions": [
+      {
+        "toolName": "c2-discovery-gate",
+        "version": "1.0.0"
+      }
+    ],
+    "operationIdentity": "C2.DiscoveryCoverage.FixtureValidation"
+  },
+  "directEvidence": {
+    "discoveryInputs": [],
+    "directChildSummaries": [],
+    "directChildReports": []
+  },
+  "coverage": {
+    "files": {
+      "catalogedFileCount": 1,
+      "catalogedBytes": 4096,
+      "catalogedContainerCount": 1,
+      "catalogedContainerBytes": 4096,
+      "nonContainerFileCount": 0,
+      "nonContainerFileBytes": 0,
+      "fileDiscoverySubjectCount": 1,
+      "fileDiscoverySubjectBytes": 4096,
+      "notAttemptedFileCount": 0,
+      "notAttemptedFileBytes": 0,
+      "parsedFileCount": 1,
+      "parsedFileBytes": 4096,
+      "opaqueFileCount": 0,
+      "opaqueFileBytes": 0,
+      "failedFileCount": 0,
+      "failedFileBytes": 0,
+      "fileDiscoveryConflictFileCount": 0,
+      "fileDiscoveryConflictFileBytes": 0
+    },
+    "containers": {
+      "notAttemptedContainerCount": 0,
+      "notAttemptedContainerBytes": 0,
+      "parsedContainerCount": 1,
+      "parsedContainerBytes": 4096,
+      "opaqueContainerCount": 0,
+      "opaqueContainerBytes": 0,
+      "failedContainerCount": 0,
+      "failedContainerBytes": 0,
+      "fileDiscoveryConflictContainerCount": 0,
+      "fileDiscoveryConflictContainerBytes": 0
+    },
+    "objects": {
+      "objectObservationRowCount": 7,
+      "acceptedObjectObservationRowCount": 7,
+      "rejectedObjectObservationRowCount": 0,
+      "excludedObjectObservationRowCount": 0,
+      "correlationGroupCount": 7,
+      "enumeratedObjectCount": 7,
+      "observationConflictObjectCount": 0,
+      "classifiedObjectCount": 7,
+      "unclassifiedObjectCount": 0,
+      "unresolvedDependencyCount": 0
+    },
+    "configuration": {
+      "configurationDiscoverySubjectCount": 1,
+      "configurationCandidateCount": 1,
+      "configurationConflictCount": 0,
+      "parsedConfigurationCount": 1,
+      "discoveredOpaqueConfigurationCount": 0,
+      "encryptedConfigurationCount": 0,
+      "requiresRuntimeTypeConfigurationCount": 0,
+      "likelyServerDependentConfigurationCount": 0,
+      "notConfigurationCount": 0
+    },
+    "canonical": {
+      "canonicalizedObjectCount": 7,
+      "canonicalConflictObjectCount": 0,
+      "canonicalGroupCount": 5,
+      "exactDuplicateGroupCount": 0,
+      "platformVariantGroupCount": 0,
+      "unresolvedCanonicalGroupCount": 5
+    },
+    "dispatch": {
+      "dispatchEligibleObjectCount": 7,
+      "assignedObjectCount": 5,
+      "retainedForDiagnosisObjectCount": 1,
+      "configurationOnlyObjectCount": 1,
+      "audioObjectCount": 1,
+      "environmentObjectCount": 1,
+      "actorObjectCount": 1,
+      "uiObjectCount": 1,
+      "effectsObjectCount": 1
+    }
+  },
+  "failureAccounting": {
+    "inputSubjectCount": 21,
+    "acceptedInputSubjectCount": 21,
+    "notEvaluatedInputSubjectCount": 0,
+    "inputObservationCount": 7,
+    "acceptedInputObservationCount": 7,
+    "rejectedInputObservationCount": 0,
+    "inputFailureCount": 0,
+    "excludedInputSubjectCount": 0,
+    "excludedInputCount": 0,
+    "contractFailureRecordCount": 0,
+    "fileDiscoveryConflictRecordCount": 0,
+    "observationConflictRecordCount": 0,
+    "configurationConflictRecordCount": 0,
+    "canonicalConflictRecordCount": 0,
+    "outputCandidateCount": 5,
+    "projectedOutputCount": 5,
+    "outputFailureCount": 0,
+    "excludedOutputCount": 0,
+    "issueCount": 0,
+    "gateStatus": "Passed"
+  },
+  "decision": {
+    "failureAttribution": "None; C2 registry-derived gates passed.",
+    "nextAllowedAction": "Provide current C2 outputs and C6-O04 to the separately authorized G5 aggregator."
+  }
+}

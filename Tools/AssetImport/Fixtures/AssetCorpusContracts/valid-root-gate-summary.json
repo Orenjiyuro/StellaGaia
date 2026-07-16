@@ -2,21 +2,25 @@
   "schemaVersion": "2.0.0",
   "generatedAt": "2026-07-16T12:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "inputFingerprint": "dee42f44b0a4d840e25a240b719fac8ed03f250f1e25d0be626b3c0bb290803b",
   "toolVersions": [
     {
-      "toolName": "contract-fixture",
-      "version": "2.0.0"
+      "toolName": "g5-root-decision-gate",
+      "version": "1.0.0"
     }
   ],
   "directGateSummaries": [
     {
-      "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json",
-      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    },
-    {
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
       "sha256": "e99314b2d10d9173e39d550b796ef750280181caf3b8ac1ed765c97d9fac502c"
+    },
+    {
+      "path": "Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json",
+      "sha256": "c54f59198f17f35cb7ed16432e2786d9a5dcb4a87e1c42931ad49e125f5b83ab"
+    },
+    {
+      "path": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json",
+      "sha256": "c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1"
     }
   ],
   "directGateReports": [],
@@ -28,8 +32,8 @@
     "sourceBytes": 4096
   },
   "identity": {
-    "discoveryInputFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "discoveryArtifactFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    "discoveryInputFingerprint": "e9cfb162b7aa6ade4f99548a14fe027cf43ba793fd78727f7e66b504ceb85354",
+    "discoveryArtifactFingerprint": "3ddf0cf737027f0074e545bb65307565652ad6b0a757a498e45c1ab4b3101d13"
   },
   "structuredObjectCoverage": {
     "catalogedContainerCount": 1,
@@ -157,6 +161,6 @@
     ],
     "isolatedMemberCount": 5
   },
-  "failureAttribution": "None; fixture-only root summary contract passed.",
-  "nextAllowedAction": "Run the separately authorized G5 lightweight aggregation task."
+  "failureAttribution": "None; G5 freshness and projection contract passed.",
+  "nextAllowedAction": "Run the independent C0-C6 Phase A completion audit."
 }
