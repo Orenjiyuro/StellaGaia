@@ -48,7 +48,7 @@ These SHA-256 values are over exact repository file bytes as of this design comm
 | AR-I02 | `acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462` |
 | AR-I03 | `c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1` |
 | AR-I04 | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
-| AR-I05 | `97e9657edd4add13647e7d3a81cd2a53e2c9589ece75c99ef3ba28b6ff1f0f30` |
+| AR-I05 | `421f00383bde66256b15d71e65b8789c5e8d8474422a376efd441054c798ff47` |
 | AR-I06 | `45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449` |
 
 AR-I07 through AR-I09 and AR-I11 have no self-asserted expected SHA. When any is present, AR-I10 is mandatory and its expected bytes are read from the exact commit OID frozen at run start; an absent/untracked manifest or worktree bytes differing from that commit blob is FT-03. Each present optional input must be a blob in that same commit and must match both its AR-I10 entry and its exact commit-blob SHA-256. AR-I10 must list every and only the present AR-I07-I09 and AR-I11 paths. The producer must re-resolve HEAD at run end and require the same commit OID; a changed HEAD is FT-03 and suppresses every output. Thus the committed reviewed manifest is the external freshness authority; a file cannot bless its own just-read bytes.
@@ -555,7 +555,7 @@ Derived output-failure rows use only `SuppressedByGate`. On any ordinary FT-01..
 P0 is a pure HI-13b unit vector, not a gate run, partition seed, artifact-read claim, or authorization result. Its input is exactly the six registered `(portable path, exact SHA-256)` pairs for AR-I01 through AR-I06. AR-I07 through AR-I11 do not participate. The unit test encodes those six already-known pairs in memory, sorts them with `System.StringComparer.Ordinal`, and must produce:
 
 ```text
-discoveryInputFingerprint=7f3255b66670c61e4271c5dab89a5bd9bb5c964f7f3f3b190b94126af9ff617b
+discoveryInputFingerprint=5735b77581382fadec024ce5abc805f28542349241d479050788f08545a91bfd
 ```
 
 P0 asserts only HI-13a/HI-13b byte framing, nesting, ordering, and digest output. It has no file, byte, observation, contract-check, failure, output-vector, or gate-status counters. No implementation may cite P0 as proof that AR-I01-I06 were read, fresh, schema-valid, conserved, projected, or safe. Hardcoded repeated-character output hashes remain forbidden.

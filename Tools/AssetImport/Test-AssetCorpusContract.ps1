@@ -1298,6 +1298,8 @@ if ($null -ne $vocabulary) {
         familyStaticOutcome      = @('StaticQualified', 'StaticRejected', 'NeedsDiagnosis')
         familyParentStatus       = @('AssignedFamilyMember', 'RetainedForDiagnosis', 'ConfigurationOnly')
         memberStaticStatus       = @('StaticPassed', 'StaticFailed', 'Unchecked')
+        representativeAssessment = @('RepresentativeRequired', 'EvidenceAccepted', 'EvidenceMissing', 'EvidenceStale', 'UnityExecutionUnavailable', 'RepresentativeRejected')
+        capabilitySuitabilityStatus = @('SuitabilityRequired', 'SuitabilityAccepted', 'SuitabilityMissing', 'SuitabilityStale', 'SuitabilityExecutionUnavailable', 'SuitabilityRejected')
         sourceKind               = @('PcInstall', 'PcPatchOrCache', 'AndroidApk', 'AndroidDataOrCache')
     }
 

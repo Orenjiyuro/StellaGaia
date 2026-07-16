@@ -64,7 +64,7 @@ AR-I10 becomes a three-entry Ordinal path-sorted manifest: AR-I11, AR-I08, AR-I0
 The ten-artifact HI-13b D9 becomes:
 
 ```text
-bb81f5c24dd6c887bd4b2afad03798143e465262f09e57345dff42243b7b2341
+fe1cc1755e2591498b94a0816cdc6c9d895f0c4c38918fe3661d0fa923dd660d
 ```
 
 The Git adapter command sequence is updated atomically to seven calls:
@@ -306,7 +306,7 @@ The integrated positive is frozen field-by-field:
 schemaVersion=1.0.0
 snapshotId=snapshot-pc-install-001
 inputFingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-discoveryInputFingerprint=bb81f5c24dd6c887bd4b2afad03798143e465262f09e57345dff42243b7b2341
+discoveryInputFingerprint=fe1cc1755e2591498b94a0816cdc6c9d895f0c4c38918fe3661d0fa923dd660d
 fileSubjects.count=1
 fileSubjects[0].sourceId=pc-install-primary
 fileSubjects[0].relativePath=SourceCorpus/PcInstall/game-data.bundle
