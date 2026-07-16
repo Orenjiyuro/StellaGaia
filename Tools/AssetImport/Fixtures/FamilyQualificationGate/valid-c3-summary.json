@@ -3,7 +3,7 @@
   "generatedAt": "2026-07-16T02:00:00Z",
   "stageId": "C3",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "31068766b6241a519a4b55a481b89e18ebc6279791f99d96fe7a2ef3b643cde2",
+  "inputFingerprint": "c8a0340f01eacfd823eeebef218e8152f58b30efa9565581256e7f8a4987ad20",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "toolVersions": [
     "C3FamilyMembershipGate:1.0.0"
@@ -22,7 +22,7 @@
     {
       "artifactId": "LC-I05",
       "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json",
-      "sha256": "aafa36658701f8aa448c7a63b82882b2510f4e15f20593ffb170d9edafc7ed96"
+      "sha256": "ec605a689907ef5d71d4a5a039b1c7b879a3a44ecdec5d487b855e4212f51a2c"
     },
     {
       "artifactId": "LC-I04",
@@ -59,22 +59,22 @@
     {
       "artifactId": "C3-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md",
-      "sha256": "b8d65fe7c33a69a5de6c2921289cd1ad07659a1468c2fd1f624f86cf6eb6c443"
+      "sha256": "ece5f9d2e58eeebac294a83d7fc2a5b2137ac9ba3fd86d1b766dbedbe766e8e4"
     },
     {
       "artifactId": "C3-O03",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json",
-      "sha256": "82e4d099eef442d3118fa2de20a8cac4f1834cea31fd3e7bf540892cfd06af4e"
+      "sha256": "da9ed89350702bbd9e5494c067d9adc0f8e67efe2349dcf078e031e901e90f08"
     },
     {
       "artifactId": "C3-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json",
-      "sha256": "bddd276591ee6c503fad17455583782df5c4f78eb65567738f15d2bfcc2e2a6a"
+      "sha256": "8733da7c87f89b6acc7a85876416fb7127fc8291785889dc21cf45281772618a"
     },
     {
       "artifactId": "C3-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json",
-      "sha256": "16d99362852991105c7c4fe4db59ba97899f4910a2c32f9e17148d42eee09ba4"
+      "sha256": "ef51138a946c7d9e2b6546cdf53987d8817538b46b6300d2454657b97fd77665"
     }
   ],
   "coverage": {

@@ -2,7 +2,7 @@
   "schemaVersion": "2.0.0",
   "generatedAt": "2026-07-16T12:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "5923dda0953728a656f804765a99c8fc8aa8ca0164259383d76a9a224ed0b7d4",
+  "inputFingerprint": "c2c39a3d8ad83dafadcb86418c65704c0cbccbfbc92e891565511b5bc31c5a95",
   "toolVersions": [
     {
       "toolName": "g5-root-decision-gate",
@@ -12,7 +12,7 @@
   "directGateSummaries": [
     {
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
-      "sha256": "2d0e6d85a5624552a24cde9c055806083e788c33c9fd54337f65aeb1cbdf4341"
+      "sha256": "fadd41fd3bbb4143ebd41dfa3ca96c5e35dfe3fb855047e1219bda860b20e372"
     },
     {
       "path": "Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json",

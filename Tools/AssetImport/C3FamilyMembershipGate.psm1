@@ -67,6 +67,25 @@ function Test-C3JsonProjectionBytesBinding([object]$Value,[string]$Bytes,[string
     ($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)
 }
 
+function Test-C3ExactShape([AllowNull()][object]$Value,[string]$Shape) {
+    $null-ne$Value-and(@($Value.PSObject.Properties.Name)-join',')-ceq$Shape
+}
+
+function Test-C3ArtifactReferenceRows([object[]]$Rows,[string[]]$ExpectedPaths,[switch]$AllowAdditionalPaths) {
+    $seen=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
+    $previous=$null
+    foreach($row in $Rows){
+        if(-not(Test-C3ExactShape $row 'path,sha256')-or
+            [string]::IsNullOrWhiteSpace([string]$row.path)-or
+            $row.sha256-cnotmatch'^[0-9a-f]{64}$'-or
+            -not$seen.Add([string]$row.path)-or
+            ($null-ne$previous-and$script:C3Ordinal.Compare($previous,[string]$row.path)-ge0)){return $false}
+        $previous=[string]$row.path
+    }
+    foreach($path in $ExpectedPaths){if(-not$seen.Contains($path)){return $false}}
+    $AllowAdditionalPaths-or$seen.Count-eq$ExpectedPaths.Count
+}
+
 function Get-C3InputAuthorityState(
     [object[]]$DirectInputs,
     [object[]]$ExecutionArtifacts,
@@ -130,10 +149,80 @@ function Get-C3InputAuthorityState(
         if(-not(Test-C3JsonProjectionBytesBinding $LedgerObjects ([string]$executionById['LC-I01'].bytes) objects)){$issues.Add('LC-I01 execution object does not match accepted bytes.')}
         elseif(-not(Test-C3JsonProjectionBytesBinding $ConfigurationCandidates ([string]$executionById['LC-I02'].bytes) configurationCandidates)){$issues.Add('LC-I02 execution object does not match accepted bytes.')}
         elseif(-not(Test-C3JsonProjectionBytesBinding $DispatchRows ([string]$executionById['LC-I04'].bytes) rows)){$issues.Add('LC-I04 execution object does not match accepted bytes.')}
-        elseif((([string]$executionById['LC-I05'].bytes|ConvertFrom-Json -Depth 100 -DateKind String).gateStatus)-cne'Passed'){$issues.Add('LC-I05 accepted generation is not Passed.')}
         elseif(-not(Test-C3JsonProjectionBytesBinding $TypedFactRows ([string]$executionById['LC-I06'].bytes) rows)){$issues.Add('LC-I06 execution object does not match accepted bytes.')}
         elseif([string]$executionById['LC-I07'].bytes-cne$LanePolicyBytes-or-not(Test-C3JsonObjectBytesBinding $LanePolicyRegistry ([string]$executionById['LC-I07'].bytes))){$issues.Add('LC-I07 execution object does not match accepted bytes.')}
         elseif(-not(Test-C3JsonProjectionBytesBinding $FamilyParentStatuses ([string]$executionById['LC-I08'].bytes) familyParentStatus)){$issues.Add('LC-I08 execution vocabulary does not match accepted bytes.')}
+    }
+    if(-not$issues.Count){
+        $lc1=([string]$executionById['LC-I01'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc2=([string]$executionById['LC-I02'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc3=([string]$executionById['LC-I03'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc4=([string]$executionById['LC-I04'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc5=([string]$executionById['LC-I05'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $lc6=([string]$executionById['LC-I06'].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+        $failureShape='inputSubjectCount,acceptedInputSubjectCount,notEvaluatedInputSubjectCount,inputObservationCount,acceptedInputObservationCount,rejectedInputObservationCount,inputFailureCount,excludedInputSubjectCount,excludedInputCount,contractFailureRecordCount,fileDiscoveryConflictRecordCount,observationConflictRecordCount,configurationConflictRecordCount,canonicalConflictRecordCount,outputCandidateCount,projectedOutputCount,outputFailureCount,excludedOutputCount,issueCount,gateStatus'
+        if(-not(Test-C3ExactShape $lc5 'schemaVersion,identity,provenance,directEvidence,coverage,failureAccounting,decision')-or
+            $lc5.schemaVersion-cne'1.0.0'-or
+            -not(Test-C3ExactShape $lc5.identity 'generatedAt,snapshotId,inputFingerprint,ledgerInputFingerprint,discoveryInputFingerprint,discoveryArtifactFingerprint')-or
+            -not(Test-C3ExactShape $lc5.provenance 'toolVersions,operationIdentity')-or
+            -not(Test-C3ExactShape $lc5.directEvidence 'discoveryInputs,directChildSummaries,directChildReports')-or
+            -not(Test-C3ExactShape $lc5.coverage 'files,containers,objects,configuration,canonical,dispatch')-or
+            -not(Test-C3ExactShape $lc5.failureAccounting $failureShape)-or
+            -not(Test-C3ExactShape $lc5.decision 'failureAttribution,nextAllowedAction')-or
+            $lc5.provenance.operationIdentity-cne'C2.DiscoveryCoverage.FixtureValidation'-or
+            $lc5.failureAccounting.gateStatus-cne'Passed'-or
+            [long]$lc5.failureAccounting.issueCount-ne0-or
+            [long]$lc5.failureAccounting.outputCandidateCount-ne5-or
+            [long]$lc5.failureAccounting.projectedOutputCount-ne5-or
+            [long]$lc5.failureAccounting.outputFailureCount-ne0-or
+            [long]$lc5.failureAccounting.excludedOutputCount-ne0-or
+            $lc5.identity.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or
+            $lc5.identity.ledgerInputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or
+            $lc5.identity.discoveryInputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or
+            $lc5.identity.discoveryArtifactFingerprint-cnotmatch'^[0-9a-f]{64}$'){
+            $issues.Add('LC-I05 accepted generation shape/status is invalid.')
+        }
+        if(-not$issues.Count){
+            $expectedSummaryPaths=@(
+                [string]$script:C3DirectInputPaths['LC-I01'],
+                [string]$script:C3DirectInputPaths['LC-I02'],
+                [string]$script:C3DirectInputPaths['LC-I03'],
+                [string]$script:C3DirectInputPaths['LC-I04']
+            )
+            [Array]::Sort($expectedSummaryPaths,$script:C3Ordinal)
+            $expectedReportPaths=@(
+                'Tools/AssetImport/Fixtures/DiscoveryGate/c0-contract-change-request.json',
+                'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-evidence.json',
+                'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-report.md'
+            )
+            [Array]::Sort($expectedReportPaths,$script:C3Ordinal)
+            $discoveryInputRowsValid=Test-C3ArtifactReferenceRows @($lc5.directEvidence.discoveryInputs) @() -AllowAdditionalPaths
+            $childSummaryRowsValid=Test-C3ArtifactReferenceRows @($lc5.directEvidence.directChildSummaries) $expectedSummaryPaths
+            $childReportRowsValid=Test-C3ArtifactReferenceRows @($lc5.directEvidence.directChildReports) $expectedReportPaths
+            if(-not $discoveryInputRowsValid -or -not $childSummaryRowsValid -or -not $childReportRowsValid){
+                $issues.Add('LC-I05 direct evidence registry is invalid.')
+            }
+        }
+        if(-not$issues.Count){
+            $summaryByPath=New-C3ArtifactMap @($lc5.directEvidence.directChildSummaries) path
+            foreach($id in @('LC-I01','LC-I02','LC-I03','LC-I04')){
+                $path=[string]$script:C3DirectInputPaths[$id]
+                if([string]$summaryByPath[$path].sha256 -cne (Get-C3Sha256 ([string]$executionById[$id].bytes))){
+                    $issues.Add('LC-I05 does not bind the accepted C2 output bytes.')
+                    break
+                }
+            }
+        }
+        if(-not$issues.Count){
+            if($lc1.generatedAt-cne$lc5.identity.generatedAt-or$lc1.snapshotId-cne$lc5.identity.snapshotId-or$lc1.inputFingerprint-cne$lc5.identity.inputFingerprint-or
+                $lc2.generatedAt-cne$lc5.identity.generatedAt-or$lc2.snapshotId-cne$lc5.identity.snapshotId-or$lc2.inputFingerprint-cne$lc5.identity.inputFingerprint-or$lc2.discoveryInputFingerprint-cne$lc5.identity.discoveryInputFingerprint-or
+                $lc3.generatedAt-cne$lc5.identity.generatedAt-or$lc3.snapshotId-cne$lc5.identity.snapshotId-or$lc3.inputFingerprint-cne$lc5.identity.inputFingerprint-or$lc3.discoveryInputFingerprint-cne$lc5.identity.discoveryInputFingerprint-or
+                $lc4.generatedAt-cne$lc5.identity.generatedAt-or$lc4.snapshotId-cne$lc5.identity.snapshotId-or$lc4.inputFingerprint-cne$lc5.identity.inputFingerprint-or$lc4.discoveryInputFingerprint-cne$lc5.identity.discoveryInputFingerprint-or
+                $lc4.sourceLedgerPath-cne$script:C3DirectInputPaths['LC-I01']-or
+                $lc6.generatedAt-cne$lc5.identity.generatedAt-or$lc6.snapshotId-cne$lc5.identity.snapshotId-or$lc6.c2GenerationFingerprint-cne$lc5.identity.discoveryArtifactFingerprint){
+                $issues.Add('LC-I05 generation identity does not match accepted C2 outputs.')
+            }
+        }
     }
     $fingerprint=if($issues.Count){$null}else{Get-C3StageInputFingerprint $DirectInputs}
     [pscustomobject][ordered]@{valid=$issues.Count-eq0;issues=$issues.ToArray();inputFingerprint=$fingerprint}

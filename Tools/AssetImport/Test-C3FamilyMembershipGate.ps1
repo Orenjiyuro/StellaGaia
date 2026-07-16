@@ -18,6 +18,7 @@ function Clone-Value($Value) { $Value | ConvertTo-Json -Depth 100 | ConvertFrom-
 function New-ObjectId([char]$Value) { "sha256:$([string]$Value * 64)" }
 function Get-TestSha256([string]$Text) { [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.UTF8Encoding]::new($false).GetBytes($Text))).ToLowerInvariant() }
 function ConvertTo-TestJson($Value) { $Value | ConvertTo-Json -Depth 100 -Compress }
+function ConvertTo-TestCanonicalJson($Value) { (($Value | ConvertTo-Json -Depth 100) -replace "`r`n","`n") + "`n" }
 function Get-TestOrdinalRows([object[]]$Rows,[string]$Property) {
     $list=[Collections.Generic.List[object]]::new()
     foreach($row in $Rows){$list.Add($row)}
@@ -128,18 +129,49 @@ function New-C3ExecutionArtifacts(
     $Vocabulary=$vocabulary,
     [string]$VocabularyText=$vocabularyBytes
 ) {
-    $artifacts=@(
+    $artifacts=[Collections.Generic.List[object]]::new()
+    foreach($artifact in @(
         [pscustomobject][ordered]@{artifactId='LC-I01';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId='snapshot-pc-install-001';generatedAt='2026-07-16T02:00:00Z';inputFingerprint=('1'*64);toolVersions=@('fixture');sources=@();files=@();objects=@($LedgerRows)})}
         [pscustomobject][ordered]@{artifactId='LC-I02';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);configurationCandidates=@($ConfigurationRows);configurationConflicts=@()})}
         [pscustomobject][ordered]@{artifactId='LC-I03';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);canonicalGroups=@();canonicalConflicts=@()})}
         [pscustomobject][ordered]@{artifactId='LC-I04';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);sourceLedgerPath=$directInputPaths['LC-I01'];rows=@($Rows)})}
-        [pscustomobject][ordered]@{artifactId='LC-I05';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='2.0.0';stageId='C2';snapshotId='snapshot-pc-install-001';gateStatus='Passed';inputFingerprint=('1'*64);directOutputs=@()})}
         [pscustomobject][ordered]@{artifactId='LC-I06';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';c2GenerationFingerprint=('3'*64);factContractFingerprint=Get-TestSha256 $factSchemaBytes;inputFingerprint=('4'*64);rows=@($Facts)})}
         [pscustomobject][ordered]@{artifactId='LC-I07';bytes=$LaneBytes}
         [pscustomobject][ordered]@{artifactId='LC-I08';bytes=$VocabularyText}
         [pscustomobject][ordered]@{artifactId='LC-I13';bytes=$factSchemaBytes}
-    )
-    [object[]]$artifacts
+    )){$artifacts.Add($artifact)}
+    $artifactById=@{};foreach($artifact in $artifacts){$artifactById[[string]$artifact.artifactId]=$artifact}
+    $childSummaries=[Collections.Generic.List[object]]::new()
+    foreach($id in @('LC-I01','LC-I02','LC-I03','LC-I04')){
+        $childSummaries.Add([pscustomobject][ordered]@{path=[string]$directInputPaths[$id];sha256=Get-TestSha256 ([string]$artifactById[$id].bytes)})
+    }
+    $childSummaries=[object[]](Get-TestOrdinalRows $childSummaries.ToArray() path)
+    $summary=[pscustomobject][ordered]@{
+        schemaVersion='1.0.0'
+        identity=[pscustomobject][ordered]@{generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);ledgerInputFingerprint=('5'*64);discoveryInputFingerprint=('2'*64);discoveryArtifactFingerprint=('3'*64)}
+        provenance=[pscustomobject][ordered]@{toolVersions=@([pscustomobject][ordered]@{toolName='c2-discovery-gate';version='1.0.0'});operationIdentity='C2.DiscoveryCoverage.FixtureValidation'}
+        directEvidence=[pscustomobject][ordered]@{
+            discoveryInputs=@()
+            directChildSummaries=$childSummaries
+            directChildReports=@(
+                [pscustomobject][ordered]@{path='Tools/AssetImport/Fixtures/DiscoveryGate/c0-contract-change-request.json';sha256=('6'*64)}
+                [pscustomobject][ordered]@{path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-evidence.json';sha256=('7'*64)}
+                [pscustomobject][ordered]@{path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-report.md';sha256=('8'*64)}
+            )
+        }
+        coverage=[pscustomobject][ordered]@{
+            files=[pscustomobject][ordered]@{catalogedFileCount=0;catalogedBytes=0;catalogedContainerCount=0;catalogedContainerBytes=0;nonContainerFileCount=0;nonContainerFileBytes=0;fileDiscoverySubjectCount=0;fileDiscoverySubjectBytes=0;notAttemptedFileCount=0;notAttemptedFileBytes=0;parsedFileCount=0;parsedFileBytes=0;opaqueFileCount=0;opaqueFileBytes=0;failedFileCount=0;failedFileBytes=0;fileDiscoveryConflictFileCount=0;fileDiscoveryConflictFileBytes=0}
+            containers=[pscustomobject][ordered]@{notAttemptedContainerCount=0;notAttemptedContainerBytes=0;parsedContainerCount=0;parsedContainerBytes=0;opaqueContainerCount=0;opaqueContainerBytes=0;failedContainerCount=0;failedContainerBytes=0;fileDiscoveryConflictContainerCount=0;fileDiscoveryConflictContainerBytes=0}
+            objects=[pscustomobject][ordered]@{objectObservationRowCount=0;acceptedObjectObservationRowCount=0;rejectedObjectObservationRowCount=0;excludedObjectObservationRowCount=0;correlationGroupCount=0;enumeratedObjectCount=$Rows.Count;observationConflictObjectCount=0;classifiedObjectCount=$Rows.Count;unclassifiedObjectCount=0;unresolvedDependencyCount=0}
+            configuration=[pscustomobject][ordered]@{configurationDiscoverySubjectCount=$ConfigurationRows.Count;configurationCandidateCount=$ConfigurationRows.Count;configurationConflictCount=0;parsedConfigurationCount=0;discoveredOpaqueConfigurationCount=0;encryptedConfigurationCount=0;requiresRuntimeTypeConfigurationCount=0;likelyServerDependentConfigurationCount=0;notConfigurationCount=0}
+            canonical=[pscustomobject][ordered]@{canonicalizedObjectCount=$Rows.Count;canonicalConflictObjectCount=0;canonicalGroupCount=$Rows.Count;exactDuplicateGroupCount=0;platformVariantGroupCount=0;unresolvedCanonicalGroupCount=$Rows.Count}
+            dispatch=[pscustomobject][ordered]@{dispatchEligibleObjectCount=$Rows.Count;assignedObjectCount=@($Rows|Where-Object dispatchStatus -CEQ Assigned).Count;retainedForDiagnosisObjectCount=@($Rows|Where-Object dispatchStatus -CEQ RetainedForDiagnosis).Count;configurationOnlyObjectCount=@($Rows|Where-Object dispatchStatus -CEQ ConfigurationOnly).Count;audioObjectCount=@($Rows|Where-Object familyLane -CEQ Audio).Count;environmentObjectCount=@($Rows|Where-Object familyLane -CEQ Environment).Count;actorObjectCount=@($Rows|Where-Object familyLane -CEQ Actor).Count;uiObjectCount=@($Rows|Where-Object familyLane -CEQ UI).Count;effectsObjectCount=@($Rows|Where-Object familyLane -CEQ Effects).Count}
+        }
+        failureAccounting=[pscustomobject][ordered]@{inputSubjectCount=0;acceptedInputSubjectCount=0;notEvaluatedInputSubjectCount=0;inputObservationCount=0;acceptedInputObservationCount=0;rejectedInputObservationCount=0;inputFailureCount=0;excludedInputSubjectCount=0;excludedInputCount=0;contractFailureRecordCount=0;fileDiscoveryConflictRecordCount=0;observationConflictRecordCount=0;configurationConflictRecordCount=0;canonicalConflictRecordCount=0;outputCandidateCount=5;projectedOutputCount=5;outputFailureCount=0;excludedOutputCount=0;issueCount=0;gateStatus='Passed'}
+        decision=[pscustomobject][ordered]@{failureAttribution='None; C2 registry-derived gates passed.';nextAllowedAction='Provide current C2 outputs and C6-O04 to the separately authorized G5 aggregator.'}
+    }
+    $artifacts.Add([pscustomobject][ordered]@{artifactId='LC-I05';bytes=ConvertTo-TestCanonicalJson $summary})
+    [object[]]$artifacts.ToArray()
 }
 function New-C3DirectInputs([object[]]$ExecutionArtifacts) {
     $rows=[Collections.Generic.List[object]]::new()
@@ -251,6 +283,26 @@ $familyShape='familyId,lane,familyKindId,policyId,policyVersion,familyKeyFingerp
 $memberShape='memberRecordId,assetObjectId,canonicalAssetId,lane,parentStatus,familyId,familyKindId,serializedSizeBytes,configurationCandidateId,dependencyObjectIds,crossLaneReferenceIds,policyId,policyVersion,evidence';foreach($member in $gate.familyMemberLedger.rows){if((@($member.PSObject.Properties.Name)-join',')-cne$memberShape){throw'C3-O02 member row shape failed.'}}
 $referenceShape='referenceId,fromAssetObjectId,toAssetObjectId,fromLane,toLane,referenceKind,resolutionStatus,evidence';foreach($reference in $gate.crossLaneReferencePackage.rows){if((@($reference.PSObject.Properties.Name)-join',')-cne$referenceShape){throw'C3-O03 reference row shape failed.'}}
 $accountingShape='inputSubjectCount,acceptedInputSubjectCount,inputFailureCount,notEvaluatedInputSubjectCount,outputCandidateCount,projectedOutputCount,outputFailureCount,issueCount,gateStatus,inputFailures,inputSuppressions,outputFailures';$coverageShape='dispatchEligibleObjectCount,dispatchEligibleObjectBytes,assignedFamilyMemberCount,assignedFamilyMemberBytes,retainedForDiagnosisObjectCount,retainedForDiagnosisObjectBytes,configurationOnlyObjectCount,configurationOnlyObjectBytes,familyCount,referenceCount,resolvedReferenceCount,missingReferenceCount,conflictReferenceCount';if((@($gate.summary.failureAccounting.PSObject.Properties.Name)-join',')-cne$accountingShape-or(@($gate.summary.coverage.PSObject.Properties.Name)-join',')-cne$coverageShape){throw'C3-O04 accounting/coverage shape failed.'}
+function Assert-LC-I05Rejected($Summary,[string]$Label){
+    $mutatedArtifacts=Clone-Value $executionArtifacts
+    @($mutatedArtifacts|Where-Object artifactId -CEQ 'LC-I05')[0].bytes=ConvertTo-TestCanonicalJson $Summary
+    $mutatedInputs=New-C3DirectInputs $mutatedArtifacts
+    $rejected=Invoke-TestGate -ExecutionArtifacts $mutatedArtifacts -DirectInputs $mutatedInputs
+    if($rejected.gateStatus-cne'Failed'-or$rejected.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C3:DirectInputs'-or$rejected.summary.failureAccounting.projectedOutputCount-ne1-or$rejected.summary.failureAccounting.outputFailureCount-ne3){throw "C3 LC-I05 $Label did not fail closed."}
+}
+$acceptedC2Summary=([string]@($executionArtifacts|Where-Object artifactId -CEQ 'LC-I05')[0].bytes)|ConvertFrom-Json -Depth 100 -DateKind String
+$simplifiedSummary=[pscustomobject][ordered]@{schemaVersion='2.0.0';stageId='C2';snapshotId='snapshot-pc-install-001';gateStatus='Passed';inputFingerprint=('1'*64);directOutputs=@()}
+Assert-LC-I05Rejected $simplifiedSummary 'simplified shape'
+$failedC2Summary=Clone-Value $acceptedC2Summary;$failedC2Summary.failureAccounting.gateStatus='Failed';$failedC2Summary.failureAccounting.projectedOutputCount=1;$failedC2Summary.failureAccounting.outputFailureCount=4;$failedC2Summary.failureAccounting.issueCount=1
+Assert-LC-I05Rejected $failedC2Summary 'Failed generation'
+$missingChildSummary=Clone-Value $acceptedC2Summary;$missingChildSummary.directEvidence.directChildSummaries=@($missingChildSummary.directEvidence.directChildSummaries|Select-Object -Skip 1)
+Assert-LC-I05Rejected $missingChildSummary 'missing child'
+$detachedChildSummary=Clone-Value $acceptedC2Summary;$detachedChildSummary.directEvidence.directChildSummaries[0].sha256=('0'*64)
+Assert-LC-I05Rejected $detachedChildSummary 'detached child SHA'
+$staleIdentitySummary=Clone-Value $acceptedC2Summary;$staleIdentitySummary.identity.discoveryInputFingerprint=('9'*64)
+Assert-LC-I05Rejected $staleIdentitySummary 'stale identity'
+$malformedSummary=Clone-Value $acceptedC2Summary;$malformedSummary.directEvidence.PSObject.Properties.Remove('directChildReports')
+Assert-LC-I05Rejected $malformedSummary 'malformed directEvidence'
 $fixturePayloads=[ordered]@{'valid-family-registry.json'=$gate.texts.familyRegistry;'valid-family-member-ledger.json'=$gate.texts.familyMemberLedger;'valid-cross-lane-reference-package.json'=$gate.texts.crossLaneReferencePackage;'valid-c3-summary.json'=$gate.texts.summary;'valid-c3-report.md'=$gate.report}
 if($UpdateFixtures){$utf8=[Text.UTF8Encoding]::new($false);foreach($name in $fixturePayloads.Keys){[IO.File]::WriteAllText((Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name"),$fixturePayloads[$name],$utf8)};'fixtures=Updated';return}
 foreach ($entry in @(
