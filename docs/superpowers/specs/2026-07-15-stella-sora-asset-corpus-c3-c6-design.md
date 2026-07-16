@@ -1121,6 +1121,8 @@ LC-I11's logical and physical registry contract is complete: it stores no decisi
 
 The status vocabulary now contains the exact `familyParentStatus` and `memberStaticStatus` dimensions consumed by C3/C4 plus `representativeAssessment` and `capabilitySuitabilityStatus` consumed by the C5 no-Unity gate. C5 verifies immutable LX-HI-10 package identities, proves all six risk and suitability assessment states, and emits the complete byte-frozen C5-O01/O02/O03/O04 Passed and LF-15 diagnostic vectors without launching C7/G4. The exact `authoringPoolStatus` and `capabilityStatus` dimensions remain deferred until the next C6-0 walking skeleton consumes them immediately; component-local aliases are forbidden.
 
+The C3-2 correction checkpoint closes the previously incomplete C3 assignment/reference behavior: every required non-key support fact must now be Known, the accepted AR-O04 selector set supplies the only legal known-empty `DependencyObjectIds` case, LC-I01 is the dependency reference authority, and all five SP-31 reference kinds participate in distinct Resolved/Missing/Conflict accounting without changing direct family membership. This correction does not resolve the separately reviewed exact-byte object/bytes binding, Ordinal ordering, C5 evidence-authority, C6 child-conservation, LC-I12, or specification-conflict findings; C6-0/C6-1 remain unapproved until their prerequisite correction Tasks pass.
+
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
 ---
@@ -1498,6 +1500,8 @@ The later implementation sequence is:
 8. C6-0 pure decision walking skeleton; add and immediately consume LC-I12 plus C6-owned vocabulary, proving precedence and capability separation without ledger serialization.
 9. C6-1 authoring-ledger output Task; complete ledger v2, SP-60/SP-61, coverage/readiness independence, and the G5-only handoff.
 10. Independent C3-C6 completion audit across all fixed counterexamples.
+
+After independent review, C3-2 is an inserted correction checkpoint between C5-2 and any renewed C6-0 attempt. It completes required support-fact gating and SP-31 reference-universe conservation only. The next separate correction checkpoint must address exact-byte execution-object binding and Ordinal ordering; this sequence does not authorize that work automatically.
 
 Each Task remains 20-30 minutes with 2-5 minute Steps, exact files, RED/GREEN evidence, protected-input checks, forbidden-path checks, precise staging, one commit, and a stop checkpoint. No plan authorizes the next Task automatically.
 

@@ -59,17 +59,17 @@
     {
       "artifactId": "C3-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md",
-      "sha256": "a7d8bea2c241ae3696949995be3b196129a1987ff26c00682254143e7eacfe8c"
+      "sha256": "b2cd3f259c3a178f7dc4862a387e7a4591a202f4b7419c480cc8abbe30294072"
     },
     {
       "artifactId": "C3-O03",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json",
-      "sha256": "1bb7ccd480fb5b62d5f195ebfc4f5ba318e5e2436d055aab875597a640dbb50b"
+      "sha256": "9e37f2174cd358cc142a7860ac01d909af4de09002765072590cb27ac95404d9"
     },
     {
       "artifactId": "C3-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json",
-      "sha256": "a231bb2d55b91c72d6d53ffebcf2033fc3260313556e9cae06616e60f932b98a"
+      "sha256": "9c44b3ef0ef451b0379dc283e1abaca3aaf6b89e50a7aa9355dd9178142b00a8"
     },
     {
       "artifactId": "C3-O01",
@@ -87,14 +87,14 @@
     "configurationOnlyObjectCount": 1,
     "configurationOnlyObjectBytes": 700,
     "familyCount": 5,
-    "referenceCount": 1,
-    "resolvedReferenceCount": 1,
+    "referenceCount": 2,
+    "resolvedReferenceCount": 2,
     "missingReferenceCount": 0,
     "conflictReferenceCount": 0
   },
   "failureAccounting": {
-    "inputSubjectCount": 21,
-    "acceptedInputSubjectCount": 21,
+    "inputSubjectCount": 22,
+    "acceptedInputSubjectCount": 22,
     "inputFailureCount": 0,
     "notEvaluatedInputSubjectCount": 0,
     "outputCandidateCount": 4,

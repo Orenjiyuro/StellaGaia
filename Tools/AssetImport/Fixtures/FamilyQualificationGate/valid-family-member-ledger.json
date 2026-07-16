@@ -130,7 +130,10 @@
       "serializedSizeBytes": 700,
       "configurationCandidateId": "config-sha256:9999999999999999999999999999999999999999999999999999999999999999",
       "dependencyObjectIds": [],
-      "crossLaneReferenceIds": [],
+      "crossLaneReferenceIds": [
+        "cross-lane-reference-sha256:7b7195a9297dead59175f10eea54aafe787beddb20f62cd0cebe5386651f8a7a",
+        "cross-lane-reference-sha256:7b7195a9297dead59175f10eea54aafe787beddb20f62cd0cebe5386651f8a7a"
+      ],
       "policyId": null,
       "policyVersion": null,
       "evidence": [

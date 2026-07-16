@@ -24,6 +24,32 @@ function ConvertTo-C3ScalarLine([string]$Name,[string]$Value) {
     "${Name}:$($script:C3Utf8.GetByteCount($Value)):${Value}`n"
 }
 
+function Get-C3DispatchSelectorState([object]$Dispatch) {
+    $allowedKinds=@('CanonicalAssetId','ClassId','DependencyObjectId','ObjectType','PlatformVariant','ToolObservation')
+    $counts=@{};foreach($kind in $allowedKinds){$counts[$kind]=0}
+    $dependencies=[Collections.Generic.List[string]]::new();$pairs=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
+    foreach($selector in @($Dispatch.memberSelectorInputs)){
+        if((@($selector.PSObject.Properties.Name)-join',')-cne'kind,value'-or[string]::IsNullOrWhiteSpace([string]$selector.kind)-or[string]::IsNullOrWhiteSpace([string]$selector.value)-or$selector.kind -CNotIn $allowedKinds){return [pscustomobject]@{valid=$false;dependencyObjectIds=@()}}
+        $pair="$($selector.kind)`n$($selector.value)";if(-not$pairs.Add($pair)){return [pscustomobject]@{valid=$false;dependencyObjectIds=@()}}
+        $counts[[string]$selector.kind]++
+        if($selector.kind-ceq'DependencyObjectId'){$dependencies.Add([string]$selector.value)}
+    }
+    if($counts.CanonicalAssetId-ne1-or$counts.ClassId-ne1-or$counts.ObjectType-ne1-or$counts.PlatformVariant-ne1-or$counts.ToolObservation-lt1){return [pscustomobject]@{valid=$false;dependencyObjectIds=@()}}
+    $values=@($dependencies);if($values.Count-gt1){[Array]::Sort($values,$script:C3Ordinal)}
+    [pscustomobject]@{valid=$true;dependencyObjectIds=$values}
+}
+
+function Test-C3OrdinalArrayEqual([object[]]$Left,[object[]]$Right) {
+    $a=@($Left);$b=@($Right);if($a.Count-gt1){[Array]::Sort($a,$script:C3Ordinal)};if($b.Count-gt1){[Array]::Sort($b,$script:C3Ordinal)}
+    if($a.Count-ne$b.Count){return $false};for($i=0;$i-lt$a.Count;$i++){if([string]$a[$i]-cne[string]$b[$i]){return $false}};$true
+}
+
+function Add-C3ReferenceClaim([hashtable]$Claims,[string]$FromId,[string]$ToId,[string]$FromLane,[string]$ToLane,[string]$Kind,[string]$Status,[string[]]$Evidence) {
+    $key="$FromId|$ToId|$Kind"
+    if(-not$Claims.ContainsKey($key)){$Claims[$key]=[pscustomobject]@{fromAssetObjectId=$FromId;toAssetObjectId=$ToId;fromLane=$FromLane;referenceKind=$Kind;statuses=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal);toLanes=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal);evidence=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)}}
+    $null=$Claims[$key].statuses.Add($Status);$null=$Claims[$key].toLanes.Add($ToLane);foreach($path in $Evidence){$null=$Claims[$key].evidence.Add([string]$path)}
+}
+
 function ConvertTo-C3FactFrame([object]$Fact) {
     $text = 'C3FamilyKeyDimensionV1' + "`n"
     foreach ($name in @('factKind','factStatus','valueKind')) { $text += ConvertTo-C3ScalarLine $name ([string]$Fact.$name) }
@@ -59,7 +85,9 @@ function Invoke-C3FamilyMembershipKernel {
         [Parameter(Mandatory)][object[]]$DispatchRows,
         [Parameter(Mandatory)][object[]]$TypedFactRows,
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
-        [Parameter(Mandatory)][string[]]$FamilyParentStatuses
+        [Parameter(Mandatory)][string[]]$FamilyParentStatuses,
+        [Parameter(Mandatory)][object[]]$LedgerObjects,
+        [Parameter(Mandatory)][object[]]$ConfigurationCandidates
     )
 
     $issues = [Collections.Generic.List[string]]::new()
@@ -107,6 +135,16 @@ function Invoke-C3FamilyMembershipKernel {
                     if ($matches.Count -ne 1 -or $definition.Count -ne 1 -or ($matches[0].factStatus -cne 'Known' -and -not ($matches[0].factStatus -ceq 'NotApplicable' -and $definition[0].allowNotApplicable -eq $true))) { $keyValid=$false; break }
                     $keyFacts.Add($matches[0])
                 }
+                if($keyValid){
+                    $selectorState=Get-C3DispatchSelectorState $dispatch
+                    foreach($definition in @($policy.factDefinitions|Where-Object{$_.requiredForFamilyKinds-ccontains$familyKind.familyKindId-and$_.factKind -CNotIn @($familyKind.keyDimensionIds)})){
+                        $matches=@(if($factsByObject.ContainsKey($objectId)){$factsByObject[$objectId]|Where-Object factKind -CEQ $definition.factKind})
+                        if($definition.factKind-ceq'DependencyObjectIds'){
+                            if(-not$selectorState.valid-or($matches.Count-eq0-and@($selectorState.dependencyObjectIds).Count-ne0)-or($matches.Count-eq1-and($matches[0].factStatus-cne'Known'-or$matches[0].valueKind-cne'IdSet'-or-not(Test-C3OrdinalArrayEqual @($matches[0].idValues) @($selectorState.dependencyObjectIds))))-or$matches.Count-gt1){$keyValid=$false;break}
+                        }
+                        elseif($matches.Count-ne1-or$matches[0].factStatus-cne'Known'){$keyValid=$false;break}
+                    }
+                }
                 if ($keyValid) {
                     $identity = New-C3FamilyIdentity $policy $familyKind $keyFacts.ToArray() $policySetFingerprint
                     $familyId=$identity.familyId;$familyKindId=[string]$familyKind.familyKindId;$parentStatus='AssignedFamilyMember'
@@ -126,14 +164,48 @@ function Invoke-C3FamilyMembershipKernel {
         $ids=@($family.memberObjectIds);if($ids.Count-gt1){[Array]::Sort($ids,$script:C3Ordinal)}
         $families.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;familyKindId=$family.familyKindId;familyKeyFingerprint=$family.familyKeyFingerprint;memberCount=$ids.Count;memberObjectIds=$ids})
     }
-    $references=[Collections.Generic.List[object]]::new();$seenReferences=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
-    foreach ($from in @($memberRows)) {
-        foreach ($fact in @(if($factsByObject.ContainsKey($from.assetObjectId)){$factsByObject[$from.assetObjectId]|Where-Object factKind -CEQ DependencyObjectIds}else{@()})) {
-            foreach ($toId in @($fact.idValues)) {
-                $fromDispatch=$dispatchById[$from.assetObjectId];$present=$dispatchById.ContainsKey([string]$toId);$toLane=if($present){[string]$dispatchById[[string]$toId].familyLane}else{'Unassigned'};$status=if($present){'Resolved'}else{'Missing'}
-                $key="$($from.assetObjectId)|$toId|Dependency";if($seenReferences.Add($key)){$references.Add([pscustomobject][ordered]@{fromAssetObjectId=$from.assetObjectId;toAssetObjectId=[string]$toId;fromLane=[string]$fromDispatch.familyLane;toLane=$toLane;referenceKind='Dependency';resolutionStatus=$status})}
-            }
+    $ledgerById=@{};foreach($row in $LedgerObjects){$id=[string]$row.assetObjectId;if(-not$ledgerById.ContainsKey($id)){$ledgerById[$id]=[Collections.Generic.List[object]]::new()};$ledgerById[$id].Add($row)}
+    $configurationById=@{};foreach($row in $ConfigurationCandidates){$id=[string]$row.configurationCandidateId;if(-not$configurationById.ContainsKey($id)){$configurationById[$id]=[Collections.Generic.List[object]]::new()};$configurationById[$id].Add($row)}
+    $claims=@{}
+    foreach($source in $LedgerObjects){
+        $fromId=[string]$source.assetObjectId;$fromLane=if($dispatchById.ContainsKey($fromId)){[string]$dispatchById[$fromId].familyLane}else{'Unassigned'}
+        foreach($toId in @($source.dependencyObjectIds)){
+            $targetCount=if($ledgerById.ContainsKey([string]$toId)){$ledgerById[[string]$toId].Count}else{0};$toLane=if($dispatchById.ContainsKey([string]$toId)){[string]$dispatchById[[string]$toId].familyLane}else{'Unassigned'};$status=if($targetCount-eq1){'Resolved'}elseif($targetCount-eq0){'Missing'}else{'Conflict'}
+            Add-C3ReferenceClaim $claims $fromId ([string]$toId) $fromLane $toLane Dependency $status @('Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json')
         }
+    }
+    foreach($fact in $TypedFactRows){
+        if($fact.factStatus-cne'Known'){continue};$kind=$null;$targets=@();$identityTarget=$false
+        switch([string]$fact.factKind){
+            'AudioDependencyIds'{$kind='AudioCoupling';$targets=@($fact.idValues)}
+            'ShaderFamilyIds'{$kind='ShaderCoupling';$targets=@($fact.idValues|Where-Object{$_ -cmatch'^shader-family-sha256:[0-9a-f]{64}$'});$identityTarget=$true}
+            'FontDependencyIds'{$kind='AtlasFontCoupling';$targets=@($fact.idValues)}
+            'AtlasId'{$kind='AtlasFontCoupling';$targets=@([string]$fact.stringValue|Where-Object{$_ -cmatch'^atlas-sha256:[0-9a-f]{64}$'});$identityTarget=$true}
+        }
+        if($null-eq$kind){continue};$fromId=[string]$fact.assetObjectId;$fromLane=if($dispatchById.ContainsKey($fromId)){[string]$dispatchById[$fromId].familyLane}else{'Unassigned'}
+        foreach($toId in $targets){
+            if([string]::IsNullOrWhiteSpace([string]$toId)){continue}
+            if($identityTarget){$status='Resolved';$toLane='Unassigned'}else{$targetCount=if($ledgerById.ContainsKey([string]$toId)){$ledgerById[[string]$toId].Count}else{0};$toLane=if($dispatchById.ContainsKey([string]$toId)){[string]$dispatchById[[string]$toId].familyLane}else{'Unassigned'};$status=if($targetCount-eq1){'Resolved'}elseif($targetCount-eq0){'Missing'}else{'Conflict'}}
+            Add-C3ReferenceClaim $claims $fromId ([string]$toId) $fromLane $toLane $kind $status @('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json')
+        }
+    }
+    foreach($from in $DispatchRows){
+        if($null-eq$from.configurationCandidateId){continue};$candidateId=[string]$from.configurationCandidateId;$targets=@(if($configurationById.ContainsKey($candidateId)){$configurationById[$candidateId]})
+        if($targets.Count-eq0){$toId=[string]$from.assetObjectId;$status='Missing'}
+        else{
+            $targetIds=@($targets|ForEach-Object assetObjectId|Where-Object{$null-ne$_}|Sort-Object -Unique -CaseSensitive)
+            if($targetIds.Count-ne1){$issues.Add("Non-unique configuration coupling target: '$candidateId'.");continue}
+            $toId=[string]$targetIds[0];$status=if($targets.Count-eq1){'Resolved'}else{'Conflict'}
+        }
+        $toLane=if($dispatchById.ContainsKey($toId)){[string]$dispatchById[$toId].familyLane}else{'Unassigned'}
+        Add-C3ReferenceClaim $claims ([string]$from.assetObjectId) $toId ([string]$from.familyLane) $toLane ConfigurationCoupling $status @('Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json')
+    }
+    $references=[Collections.Generic.List[object]]::new()
+    foreach($claim in $claims.Values){
+        $statuses=@($claim.statuses);$lanes=@($claim.toLanes);$evidence=@($claim.evidence);if($evidence.Count-gt1){[Array]::Sort($evidence,$script:C3Ordinal)}
+        $resolution=if($statuses.Count-ne1-or$lanes.Count-ne1-or$statuses[0]-ceq'Conflict'){'Conflict'}else{$statuses[0]}
+        $toLane=if($lanes.Count-eq1){$lanes[0]}else{'Unassigned'}
+        $references.Add([pscustomobject][ordered]@{fromAssetObjectId=$claim.fromAssetObjectId;toAssetObjectId=$claim.toAssetObjectId;fromLane=$claim.fromLane;toLane=$toLane;referenceKind=$claim.referenceKind;resolutionStatus=$resolution;evidence=$evidence})
     }
     $references.Sort([Comparison[object]]{param($a,$b)$script:C3Ordinal.Compare("$($a.fromAssetObjectId)|$($a.toAssetObjectId)|$($a.referenceKind)","$($b.fromAssetObjectId)|$($b.toAssetObjectId)|$($b.referenceKind)")})
     $assigned=@($memberRows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count;$retained=@($memberRows|Where-Object parentStatus -CEQ RetainedForDiagnosis).Count;$configuration=@($memberRows|Where-Object parentStatus -CEQ ConfigurationOnly).Count
@@ -202,9 +274,10 @@ function Invoke-C3FamilyMembershipGate {
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
         [Parameter(Mandatory)][string[]]$FamilyParentStatuses,
         [Parameter(Mandatory)][object[]]$LedgerObjects,
+        [Parameter(Mandatory)][object[]]$ConfigurationCandidates,
         [Parameter(Mandatory)][object]$Stage
     )
-    $kernel=Invoke-C3FamilyMembershipKernel $DispatchRows $TypedFactRows $LanePolicyRegistry $FamilyParentStatuses
+    $kernel=Invoke-C3FamilyMembershipKernel $DispatchRows $TypedFactRows $LanePolicyRegistry $FamilyParentStatuses $LedgerObjects $ConfigurationCandidates
     $policyText=ConvertTo-C3CanonicalJson $LanePolicyRegistry;$policySetFingerprint=Get-C3Sha256 $policyText
     $directInputs=@($Stage.directInputs|Sort-Object path -CaseSensitive);$inputFingerprint=Get-C3StageInputFingerprint $directInputs
     $paths=[ordered]@{familyRegistry='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json';familyMemberLedger='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json';crossLaneReferencePackage='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json';report='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md'}
@@ -230,7 +303,7 @@ function Invoke-C3FamilyMembershipGate {
     $referenceRows=[Collections.Generic.List[object]]::new()
     foreach($reference in @($kernel.crossLaneReferences)){
         $base=[pscustomobject][ordered]@{fromAssetObjectId=$reference.fromAssetObjectId;toAssetObjectId=$reference.toAssetObjectId;fromLane=$reference.fromLane;toLane=$reference.toLane;referenceKind=$reference.referenceKind}
-        $referenceRows.Add([pscustomobject][ordered]@{referenceId=Get-C3ReferenceId $base;fromAssetObjectId=$base.fromAssetObjectId;toAssetObjectId=$base.toAssetObjectId;fromLane=$base.fromLane;toLane=$base.toLane;referenceKind=$base.referenceKind;resolutionStatus=$reference.resolutionStatus;evidence=@('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json')})
+        $referenceRows.Add([pscustomobject][ordered]@{referenceId=Get-C3ReferenceId $base;fromAssetObjectId=$base.fromAssetObjectId;toAssetObjectId=$base.toAssetObjectId;fromLane=$base.fromLane;toLane=$base.toLane;referenceKind=$base.referenceKind;resolutionStatus=$reference.resolutionStatus;evidence=@($reference.evidence)})
     }
     $referenceRows.Sort([Comparison[object]]{param($a,$b)$script:C3Ordinal.Compare([string]$a.referenceId,[string]$b.referenceId)})
     $referenceIdsByObject=@{};foreach($reference in $referenceRows){foreach($id in @($reference.fromAssetObjectId,$reference.toAssetObjectId)){if(-not$referenceIdsByObject.ContainsKey($id)){$referenceIdsByObject[$id]=[Collections.Generic.List[string]]::new()};$referenceIdsByObject[$id].Add($reference.referenceId)}}

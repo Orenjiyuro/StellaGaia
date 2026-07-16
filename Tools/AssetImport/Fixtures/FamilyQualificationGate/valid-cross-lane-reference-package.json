@@ -14,7 +14,19 @@
       "referenceKind": "Dependency",
       "resolutionStatus": "Resolved",
       "evidence": [
-        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json"
+        "Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json"
+      ]
+    },
+    {
+      "referenceId": "cross-lane-reference-sha256:7b7195a9297dead59175f10eea54aafe787beddb20f62cd0cebe5386651f8a7a",
+      "fromAssetObjectId": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "toAssetObjectId": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "fromLane": "Unassigned",
+      "toLane": "Unassigned",
+      "referenceKind": "ConfigurationCoupling",
+      "resolutionStatus": "Resolved",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json"
       ]
     }
   ]
