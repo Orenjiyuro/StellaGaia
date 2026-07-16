@@ -159,14 +159,16 @@ function Test-SchemaPropertyConstraints {
                 $definition = $property.Value
                 if ($definition -is [System.Management.Automation.PSCustomObject]) {
                     if ($property.Name -cmatch '(?:Count|Bytes)$') {
-                        if ((Get-PropertyByPath -Value $definition -Path 'type') -cne 'integer' -or (Get-PropertyByPath -Value $definition -Path 'minimum') -ne 0) {
+                        $directNonNegativeInteger = (Get-PropertyByPath -Value $definition -Path 'type') -ceq 'integer' -and (Get-PropertyByPath -Value $definition -Path 'minimum') -eq 0
+                        $referencedNonNegativeInteger = (Get-PropertyByPath -Value $definition -Path '$ref') -ceq '#/$defs/nonNegativeInteger'
+                        if (-not $directNonNegativeInteger -and -not $referencedNonNegativeInteger) {
                             $issues.Add("Schema '$SchemaName' property '$($property.Name)' must be a non-negative integer.")
                         }
                     }
 
                     if ($property.Name -cmatch '(?:Fingerprint|sha256)$') {
                         $directSha = ((Get-PropertyByPath -Value $definition -Path 'type') -ceq 'string' -and (Get-PropertyByPath -Value $definition -Path 'pattern') -ceq '^[0-9a-f]{64}$') -or
-                            (Get-PropertyByPath -Value $definition -Path '$ref') -ceq '#/$defs/fingerprint'
+                            (Get-PropertyByPath -Value $definition -Path '$ref') -cin @('#/$defs/fingerprint', '#/$defs/sha256')
                         $nullableSha = $false
                         $branches = @(Get-PropertyByPath -Value $definition -Path 'oneOf')
                         if ($branches.Count -eq 2) {
@@ -1169,6 +1171,20 @@ function Get-NegativeFixtureSemanticIssues {
         return $fixtureIssues.ToArray()
     }
 
+    if ($PrimaryRule -ceq 'RootC6Projection') {
+        if (
+            ($Fixture.expectedFamilyConstructionCoverage | ConvertTo-Json -Depth 20 -Compress) -cne
+            ($Fixture.actualFamilyConstructionCoverage | ConvertTo-Json -Depth 20 -Compress) -or
+            ($Fixture.expectedOriginalAssetBatchCoverage | ConvertTo-Json -Depth 20 -Compress) -cne
+            ($Fixture.actualOriginalAssetBatchCoverage | ConvertTo-Json -Depth 20 -Compress) -or
+            ($Fixture.expectedStellaSora2AuthoringReady | ConvertTo-Json -Depth 20 -Compress) -cne
+            ($Fixture.actualStellaSora2AuthoringReady | ConvertTo-Json -Depth 20 -Compress)
+        ) {
+            $fixtureIssues.Add('Root summary does not losslessly project C6-O04 conclusions.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
     if ($PrimaryRule -cin @('LaneFactCarrier', 'LaneFactDuplicateSubjectKind')) {
         foreach ($laneFactIssue in @(Get-LaneFactPackageSemanticIssues -Package $Fixture)) {
             $fixtureIssues.Add($laneFactIssue)
@@ -1528,7 +1544,7 @@ $schemaContracts = @(
     [pscustomobject]@{
         Name = 'root-gate-summary.schema.json'
         Id = 'https://stellagaia.dev/schemas/root-gate-summary.schema.json'
-        Required = @('schemaVersion', 'generatedAt', 'inputFingerprint', 'toolVersions', 'directGateSummaries', 'directGateReports', 'corpusSnapshotComplete', 'structuredObjectCoverage', 'originalAssetBatchCoverage', 'stellaSora2AuthoringReady')
+        Required = @('schemaVersion', 'generatedAt', 'snapshotId', 'inputFingerprint', 'toolVersions', 'directGateSummaries', 'directGateReports', 'corpusSnapshotComplete', 'identity', 'structuredObjectCoverage', 'failureAccounting', 'familyConstructionCoverage', 'originalAssetBatchCoverage', 'stellaSora2AuthoringReady', 'failureAttribution', 'nextAllowedAction')
     },
     [pscustomobject]@{
         Name = 'c2-lane-fact-package.schema.json'
@@ -1663,6 +1679,11 @@ $negativeFixtureContracts = @(
         Name = 'invalid-decision-policy-tuple-union.json'
         Rule = 'DecisionPolicyTupleUnion'
         ExpectedIssue = 'Decision policy capability projection tuple union does not equal LC-I07.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-root-c6-projection.json'
+        Rule = 'RootC6Projection'
+        ExpectedIssue = 'Root summary does not losslessly project C6-O04 conclusions.'
     }
 )
 
@@ -1713,7 +1734,7 @@ foreach ($contract in $schemaContracts) {
     }
 
     $schemaVersion = Get-PropertyByPath -Value $schema -Path 'properties.schemaVersion.const'
-    $expectedSchemaVersion = if ($contract.Name -ceq 'authoring-reuse-ledger.schema.json') { '2.0.0' } else { '1.0.0' }
+    $expectedSchemaVersion = if ($contract.Name -cin @('authoring-reuse-ledger.schema.json', 'root-gate-summary.schema.json')) { '2.0.0' } else { '1.0.0' }
     if ($schemaVersion -cne $expectedSchemaVersion) {
         $issues.Add("Schema '$($contract.Name)' does not freeze schemaVersion $expectedSchemaVersion.")
     }
@@ -1754,9 +1775,12 @@ if ($schemas.ContainsKey('authoring-reuse-ledger.schema.json')) {
 if ($schemas.ContainsKey('root-gate-summary.schema.json')) {
     $schema = $schemas['root-gate-summary.schema.json']
     Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.corpusSnapshotComplete.required' -Expected @('value', 'catalogedFileCount', 'sourceFileCount', 'catalogedBytes', 'sourceBytes')
-    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.structuredObjectCoverage.required' -Expected @('parsedContainerCount', 'parsedContainerBytes', 'opaqueOrFailedContainerCount', 'opaqueOrFailedContainerBytes', 'enumeratedObjectCount', 'classifiedObjectCount', 'unclassifiedObjectCount', 'configurationCandidateCount', 'configurationParsedCount')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.identity.required' -Expected @('discoveryInputFingerprint', 'discoveryArtifactFingerprint')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.structuredObjectCoverage.required' -Expected @('catalogedContainerCount', 'catalogedContainerBytes', 'nonContainerFileCount', 'nonContainerFileBytes', 'fileDiscoverySubjectCount', 'fileDiscoverySubjectBytes', 'notAttemptedFileCount', 'notAttemptedFileBytes', 'parsedFileCount', 'parsedFileBytes', 'opaqueFileCount', 'opaqueFileBytes', 'failedFileCount', 'failedFileBytes', 'fileDiscoveryConflictFileCount', 'fileDiscoveryConflictFileBytes', 'notAttemptedContainerCount', 'notAttemptedContainerBytes', 'parsedContainerCount', 'parsedContainerBytes', 'opaqueContainerCount', 'opaqueContainerBytes', 'failedContainerCount', 'failedContainerBytes', 'fileDiscoveryConflictContainerCount', 'fileDiscoveryConflictContainerBytes', 'objectObservationRowCount', 'acceptedObjectObservationRowCount', 'rejectedObjectObservationRowCount', 'excludedObjectObservationRowCount', 'correlationGroupCount', 'enumeratedObjectCount', 'observationConflictObjectCount', 'classifiedObjectCount', 'unclassifiedObjectCount', 'unresolvedDependencyCount', 'configurationCandidateCount', 'configurationConflictCount', 'configurationParsedCount', 'discoveredOpaqueConfigurationCount', 'encryptedConfigurationCount', 'requiresRuntimeTypeConfigurationCount', 'likelyServerDependentConfigurationCount', 'notConfigurationCount', 'canonicalizedObjectCount', 'canonicalGroupCount', 'canonicalConflictObjectCount', 'exactDuplicateGroupCount', 'platformVariantGroupCount', 'unresolvedCanonicalGroupCount', 'dispatchEligibleObjectCount', 'assignedObjectCount', 'retainedForDiagnosisObjectCount', 'configurationOnlyObjectCount', 'audioObjectCount', 'environmentObjectCount', 'actorObjectCount', 'uiObjectCount', 'effectsObjectCount')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.failureAccounting.required' -Expected @('inputSubjectCount', 'acceptedInputSubjectCount', 'notEvaluatedInputSubjectCount', 'inputObservationCount', 'acceptedInputObservationCount', 'rejectedInputObservationCount', 'inputFailureCount', 'excludedInputSubjectCount', 'excludedInputCount', 'contractFailureRecordCount', 'fileDiscoveryConflictRecordCount', 'observationConflictRecordCount', 'configurationConflictRecordCount', 'canonicalConflictRecordCount', 'outputCandidateCount', 'projectedOutputCount', 'outputFailureCount', 'excludedOutputCount', 'issueCount', 'gateStatus')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.familyConstructionCoverage.required' -Expected @('dispatchEligibleObjectCount', 'dispatchEligibleObjectBytes', 'assignedFamilyMemberCount', 'assignedFamilyMemberBytes', 'retainedForDiagnosisObjectCount', 'retainedForDiagnosisObjectBytes', 'configurationOnlyObjectCount', 'configurationOnlyObjectBytes')
     Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.originalAssetBatchCoverage.required' -Expected @('reusableFamilyCount', 'totalFamilyCount', 'reusableMemberCount', 'totalMemberCount', 'reusableBytes', 'totalBytes')
-    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.stellaSora2AuthoringReady.required' -Expected @('value', 'requiredCapabilities', 'satisfiedCapabilities', 'isolatedFailedMemberCount')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'root-gate-summary.schema.json' -Path 'properties.stellaSora2AuthoringReady.required' -Expected @('value', 'requiredCapabilityIds', 'satisfiedCapabilityIds', 'unsatisfiedCapabilityIds', 'blockedCapabilityIds', 'isolatedMemberCount')
 }
 
 if ($schemas.ContainsKey('c2-lane-fact-package.schema.json')) {
@@ -1843,7 +1867,7 @@ foreach ($contract in $fixtureContracts) {
     }
 
     $schemaVersion = $fixture.PSObject.Properties['schemaVersion']
-    $expectedFixtureVersion = if ($contract.Name -ceq 'valid-authoring-reuse-ledger.json') { '2.0.0' } else { '1.0.0' }
+    $expectedFixtureVersion = if ($contract.Name -cin @('valid-authoring-reuse-ledger.json', 'valid-root-gate-summary.json')) { '2.0.0' } else { '1.0.0' }
     if ($null -eq $schemaVersion -or $schemaVersion.Value -cne $expectedFixtureVersion) {
         $issues.Add("Fixture '$($contract.Name)' schemaVersion must be exactly $expectedFixtureVersion.")
     }
@@ -1887,6 +1911,27 @@ if ($null -ne $authoringFixture) {
     }
     foreach ($capability in @(Get-PropertyByPath -Value $authoringFixture -Path 'capabilities')) {
         Test-FixtureVocabularyValue -Value (Get-PropertyByPath -Value $capability -Path 'status') -Dimension 'status' -VocabularyDimension 'capabilityStatus' -FixtureName 'valid-authoring-reuse-ledger.json'
+    }
+}
+
+$rootFixture = $fixtures['valid-root-gate-summary.json']
+if ($null -ne $rootFixture) {
+    $c6HandoffPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json'))
+    $c6Handoff = Read-JsonContractFile -Path $c6HandoffPath
+    if ($null -ne $c6Handoff) {
+        foreach ($propertyName in @('snapshotId', 'familyConstructionCoverage', 'originalAssetBatchCoverage', 'stellaSora2AuthoringReady')) {
+            if (
+                (Get-PropertyByPath -Value $rootFixture -Path $propertyName | ConvertTo-Json -Depth 20 -Compress) -cne
+                (Get-PropertyByPath -Value $c6Handoff -Path $propertyName | ConvertTo-Json -Depth 20 -Compress)
+            ) {
+                $issues.Add("Fixture 'valid-root-gate-summary.json' does not losslessly project C6-O04 '$propertyName'.")
+            }
+        }
+        $c6HandoffSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([System.IO.File]::ReadAllBytes($c6HandoffPath))).ToLowerInvariant()
+        $c6SummaryReference = @($rootFixture.directGateSummaries | Where-Object { $null -ne $_.PSObject.Properties['path'] -and $_.path -ceq 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json' })
+        if ($c6SummaryReference.Count -ne 1 -or $c6SummaryReference[0].sha256 -cne $c6HandoffSha256) {
+            $issues.Add("Fixture 'valid-root-gate-summary.json' does not bind the exact C6-O04 bytes.")
+        }
     }
 }
 

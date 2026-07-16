@@ -322,7 +322,7 @@ O1/O2 are returned only to the test process and terminal. They are not AR-O arti
 P0 takes six in-memory `(path,sha256)` pairs from the upstream registered AR-I01–I06 values. It performs no file read, Git call, fixture validation, partitioning, or gate decision. It must produce only:
 
 ```text
-9fbb174d2ad7dd47ba90f5dac411b96725bf0609234ff9271475ec740c0221e1
+e2f0ed955ed6551462bb12fa4336b78d4ca5e2aa981c99dd707d23d5858017fb
 ```
 
 P0 verifies domain tags, field names, UTF-8 byte lengths, nested final LF, entry count, Ordinal sorting, and SHA-256. It has `gitInspectionProcessCount=0` because O2 is not constructed for P0. P0 cannot be cited as freshness evidence.

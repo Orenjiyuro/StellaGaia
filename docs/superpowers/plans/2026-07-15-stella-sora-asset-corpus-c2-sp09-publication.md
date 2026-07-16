@@ -106,7 +106,7 @@ Exact HI-16 inputs and results are:
 snapshotId=snapshot-pc-install-001
 generatedAt=2026-07-15T00:00:00Z
 inputFingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-Passed discoveryInputFingerprint=96b09428bc1f08b74a85c5b7fb489b4a2fb8242cc3e1a7623b6f855e15dee56b
+Passed discoveryInputFingerprint=e9cfb162b7aa6ade4f99548a14fe027cf43ba793fd78727f7e66b504ceb85354
 Passed transactionId=publication-sha256:452eda2d02f0f2c85d6aadd847fbdee8fe9dccf9edcd1506344728c6a813be32
 Failed discoveryInputFingerprint=null
 Failed transactionId=publication-sha256:900e21ceb48919fd34e0e6fc16cb68f7f66206280a4e2664b67a64a335cf9c8b
@@ -255,6 +255,6 @@ Task 1 and Task 2 run every existing focused case. Task 3 additionally reruns `G
 ## 10. Deferred Work
 
 - C3–C6 consumers beyond the locked validation primitive.
-- C0 schema modification and final G5 decision; AR-S12 remains Required.
+- G5 implementation and final root decision; AR-S12 is Resolved for root summary schema 2.0.0.
 - A Passed real C2 generation. The current audited fixture intentionally publishes a Failed diagnostic generation.
 - Unity, extraction, import, real StellaSora assets, Phase B, release packaging, and canonical expansion.

@@ -1,19 +1,25 @@
 {
-  "schemaVersion": "1.0.0",
-  "generatedAt": "2026-07-10T12:00:00+08:00",
+  "schemaVersion": "2.0.0",
+  "generatedAt": "2026-07-16T12:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
   "inputFingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "toolVersions": [
     {
       "toolName": "contract-fixture",
-      "version": "1.0.0"
+      "version": "2.0.0"
     }
   ],
   "directGateSummaries": [
-    "docs/asset-migration/gates/environment-family-summary.json"
+    {
+      "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
+      "sha256": "e99314b2d10d9173e39d550b796ef750280181caf3b8ac1ed765c97d9fac502c"
+    }
   ],
-  "directGateReports": [
-    "docs/asset-migration/gates/environment-family-report.md"
-  ],
+  "directGateReports": [],
   "corpusSnapshotComplete": {
     "value": true,
     "catalogedFileCount": 1,
@@ -21,34 +27,136 @@
     "catalogedBytes": 4096,
     "sourceBytes": 4096
   },
+  "identity": {
+    "discoveryInputFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "discoveryArtifactFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
   "structuredObjectCoverage": {
-    "parsedContainerCount": 0,
-    "parsedContainerBytes": 0,
-    "opaqueOrFailedContainerCount": 1,
-    "opaqueOrFailedContainerBytes": 4096,
-    "enumeratedObjectCount": 1,
-    "classifiedObjectCount": 0,
-    "unclassifiedObjectCount": 1,
+    "catalogedContainerCount": 1,
+    "catalogedContainerBytes": 4096,
+    "nonContainerFileCount": 0,
+    "nonContainerFileBytes": 0,
+    "fileDiscoverySubjectCount": 1,
+    "fileDiscoverySubjectBytes": 4096,
+    "notAttemptedFileCount": 0,
+    "notAttemptedFileBytes": 0,
+    "parsedFileCount": 1,
+    "parsedFileBytes": 4096,
+    "opaqueFileCount": 0,
+    "opaqueFileBytes": 0,
+    "failedFileCount": 0,
+    "failedFileBytes": 0,
+    "fileDiscoveryConflictFileCount": 0,
+    "fileDiscoveryConflictFileBytes": 0,
+    "notAttemptedContainerCount": 0,
+    "notAttemptedContainerBytes": 0,
+    "parsedContainerCount": 1,
+    "parsedContainerBytes": 4096,
+    "opaqueContainerCount": 0,
+    "opaqueContainerBytes": 0,
+    "failedContainerCount": 0,
+    "failedContainerBytes": 0,
+    "fileDiscoveryConflictContainerCount": 0,
+    "fileDiscoveryConflictContainerBytes": 0,
+    "objectObservationRowCount": 7,
+    "acceptedObjectObservationRowCount": 7,
+    "rejectedObjectObservationRowCount": 0,
+    "excludedObjectObservationRowCount": 0,
+    "correlationGroupCount": 7,
+    "enumeratedObjectCount": 7,
+    "observationConflictObjectCount": 0,
+    "classifiedObjectCount": 7,
+    "unclassifiedObjectCount": 0,
+    "unresolvedDependencyCount": 0,
     "configurationCandidateCount": 1,
-    "configurationParsedCount": 0
+    "configurationConflictCount": 0,
+    "configurationParsedCount": 1,
+    "discoveredOpaqueConfigurationCount": 0,
+    "encryptedConfigurationCount": 0,
+    "requiresRuntimeTypeConfigurationCount": 0,
+    "likelyServerDependentConfigurationCount": 0,
+    "notConfigurationCount": 0,
+    "canonicalizedObjectCount": 7,
+    "canonicalGroupCount": 5,
+    "canonicalConflictObjectCount": 0,
+    "exactDuplicateGroupCount": 0,
+    "platformVariantGroupCount": 0,
+    "unresolvedCanonicalGroupCount": 5,
+    "dispatchEligibleObjectCount": 7,
+    "assignedObjectCount": 5,
+    "retainedForDiagnosisObjectCount": 1,
+    "configurationOnlyObjectCount": 1,
+    "audioObjectCount": 1,
+    "environmentObjectCount": 1,
+    "actorObjectCount": 1,
+    "uiObjectCount": 1,
+    "effectsObjectCount": 1
+  },
+  "failureAccounting": {
+    "inputSubjectCount": 21,
+    "acceptedInputSubjectCount": 21,
+    "notEvaluatedInputSubjectCount": 0,
+    "inputObservationCount": 7,
+    "acceptedInputObservationCount": 7,
+    "rejectedInputObservationCount": 0,
+    "inputFailureCount": 0,
+    "excludedInputSubjectCount": 0,
+    "excludedInputCount": 0,
+    "contractFailureRecordCount": 0,
+    "fileDiscoveryConflictRecordCount": 0,
+    "observationConflictRecordCount": 0,
+    "configurationConflictRecordCount": 0,
+    "canonicalConflictRecordCount": 0,
+    "outputCandidateCount": 5,
+    "projectedOutputCount": 5,
+    "outputFailureCount": 0,
+    "excludedOutputCount": 0,
+    "issueCount": 0,
+    "gateStatus": "Passed"
+  },
+  "familyConstructionCoverage": {
+    "dispatchEligibleObjectCount": 7,
+    "dispatchEligibleObjectBytes": 2800,
+    "assignedFamilyMemberCount": 5,
+    "assignedFamilyMemberBytes": 1500,
+    "retainedForDiagnosisObjectCount": 1,
+    "retainedForDiagnosisObjectBytes": 600,
+    "configurationOnlyObjectCount": 1,
+    "configurationOnlyObjectBytes": 700
   },
   "originalAssetBatchCoverage": {
     "reusableFamilyCount": 0,
-    "totalFamilyCount": 1,
-    "reusableMemberCount": 1,
-    "totalMemberCount": 2,
-    "reusableBytes": 4096,
-    "totalBytes": 8192
+    "totalFamilyCount": 5,
+    "reusableMemberCount": 0,
+    "totalMemberCount": 5,
+    "reusableBytes": 0,
+    "totalBytes": 1500
   },
   "stellaSora2AuthoringReady": {
     "value": false,
-    "requiredCapabilities": [
-      "source-corpus-complete",
-      "authoring-family-qualified"
+    "requiredCapabilityIds": [
+      "CombatEffectRoute",
+      "EnemyModelSkeletonAnimationSet",
+      "PlayableBgmRoute",
+      "PlayableCombatSfx",
+      "PlayerModelSkeletonAnimationSet",
+      "RecognizableEnvironmentOrMapModules",
+      "ReusableUiGraphicsAndConstructionRoute"
     ],
-    "satisfiedCapabilities": [
-      "source-corpus-complete"
+    "satisfiedCapabilityIds": [],
+    "unsatisfiedCapabilityIds": [
+      "EnemyModelSkeletonAnimationSet"
     ],
-    "isolatedFailedMemberCount": 1
-  }
+    "blockedCapabilityIds": [
+      "CombatEffectRoute",
+      "PlayableBgmRoute",
+      "PlayableCombatSfx",
+      "PlayerModelSkeletonAnimationSet",
+      "RecognizableEnvironmentOrMapModules",
+      "ReusableUiGraphicsAndConstructionRoute"
+    ],
+    "isolatedMemberCount": 5
+  },
+  "failureAttribution": "None; fixture-only root summary contract passed.",
+  "nextAllowedAction": "Run the separately authorized G5 lightweight aggregation task."
 }

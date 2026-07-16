@@ -49,7 +49,7 @@ These SHA-256 values are over exact repository file bytes as of this design comm
 | AR-I03 | `c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1` |
 | AR-I04 | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | AR-I05 | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
-| AR-I06 | `45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449` |
+| AR-I06 | `8c9fdb6e50c620d1b8d8835cb6435c653b3398f5616340f5945ad643364af1ec` |
 
 AR-I07 through AR-I09 and AR-I11 have no self-asserted expected SHA. When any is present, AR-I10 is mandatory and its expected bytes are read from the exact commit OID frozen at run start; an absent/untracked manifest or worktree bytes differing from that commit blob is FT-03. Each present optional input must be a blob in that same commit and must match both its AR-I10 entry and its exact commit-blob SHA-256. AR-I10 must list every and only the present AR-I07-I09 and AR-I11 paths. The producer must re-resolve HEAD at run end and require the same commit OID; a changed HEAD is FT-03 and suppresses every output. Thus the committed reviewed manifest is the external freshness authority; a file cannot bless its own just-read bytes.
 
@@ -188,7 +188,7 @@ nextAllowedAction: {decision.nextAllowedAction}
 
 **AR-S12 C0 contract-change component of AR-O05:** top level exactly CT-01 `schemaVersion`, CT-03 `generatedAt`, CT-02 `requestId/reason/nextAllowedAction`, CT-04 `inputFingerprint`, nullable CT-04 `discoveryInputFingerprint`, `status`, and lists `missingProjectionFields/evidence`, in that order. `discoveryInputFingerprint` is present and non-null on Passed and is present with JSON null on ordinary Failed; it is never missing or empty.
 
-For the registered AR-I06 hash, values are fixed: `requestId=C0ContractChange:C2StructuredCoverage:1.0.0`; `status=Required`; `reason=Current root-gate-summary schema cannot losslessly represent mandatory C2 structured coverage partitions.`; `nextAllowedAction=Continue C3-C6 Phase A; C0 must resolve this request before G5 can pass.` Evidence is exactly the Ordinal-sorted paths of AR-I06 and AR-O05 summary. `missingProjectionFields` is a duplicate-free list with exactly the following members in the displayed order:
+The previous AR-I06 v1 contract produced `status=Required` with the historical missing-field set below. It is retained as the reviewed reason for the C0 contract change:
 
 ```text
 structuredObjectCoverage.catalogedContainerCount
@@ -248,7 +248,7 @@ identity.discoveryArtifactFingerprint
 failureAccounting
 ```
 
-A later reviewed AR-I06 hash may produce `NotRequired` only after a registry revision freezes a new exact field list. Summary JSON, report, sidecar, and AR-S12 are atomic AR-O05.
+For the currently registered AR-I06 v2 hash, values are fixed: `requestId=C0ContractChange:C2StructuredCoverage:1.0.0`; `status=Resolved`; `reason=Root gate summary schema 2.0.0 losslessly represents mandatory C2 structured coverage partitions.`; `nextAllowedAction=Provide current C2 outputs and C6-O04 to the separately authorized G5 aggregator.` Evidence is exactly the Ordinal-sorted paths of AR-I06 and AR-O05 summary, and `missingProjectionFields=[]`. Summary JSON, report, sidecar, and AR-S12 remain atomic AR-O05.
 
 ### Success, suppression, and freshness
 
@@ -475,14 +475,14 @@ Every run contains exactly these five contract-check subjects, independent of ho
 | `C2Check:C1Handoff` | AR-I01 has AR-S01 shape; its snapshot/source-ledger/summary identities and safe portable paths resolve exactly to AR-I02/AR-I03 | FT-01 replaces Accepted with one InputFailure |
 | `C2Check:Freshness` | AR-I01-I06 match the Existing-input byte registry; when optional inputs exist, the run freezes one commit OID, AR-I10 matches its exact blob, every present AR-I07-I09/AR-I11 path/SHA matches both AR-I10 and its same-commit blob, HI-13b over every read artifact recomputes exactly, and end-of-run HEAD equals the frozen OID | FT-03 replaces Accepted with one InputFailure |
 | `C2Check:Conservation` | Canonical provenance satisfies its one-to-one/count/uniqueness and member-fact partition invariants before SP-06 grouping, then every applicable SP equation and byte analogue holds after all direct subjects are partitioned | FT-10 replaces Accepted with one InputFailure |
-| `C2Check:PublicProjection` | Public/private projections obey AR-S06 through AR-S12, including the exact Required AR-S12 component for AR-I06 | FT-11 replaces Accepted with one InputFailure |
+| `C2Check:PublicProjection` | Public/private projections obey AR-S06 through AR-S12, including the exact Resolved AR-S12 component for the registered AR-I06 | FT-11 replaces Accepted with one InputFailure |
 | `C2Check:LightweightPolicy` | The run reads fixtures/TEMP only and invokes no extraction, Unity, import, heavy child, or third-party asset operation | FT-13 replaces Accepted with one InputFailure |
 
 Each check contributes exactly one SP-08 subject: Accepted when its predicate is evaluated and holds, InputFailure when evaluated and false, or NotEvaluated under FT-15 when a named prerequisite below is unavailable. A check never contributes two states, is never excluded, and is counted once even if its predicate exposes multiple details. Schema/vocabulary validation is intrinsic to the corresponding AR-I02/AR-I04/AR-I05/AR-I06 artifact subject; FT-02 changes that artifact subject from Accepted to InputFailure and does not create or change a contract-check subject. Artifact- or row-specific FT-04/FT-05 likewise change only their registered direct subject. No sixth implicit schema, policy, or projection check is allowed.
 
 ### Public/root projection rule
 
-Every private partition above either projects to the named public/output artifact, remains in fingerprinted AR-O02/O03/O05 coverage, or appears in AR-S12. For the registered AR-I06, a valid Required AR-S12 is the successful third projection outcome: C2 may pass and C3-C6 may consume its outputs, while C0/G5 remains blocked. Missing, stale, or non-exact AR-S12 content triggers FT-11. C2 never folds NotAttempted into opaque/failed or edits C0 schemas itself.
+Every private partition above either projects to the named public/output artifact or remains in fingerprinted AR-O02/O03/O05 coverage. For the registered AR-I06, an exact Resolved AR-S12 proves that root summary v2 can preserve the mandatory C2 fields; C2 may pass and a separately authorized G5 task may consume the current C2 outputs together with C6-O04. Missing, stale, or non-exact AR-S12 content triggers FT-11. C2 never folds NotAttempted into opaque/failed or edits C0 schemas itself.
 
 ---
 
@@ -508,7 +508,7 @@ For one direct subject, the first applicable transition in that order owns it ex
 | FT-08 | Configuration conflict | configuration conflict HI-09 / `ConflictDetected` | one configuration conflict + input failure + issue | F,F,F,F,D | Resolve disposition evidence |
 | FT-09 | Canonical overlap/evidence conflict | canonical conflict HI-10 / `ConflictDetected` | one canonical conflict + input failure + issue | F,F,F,F,D | Resolve grouping evidence |
 | FT-10 | Any SP conservation equation or canonical-provenance one-to-one/count/uniqueness invariant fails | `C2Check:Conservation` / `ConservationMismatch` | one contract failure + issue regardless of how many invariant details fail | F,F,F,F,D | Correct producer/validator; do not attempt canonical grouping |
-| FT-11 | Required AR-S12 missing, stale, or non-exact | `C2Check:PublicProjection` / `ProjectionInvalid` | contract failure + issue | F,F,F,F,D | Regenerate exact AR-S12; C0/G5 remains blocked |
+| FT-11 | Registered AR-S12 missing, stale, or non-exact | `C2Check:PublicProjection` / `ProjectionInvalid` | contract failure + issue | F,F,F,F,D | Regenerate exact AR-S12 for the registered AR-I06 |
 | FT-12 | Output staging/write/hash/validation/publish-lock/replacement/rollback/quarantine failure | failing AR-O ID or publication transaction / `ProjectionInvalid` | any failure before a diagnostic can persist creates five logical terminal-reported rows; an ordinary gate failure with a successfully published diagnostic creates four suppressed output rows | F,F,F,F,F and 0/5/0 for transaction failure; F,F,F,F,D only for an ordinary non-FT-12 failure | Repair publisher/output path; no downstream |
 | FT-13 | Lightweight gate attempts extraction/Unity/heavy child | `C2Check:LightweightPolicy` / `HeavyOperationAttempted` | contract failure + issue | F,F,F,F,D | Remove heavy invocation |
 | FT-14 | Approved valid observation exclusion | accepted-shape row HI-03 / `ApprovedInputExclusion` | input exclusion, not failure; requires one exact AR-I11 HI-15 approval bound to the current AR-I07 blob | Does not fail alone; remains in SP formulas | Human review; never hide excluded subject |
@@ -544,7 +544,7 @@ For every persisted accounting row, `owningArray` is literal `inputFailures`, `i
 
 Derived output-failure rows use only `SuppressedByGate`. On any ordinary FT-01..11/13 failure, AR-O01..04 each gets `SuppressedByGate`, attribution `SuppressedByGate:` plus its AR ID, and evidence equal to the union of all direct failure evidence. FT-12 never publishes AR-O05 and therefore its five logical `ProjectionInvalid` rows are terminal-only; it cannot truthfully persist derived suppression rows.
 
-`issueCount` equals the number of inputFailures plus the number of outputFailures whose reason is neither suppression reason. Output suppression never creates an extra issue. For multiple direct failures, sort rows by numeric FT ID then Ordinal subjectId. `decision.failureAttribution` is their attribution strings joined by literal `;` in that order; `decision.nextAllowedAction` is the parent-table next action of the first row. With no direct failure, attribution is `None; C2 registry-derived gates passed.` and next action is `Provide C2 outputs to C3-C6 Phase A; C0/G5 remains blocked by AR-S12.`
+`issueCount` equals the number of inputFailures plus the number of outputFailures whose reason is neither suppression reason. Output suppression never creates an extra issue. For multiple direct failures, sort rows by numeric FT ID then Ordinal subjectId. `decision.failureAttribution` is their attribution strings joined by literal `;` in that order; `decision.nextAllowedAction` is the parent-table next action of the first row. With no direct failure, attribution is `None; C2 registry-derived gates passed.` and next action is `Provide current C2 outputs and C6-O04 to the separately authorized G5 aggregator.`
 
 ---
 
@@ -555,7 +555,7 @@ Derived output-failure rows use only `SuppressedByGate`. On any ordinary FT-01..
 P0 is a pure HI-13b unit vector, not a gate run, partition seed, artifact-read claim, or authorization result. Its input is exactly the six registered `(portable path, exact SHA-256)` pairs for AR-I01 through AR-I06. AR-I07 through AR-I11 do not participate. The unit test encodes those six already-known pairs in memory, sorts them with `System.StringComparer.Ordinal`, and must produce:
 
 ```text
-discoveryInputFingerprint=9fbb174d2ad7dd47ba90f5dac411b96725bf0609234ff9271475ec740c0221e1
+discoveryInputFingerprint=e2f0ed955ed6551462bb12fa4336b78d4ca5e2aa981c99dd707d23d5858017fb
 ```
 
 P0 asserts only HI-13a/HI-13b byte framing, nesting, ordering, and digest output. It has no file, byte, observation, contract-check, failure, output-vector, or gate-status counters. No implementation may cite P0 as proof that AR-I01-I06 were read, fresh, schema-valid, conserved, projected, or safe. Hardcoded repeated-character output hashes remain forbidden.

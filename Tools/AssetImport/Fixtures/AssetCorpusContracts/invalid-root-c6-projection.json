@@ -1,0 +1,20 @@
+{
+  "expectedFamilyConstructionCoverage": {
+    "dispatchEligibleObjectCount": 7
+  },
+  "actualFamilyConstructionCoverage": {
+    "dispatchEligibleObjectCount": 6
+  },
+  "expectedOriginalAssetBatchCoverage": {
+    "totalFamilyCount": 5
+  },
+  "actualOriginalAssetBatchCoverage": {
+    "totalFamilyCount": 5
+  },
+  "expectedStellaSora2AuthoringReady": {
+    "value": false
+  },
+  "actualStellaSora2AuthoringReady": {
+    "value": false
+  }
+}

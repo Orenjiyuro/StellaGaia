@@ -6,23 +6,33 @@
   "required": [
     "schemaVersion",
     "generatedAt",
+    "snapshotId",
     "inputFingerprint",
     "toolVersions",
     "directGateSummaries",
     "directGateReports",
     "corpusSnapshotComplete",
+    "identity",
     "structuredObjectCoverage",
+    "failureAccounting",
+    "familyConstructionCoverage",
     "originalAssetBatchCoverage",
-    "stellaSora2AuthoringReady"
+    "stellaSora2AuthoringReady",
+    "failureAttribution",
+    "nextAllowedAction"
   ],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "generatedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1
     },
     "inputFingerprint": {
       "type": "string",
@@ -37,13 +47,13 @@
     "directGateSummaries": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/repositoryPath"
+        "$ref": "#/$defs/artifactReference"
       }
     },
     "directGateReports": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/repositoryPath"
+        "$ref": "#/$defs/artifactReference"
       }
     },
     "corpusSnapshotComplete": {
@@ -78,57 +88,218 @@
         }
       }
     },
-    "structuredObjectCoverage": {
+    "identity": {
       "type": "object",
       "required": [
-        "parsedContainerCount",
-        "parsedContainerBytes",
-        "opaqueOrFailedContainerCount",
-        "opaqueOrFailedContainerBytes",
-        "enumeratedObjectCount",
-        "classifiedObjectCount",
-        "unclassifiedObjectCount",
-        "configurationCandidateCount",
-        "configurationParsedCount"
+        "discoveryInputFingerprint",
+        "discoveryArtifactFingerprint"
       ],
       "additionalProperties": false,
       "properties": {
-        "parsedContainerCount": {
-          "type": "integer",
-          "minimum": 0
+        "discoveryInputFingerprint": {
+          "$ref": "#/$defs/sha256"
         },
-        "parsedContainerBytes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "opaqueOrFailedContainerCount": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "opaqueOrFailedContainerBytes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "enumeratedObjectCount": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "classifiedObjectCount": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "unclassifiedObjectCount": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "configurationCandidateCount": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "configurationParsedCount": {
-          "type": "integer",
-          "minimum": 0
+        "discoveryArtifactFingerprint": {
+          "$ref": "#/$defs/sha256"
         }
+      }
+    },
+    "structuredObjectCoverage": {
+      "type": "object",
+      "required": [
+        "catalogedContainerCount",
+        "catalogedContainerBytes",
+        "nonContainerFileCount",
+        "nonContainerFileBytes",
+        "fileDiscoverySubjectCount",
+        "fileDiscoverySubjectBytes",
+        "notAttemptedFileCount",
+        "notAttemptedFileBytes",
+        "parsedFileCount",
+        "parsedFileBytes",
+        "opaqueFileCount",
+        "opaqueFileBytes",
+        "failedFileCount",
+        "failedFileBytes",
+        "fileDiscoveryConflictFileCount",
+        "fileDiscoveryConflictFileBytes",
+        "notAttemptedContainerCount",
+        "notAttemptedContainerBytes",
+        "parsedContainerCount",
+        "parsedContainerBytes",
+        "opaqueContainerCount",
+        "opaqueContainerBytes",
+        "failedContainerCount",
+        "failedContainerBytes",
+        "fileDiscoveryConflictContainerCount",
+        "fileDiscoveryConflictContainerBytes",
+        "objectObservationRowCount",
+        "acceptedObjectObservationRowCount",
+        "rejectedObjectObservationRowCount",
+        "excludedObjectObservationRowCount",
+        "correlationGroupCount",
+        "enumeratedObjectCount",
+        "observationConflictObjectCount",
+        "classifiedObjectCount",
+        "unclassifiedObjectCount",
+        "unresolvedDependencyCount",
+        "configurationCandidateCount",
+        "configurationConflictCount",
+        "configurationParsedCount",
+        "discoveredOpaqueConfigurationCount",
+        "encryptedConfigurationCount",
+        "requiresRuntimeTypeConfigurationCount",
+        "likelyServerDependentConfigurationCount",
+        "notConfigurationCount",
+        "canonicalizedObjectCount",
+        "canonicalGroupCount",
+        "canonicalConflictObjectCount",
+        "exactDuplicateGroupCount",
+        "platformVariantGroupCount",
+        "unresolvedCanonicalGroupCount",
+        "dispatchEligibleObjectCount",
+        "assignedObjectCount",
+        "retainedForDiagnosisObjectCount",
+        "configurationOnlyObjectCount",
+        "audioObjectCount",
+        "environmentObjectCount",
+        "actorObjectCount",
+        "uiObjectCount",
+        "effectsObjectCount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "catalogedContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "catalogedContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "nonContainerFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "nonContainerFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoverySubjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoverySubjectBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notAttemptedFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notAttemptedFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "parsedFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "parsedFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "opaqueFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "opaqueFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "failedFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "failedFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoveryConflictFileCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoveryConflictFileBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notAttemptedContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notAttemptedContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "parsedContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "parsedContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "opaqueContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "opaqueContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "failedContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "failedContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoveryConflictContainerCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoveryConflictContainerBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "objectObservationRowCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "acceptedObjectObservationRowCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "rejectedObjectObservationRowCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "excludedObjectObservationRowCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "correlationGroupCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "enumeratedObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "observationConflictObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "classifiedObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "unclassifiedObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "unresolvedDependencyCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationCandidateCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationConflictCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationParsedCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "discoveredOpaqueConfigurationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "encryptedConfigurationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "requiresRuntimeTypeConfigurationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "likelyServerDependentConfigurationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notConfigurationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "canonicalizedObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "canonicalGroupCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "canonicalConflictObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "exactDuplicateGroupCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "platformVariantGroupCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "unresolvedCanonicalGroupCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "dispatchEligibleObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "assignedObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "retainedForDiagnosisObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationOnlyObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "audioObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "environmentObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "actorObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "uiObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "effectsObjectCount": { "$ref": "#/$defs/nonNegativeInteger" }
+      }
+    },
+    "failureAccounting": {
+      "type": "object",
+      "required": [
+        "inputSubjectCount",
+        "acceptedInputSubjectCount",
+        "notEvaluatedInputSubjectCount",
+        "inputObservationCount",
+        "acceptedInputObservationCount",
+        "rejectedInputObservationCount",
+        "inputFailureCount",
+        "excludedInputSubjectCount",
+        "excludedInputCount",
+        "contractFailureRecordCount",
+        "fileDiscoveryConflictRecordCount",
+        "observationConflictRecordCount",
+        "configurationConflictRecordCount",
+        "canonicalConflictRecordCount",
+        "outputCandidateCount",
+        "projectedOutputCount",
+        "outputFailureCount",
+        "excludedOutputCount",
+        "issueCount",
+        "gateStatus"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inputSubjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "acceptedInputSubjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "notEvaluatedInputSubjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "inputObservationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "acceptedInputObservationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "rejectedInputObservationCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "inputFailureCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "excludedInputSubjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "excludedInputCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "contractFailureRecordCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "fileDiscoveryConflictRecordCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "observationConflictRecordCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationConflictRecordCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "canonicalConflictRecordCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "outputCandidateCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "projectedOutputCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "outputFailureCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "excludedOutputCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "issueCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "gateStatus": { "enum": [ "Passed", "Failed" ] }
+      }
+    },
+    "familyConstructionCoverage": {
+      "type": "object",
+      "required": [
+        "dispatchEligibleObjectCount",
+        "dispatchEligibleObjectBytes",
+        "assignedFamilyMemberCount",
+        "assignedFamilyMemberBytes",
+        "retainedForDiagnosisObjectCount",
+        "retainedForDiagnosisObjectBytes",
+        "configurationOnlyObjectCount",
+        "configurationOnlyObjectBytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dispatchEligibleObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "dispatchEligibleObjectBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "assignedFamilyMemberCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "assignedFamilyMemberBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "retainedForDiagnosisObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "retainedForDiagnosisObjectBytes": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationOnlyObjectCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "configurationOnlyObjectBytes": { "$ref": "#/$defs/nonNegativeInteger" }
       }
     },
     "originalAssetBatchCoverage": {
@@ -173,37 +344,41 @@
       "type": "object",
       "required": [
         "value",
-        "requiredCapabilities",
-        "satisfiedCapabilities",
-        "isolatedFailedMemberCount"
+        "requiredCapabilityIds",
+        "satisfiedCapabilityIds",
+        "unsatisfiedCapabilityIds",
+        "blockedCapabilityIds",
+        "isolatedMemberCount"
       ],
       "additionalProperties": false,
       "properties": {
         "value": {
           "type": "boolean"
         },
-        "requiredCapabilities": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+        "requiredCapabilityIds": {
+          "$ref": "#/$defs/nonEmptyStringSet"
         },
-        "satisfiedCapabilities": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+        "satisfiedCapabilityIds": {
+          "$ref": "#/$defs/stringSet"
         },
-        "isolatedFailedMemberCount": {
-          "type": "integer",
-          "minimum": 0
+        "unsatisfiedCapabilityIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "blockedCapabilityIds": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "isolatedMemberCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
         }
       }
+    },
+    "failureAttribution": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nextAllowedAction": {
+      "type": "string",
+      "minLength": 1
     }
   },
   "$defs": {
@@ -211,6 +386,47 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!\\.{1,2}(?:[\\\\/]|$))(?!.*[\\\\/]\\.{1,2}(?:[\\\\/]|$)).+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifactReference": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "stringSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "nonEmptyStringSet": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "toolVersion": {
       "type": "object",

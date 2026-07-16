@@ -242,7 +242,7 @@ A future run is eligible for human review only when all of these are true:
 - every producer and adapter identity matches the approval package;
 - every actual input and observation has terminal SP-08 accounting;
 - SP-01 through SP-09 conservation equations hold simultaneously;
-- all required public/private projections are lossless or represented by the exact Required AR-S12 request;
+- all required public/private projections are lossless and the exact AR-S12 state matches the registered AR-I06 contract;
 - the publication transaction commits one complete generation and the locked consumer accepts it;
 - the end HEAD and frozen input identities match their start values;
 - no source, fixture, forbidden path, Unity cache, or unapproved output was modified;
