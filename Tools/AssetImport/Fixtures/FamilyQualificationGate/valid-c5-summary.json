@@ -3,7 +3,7 @@
   "generatedAt": "2026-07-16T06:00:00Z",
   "stageId": "C5",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "41450b1c2c32a957e36abd8e4c28e7d8971a4009096dd0ad5139713c8974252d",
+  "inputFingerprint": "716a322f21bebbd9827046cab3302cfec1355be08b9e75ffb2f395d1629cc0ca",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "toolVersions": [
@@ -78,29 +78,29 @@
     {
       "artifactId": "LC-I08",
       "path": "docs/asset-migration/schemas/status-vocabulary.json",
-      "sha256": "421f00383bde66256b15d71e65b8789c5e8d8474422a376efd441054c798ff47"
+      "sha256": "9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6"
     }
   ],
   "directOutputs": [
     {
       "artifactId": "C5-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md",
-      "sha256": "f1de35bc5355367e3064c1025ea5f4a3bcd6dea4c6dcb2d731f385891ff8cb7d"
+      "sha256": "fc1b48b00e8509cc82b7d76ac1320c9031778e76ce95378d98d88fac23413a3d"
     },
     {
       "artifactId": "C5-O03",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c7-evidence-request.json",
-      "sha256": "d83e9d8efd82aa5b7ef2eb3fdc64a98db62f85fe1a97b47a4494cbc544c4032c"
+      "sha256": "23ff8234e0ac488136cad6e5959886fa0cbf9bc1a432a809607476a414230643"
     },
     {
       "artifactId": "C5-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
-      "sha256": "068437f387aa7b481ae8e8d436e8e5eae1d6d7c7e1705a5a607a4fb55b9be272"
+      "sha256": "86e6ce2073f3ca9a1bb25936a3bb10fc2b0111ef86b070546aa97a99b700c9e3"
     },
     {
       "artifactId": "C5-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json",
-      "sha256": "aadff0d0f2e120961251b9eee52f6358ce8f1676ec226acb56b07e2d1db4d571"
+      "sha256": "97665ce6017f9d9eaa38b56bfa100f527d3cea8b3cba2142040490487768abad"
     }
   ],
   "coverage": {

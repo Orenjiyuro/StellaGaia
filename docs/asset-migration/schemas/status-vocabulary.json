@@ -73,6 +73,16 @@
     "SuitabilityExecutionUnavailable",
     "SuitabilityRejected"
   ],
+  "authoringPoolStatus": [
+    "AcceptedOriginalPool",
+    "AcceptedReplacementSourcePool",
+    "Isolated"
+  ],
+  "capabilityStatus": [
+    "Satisfied",
+    "Unsatisfied",
+    "Blocked"
+  ],
   "sourceKind": [
     "PcInstall",
     "PcPatchOrCache",

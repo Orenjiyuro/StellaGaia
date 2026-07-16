@@ -1470,6 +1470,8 @@ if ($null -ne $vocabulary) {
         memberStaticStatus       = @('StaticPassed', 'StaticFailed', 'Unchecked')
         representativeAssessment = @('RepresentativeRequired', 'EvidenceAccepted', 'EvidenceMissing', 'EvidenceStale', 'UnityExecutionUnavailable', 'RepresentativeRejected')
         capabilitySuitabilityStatus = @('SuitabilityRequired', 'SuitabilityAccepted', 'SuitabilityMissing', 'SuitabilityStale', 'SuitabilityExecutionUnavailable', 'SuitabilityRejected')
+        authoringPoolStatus       = @('AcceptedOriginalPool', 'AcceptedReplacementSourcePool', 'Isolated')
+        capabilityStatus          = @('Satisfied', 'Unsatisfied', 'Blocked')
         sourceKind               = @('PcInstall', 'PcPatchOrCache', 'AndroidApk', 'AndroidDataOrCache')
     }
 
@@ -1969,7 +1971,7 @@ if ($null -ne $repairHistoryFixture) {
             $issues.Add('Repair-attempt history and its positive fixture are not byte-identical.')
         }
         $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($historyBytes)).ToLowerInvariant()
-        if ($actualFingerprint -cne 'fb8f7a53bcae8f15b9b2380d86b1e98415f7aa8da68ba647b1bca874bc38fa28') {
+        if ($actualFingerprint -cne '28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff') {
             $issues.Add("Repair-attempt history exact-byte fingerprint is unexpected: '$actualFingerprint'.")
         }
         $historyText = [Text.Encoding]::UTF8.GetString($historyBytes)
