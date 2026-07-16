@@ -37,7 +37,7 @@ The four component responsibilities are exclusive:
 |---|---|---|
 | C3 Family Registry Gate | Decide the single direct family parent or non-family partition for every C2 dispatch subject; record cross-lane references | No static pass/fail, representative selection, Unity evidence acceptance, or reuse decision |
 | C4 Static Qualification Gate | Produce one terminal static result for every required check of every C3 family member | No family reassignment, representative selection, Unity execution, or reuse decision |
-| C5 Representative Coverage And Evidence Gate | Derive risk-variant requirements, deterministically select representatives, and assess immutable C7/G4 evidence | No Unity execution, family/static mutation, or reuse decision |
+| C5 Representative Coverage And Evidence Gate | Derive risk-variant and capability-suitability requirements, deterministically select representatives, and assess immutable C7/G4 evidence | No Unity execution, family/static mutation, or reuse decision |
 | C6 Authoring Decision And Ledger Gate | Validate freshness/conservation, apply frozen decisions, assemble the only authoring reuse ledger, and publish the only C3-C6 handoff to G5 | No asset inspection, child rerun, evidence generation, or G5 conclusion |
 
 The three central registries below are authoritative. Later prose may explain them but cannot redefine artifact shapes, identities, subject universes, partitions, formulas, policy semantics, or failure ownership.
@@ -62,7 +62,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I08 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json` | C0 | C3-C6 | Required exact accepted C0 artifact |
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
 | LC-I10 | C7/G4 evidence packages | paths listed exactly by LC-I09 | C7/G4 | C5 | Each package must match manifest path/SHA and requirement identity |
-| LC-I11 | Decision/capability registry | `docs/asset-migration/schemas/c3-c6-decision-policy-registry.json` | C0 contract Task | C6 | Required exact bytes and fingerprint; currently absent |
+| LC-I11 | Decision/capability registry | `docs/asset-migration/schemas/c3-c6-decision-policy-registry.json` | C0 contract Task | C5/C6 | Logical registry contract is closed below; physical registry/schema/fixtures remain absent; consumers compute its exact-byte fingerprint externally |
 | LC-I12 | Repair-attempt history | `Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json` | Reviewed repair workflow | C6 | Required exact artifact; an empty attempts array means no attempt, absence never means zero |
 | LC-I13 | Typed lane-fact schema | `docs/asset-migration/schemas/c2-lane-fact-package.schema.json` | C0/C2 contract Task | LC-I06/C3 | Contract frozen with valid and negative fixture coverage; `factContractFingerprint` is its exact-byte SHA-256; the fixture-only LC-I06 producer now consumes its exact bytes |
 | C3-O01 | Family registry | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json` | C3 | C4-C6 | Passed only; suppressed on C3 contract failure |
@@ -72,8 +72,8 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | C4-O01 | Member static qualification package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json` | C4 | C5/C6 | Passed contract execution only; asset failures remain valid rows |
 | C4-O02 | Family static summary | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json` | C4 | C5/C6 | Passed contract execution only |
 | C4-O03 | C4 diagnostic bundle | `valid-c4-summary.json` and `valid-c4-report.md` | C4 | Humans/C5 freshness | Always attempted; diagnostic-only on Failed |
-| C5-O01 | Representative requirement package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json` | C5 | C7/G4/C6 | Passed contract execution only; may contain missing/unavailable outcomes |
-| C5-O02 | Evidence assessment package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json` | C5 | C6 | Passed contract execution only |
+| C5-O01 | Representative and suitability requirement package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json` | C5 | C7/G4/C6 | Passed contract execution only; may contain missing/unavailable outcomes |
+| C5-O02 | Risk and suitability evidence assessment package | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json` | C5 | C6 | Passed contract execution only |
 | C5-O03 | C7 evidence request | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c7-evidence-request.json` | C5 | C7/G4 planning | Passed contract execution only; never launches C7/G4 |
 | C5-O04 | C5 diagnostic bundle | `valid-c5-summary.json` and `valid-c5-report.md` | C5 | Humans/C6 freshness | Always attempted; diagnostic-only on Failed |
 | C6-O01 | Authoring reuse ledger v2 | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-authoring-reuse-ledger.json` | C6 | G5 | Passed only; current C0 schema cannot represent it losslessly |
@@ -86,13 +86,13 @@ All JSON rejects additional properties. All sets are duplicate-free and Ordinal 
 
 Stable artifact identity is the registry ID plus its exact portable path. Content fingerprint is SHA-256 over exact artifact bytes. Moving a file changes artifact identity; changing bytes changes content fingerprint. A diagnostic bundle is one logical output whose content fingerprint covers its summary and report path/SHA entries.
 
-The lifecycle package prefix is exactly `schemaVersion`, `generatedAt`, `snapshotId`, `inputFingerprint`, `policySetFingerprint`, in that order. The C6 support-package prefix appends `decisionPolicyFingerprint`. A phrase such as “same prefix” below always means the applicable exact sequence; no additional envelope or payload exists.
+The lifecycle package prefix is exactly `schemaVersion`, `generatedAt`, `snapshotId`, `inputFingerprint`, `policySetFingerprint`, in that order. The C5/C6 support-package prefix appends `decisionPolicyFingerprint`. A phrase such as “same prefix” below always means the applicable exact sequence; no additional envelope or payload exists.
 
 Direct input sets are exact:
 
 - C3 reads LC-I01 through LC-I08 and LC-I13.
 - C4 reads C3-O01/O02/O03 and both C3-O04 components, plus LC-I01/I02/I03/I06/I07/I08/I13.
-- C5 reads C3-O01/O02/O03 and both C3-O04 components, C4-O01/O02 and both C4-O03 components, plus LC-I06/I07/I08/I13. When LC-I09 is present, it and every listed LC-I10 package also participate; when absent, neither LC-I09 nor any LC-I10 package participates and every selected representative lacking evidence evaluates EvidenceMissing.
+- C5 reads C3-O01/O02/O03 and both C3-O04 components, C4-O01/O02 and both C4-O03 components, plus LC-I06/I07/I08/I11/I13. When LC-I09 is present, it and every listed LC-I10 package also participate; when absent, neither LC-I09 nor any LC-I10 package participates, selected risk representatives lacking evidence evaluate EvidenceMissing, and selected suitability representatives lacking evidence evaluate SuitabilityMissing.
 - C6 reads C3-O01/O02/O03 and both C3-O04 components, C4-O01/O02 and both C4-O03 components, C5-O01/O02 and both C5-O04 components, plus LC-I07/I08/I11/I12. C5-O03 is not a decision input.
 
 Each stage LX-HI-14 fingerprint contains every and only its direct input set. A missing extra, duplicate, or unregistered direct input is LF-01 or LF-03; it is never ignored.
@@ -255,6 +255,7 @@ LoopBehavior
 MaterialFidelity
 UiConstruction
 EffectBehavior
+CapabilitySuitability
 ```
 
 The common failure-class vocabulary is exactly:
@@ -301,6 +302,7 @@ memberStaticStatus: StaticPassed, StaticFailed, Unchecked
 representativeAssessment: RepresentativeRequired, EvidenceAccepted, EvidenceMissing, EvidenceStale, UnityExecutionUnavailable, RepresentativeRejected
 authoringPoolStatus: AcceptedOriginalPool, AcceptedReplacementSourcePool, Isolated
 capabilityStatus: Satisfied, Unsatisfied, Blocked
+capabilitySuitabilityStatus: SuitabilityRequired, SuitabilityAccepted, SuitabilityMissing, SuitabilityStale, SuitabilityExecutionUnavailable, SuitabilityRejected
 ```
 
 The existing `familyStaticOutcome` and `disposition` dimensions remain authoritative for family aggregates and C6 decisions. The new dimensions do not rename or overload them.
@@ -667,7 +669,7 @@ Family `staticOutcome` is StaticQualified only when every member is StaticPassed
 
 ### 1.7 C5 input and output shapes
 
-LC-I09 top level is exactly `schemaVersion`, `generatedAt`, `inputFingerprint`, `entries`. Each entry is exactly `path`, `sha256`, `evidencePackageId`, `requirementId`. Paths and identities are unique and Ordinal sorted.
+LC-I09 top level is exactly `schemaVersion`, `generatedAt`, `inputFingerprint`, `entries`. Each entry is exactly `path`, `sha256`, `evidencePackageId`, `requirementId`. Paths and identities are unique and Ordinal sorted. Every requirementId resolves to exactly one C5-O01 risk-variant or capability-suitability requirement; cross-array duplicates are invalid.
 
 Each LC-I10 package is exactly:
 
@@ -676,6 +678,7 @@ schemaVersion
 generatedAt
 evidencePackageId
 requirementId
+requirementKind
 representativeAssetObjectId
 executorKind
 executionStatus
@@ -685,12 +688,13 @@ observations
 evidencePaths
 ```
 
-`executorKind` is `C7Unity`, `G4Unity`, `StaticHumanReview`, `AudioListening`, or `ExternalDecoder`. `executionStatus` is `Completed`, `Unavailable`, or `Failed`. Each observation is exactly `evidenceKind`, `outcome`, `contentFingerprint`, `evidence`, where outcome is `Passed`, `Rejected`, or `Inconclusive`. C5 reads packages; it never launches the executor.
+`requirementKind` is `RiskVariant` or `CapabilitySuitability` and must match the unique C5-O01 requirement owning requirementId. `inputFingerprint` must equal that requirement's expectedInputFingerprint exactly. `executorKind` is `C7Unity`, `G4Unity`, `StaticHumanReview`, `AudioListening`, or `ExternalDecoder`. `executionStatus` is `Completed`, `Unavailable`, or `Failed`. Each observation is exactly `evidenceKind`, `outcome`, `contentFingerprint`, `evidence`, where outcome is `Passed`, `Rejected`, or `Inconclusive`. A CapabilitySuitability package has exactly one observation and its evidenceKind is exactly `CapabilitySuitability`; its requirement identity, not a filename or media property, binds the evidence to one capability and route. C5 reads packages; it never launches the executor.
 
-**C5-O01 representative requirements** top level is exactly:
+**C5-O01 representative requirements** uses the C5/C6 support-package prefix and then exactly:
 
 ```text
-schemaVersion, generatedAt, snapshotId, inputFingerprint, policySetFingerprint, requirements
+requirements
+capabilitySuitabilityRequirements
 ```
 
 Each requirement is exactly:
@@ -705,13 +709,32 @@ candidateMemberIds
 selectedRepresentativeAssetObjectId
 selectionRule
 requiredEvidenceKinds
+expectedInputFingerprint
 assessmentStatus
 evidence
 ```
 
 `selectionRule` is exactly `OrdinalFirstStaticPassed`. Candidate members are C4 StaticPassed members matching the risk variant. The selected representative is the Ordinal-first candidate or null when the candidate set is empty.
 
-`assessmentStatus` is exactly one of:
+Each capability-suitability requirement is exactly:
+
+```text
+suitabilityRequirementId
+familyId
+capabilityId
+routeKind
+candidateMemberIds
+selectedRepresentativeAssetObjectId
+selectionRule
+requiredEvidenceKinds
+expectedInputFingerprint
+assessmentStatus
+evidence
+```
+
+C5 derives exactly one such requirement for every `(familyId,capabilityId,routeKind)` admitted by the current LC-I11 lane, family-kind, ActorRole, route, and LC-I07-union constraints. `requiredEvidenceKinds` is exactly the singleton `CapabilitySuitability`. Candidate members are the family's C4 StaticPassed members and selection is `OrdinalFirstStaticPassed`. For both requirement kinds, expectedInputFingerprint is LX-HI-21 after requirement identity and representative selection are fixed. C5 never derives capability suitability from LoopMode, object name, path, filename, object type, generic playback, or another proxy. In particular, BGM and combat-SFX identity is established only by separate capability-specific suitability requirements and matching evidence packages.
+
+Risk-variant `assessmentStatus` is exactly one of:
 
 ```text
 RepresentativeRequired
@@ -724,7 +747,9 @@ RepresentativeRejected
 
 RepresentativeRequired means the requirement exists but has no selectable StaticPassed candidate. EvidenceMissing means a representative was selected but no matching package exists. UnityExecutionUnavailable requires an exact matching Unavailable C7/G4 package; it is not asset rejection.
 
-**C5-O02 evidence assessment** has the same prefix and `assessments`. Each row is exactly:
+Capability-suitability `assessmentStatus` is exactly `SuitabilityRequired`, `SuitabilityAccepted`, `SuitabilityMissing`, `SuitabilityStale`, `SuitabilityExecutionUnavailable`, or `SuitabilityRejected`. These map one-for-one to the same package/freshness conditions, but remain a distinct status dimension so a rejected BGM route cannot reject the same asset as combat SFX or as a generic representative.
+
+**C5-O02 evidence assessment** uses the C5/C6 support-package prefix followed by `assessments`, `capabilitySuitabilityAssessments`. Each risk assessment row is exactly:
 
 ```text
 assessmentId
@@ -744,7 +769,27 @@ evidence
 
 Package and observed fingerprints are nullable only when no package exists. EvidenceAccepted requires exact freshness and every required evidence kind Passed. Any Rejected observation produces RepresentativeRejected. Inconclusive or incomplete evidence produces EvidenceMissing, not acceptance.
 
-**C5-O03 C7 request** top level is exactly `schemaVersion`, `generatedAt`, `snapshotId`, `inputFingerprint`, `policySetFingerprint`, `requests`. Each row is exactly `requirementId`, `familyId`, `lane`, `representativeAssetObjectId`, `requiredEvidenceKinds`, `reasonCode`, `priority`, `evidence`. `reasonCode` is `EvidenceMissing`, `EvidenceStale`, or `UnityExecutionUnavailable`; priority is `RequiredCapability`, `Coverage`, or `Diagnostic`. It is an instruction artifact, not execution authorization.
+Each capability-suitability assessment row is exactly:
+
+```text
+suitabilityAssessmentId
+suitabilityRequirementId
+familyId
+capabilityId
+routeKind
+representativeAssetObjectId
+assessmentStatus
+evidencePackageId
+expectedInputFingerprint
+observedInputFingerprint
+failureAttribution
+nextAllowedAction
+evidence
+```
+
+SuitabilityAccepted requires one exact fresh Completed LC-I10 package for the suitabilityRequirementId with a Passed `CapabilitySuitability` observation. Rejected maps only to SuitabilityRejected for that exact capabilityId/routeKind. Inconclusive or incomplete evidence maps to SuitabilityMissing. A suitability assessment never changes the risk assessment for the same representative and never supplies another capability or route.
+
+**C5-O03 C7 request** uses the C5/C6 support-package prefix followed by `requests`. Each row is exactly `requirementId`, `requirementKind`, `familyId`, `lane`, `capabilityId`, `routeKind`, `representativeAssetObjectId`, `requiredEvidenceKinds`, `reasonCode`, `priority`, `evidence`. `requirementKind` is `RiskVariant` or `CapabilitySuitability`. `capabilityId` and `routeKind` are non-null exactly for CapabilitySuitability. `reasonCode` is `EvidenceMissing`, `EvidenceStale`, `UnityExecutionUnavailable`, `SuitabilityMissing`, `SuitabilityStale`, or `SuitabilityExecutionUnavailable`; priority is `RequiredCapability`, `Coverage`, or `Diagnostic`. It is an instruction artifact, not execution authorization.
 
 ### 1.8 C6 decision policy and output shapes
 
@@ -755,14 +800,30 @@ schemaVersion
 generatedAt
 decisionPolicyId
 decisionPolicyVersion
-decisionPolicyFingerprint
 hardStopFailureClasses
 diagnosticOnlyFamilyKinds
 replacementRules
 capabilities
 ```
 
-Each replacement rule is exactly `replacementRuleId`, `lane`, `familyKindIds`, `requiredStaticCheckIds`, `requiredAcceptedEvidenceKinds`, `routeKind`, `capabilityIds`.
+For the first reviewed registry, `schemaVersion=1.0.0`, `generatedAt=2026-07-16T00:00:00Z`, `decisionPolicyId=StellaSoraAuthoringDecisionPolicy`, and `decisionPolicyVersion=1.0.0`. LC-I11 does not store its own fingerprint. `decisionPolicyFingerprint` in C5/C6 outputs is CT-04 SHA-256 over the exact complete LC-I11 bytes. Reusing the same decisionPolicyId/decisionPolicyVersion with any changed byte is LF-03.
+
+The future JSON Schema authority is `docs/asset-migration/schemas/c3-c6-decision-policy-registry.schema.json`; the positive contract fixture is `Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-c3-c6-decision-policy-registry.json` and must be byte-identical to LC-I11. Neither schema nor contract-test fixtures are lifecycle direct inputs.
+
+`hardStopFailureClasses` is exactly the singleton `CoreDataMissing`. `diagnosticOnlyFamilyKinds` is exactly empty in version 1.0.0. ReadFailure is not globally hard-stop because a reviewed UI texture-only route may retain readable original media after a different failed dependency route; every other failure class is governed by the exact repair/replacement/terminal rules rather than an inferred global rank.
+
+Each replacement rule is exactly `replacementRuleId`, `lane`, `familyKindIds`, `requiredFailureClasses`, `requiredStaticCheckIds`, `requiredAcceptedEvidenceKinds`, `routeKind`, `capabilityIds`. The current actionable failure-class set must be nonempty and a subset of requiredFailureClasses. Every named static check must be Passed and every named evidence kind must occur in an EvidenceAccepted C5 risk assessment. Capability suitability does not choose the family decision; it gates only the later capability projection. Two matching replacement rules remain LF-17.
+
+The exact replacement rules, sorted Ordinal by replacementRuleId, are:
+
+| replacementRuleId | lane / familyKindIds | requiredFailureClasses | requiredStaticCheckIds | requiredAcceptedEvidenceKinds | routeKind | capabilityIds |
+|---|---|---|---|---|---|---|
+| ActorPrototypeControllerReplacement | Actor / ActorRouteFamily | ControllerMissing | AnimationClipReadability, AvatarClosure, ControllerReferenceClassification, DependencyClosure, MaterialDependencyClosure, MeshReadability, SkeletonClosure, TextureDependencyClosure | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender | PrototypeController | EnemyModelSkeletonAnimationSet, PlayerModelSkeletonAnimationSet |
+| AudioDecodedRouteReplacement | Audio / AudioRouteFamily | SemanticUnknown | ChannelLayoutValidity, DecodeOutcome, LoopValidity, MediaReadability | AudioPlayback, HumanListening | DecodedAudio | PlayableBgmRoute, PlayableCombatSfx |
+| EffectBehaviorReconstructionReplacement | Effects / EffectRouteFamily | EffectBehaviorMissing | AudioDependencyClosure, EffectSystemReadability, MaterialDependencyClosure, MeshDependencyClosure, PrefabDependencyClosure, ShaderDependencyClosure, TextureDependencyClosure | EffectBehavior, MaterialFidelity, UnityImport, VisibleRender | EffectBehaviorReconstructed | CombatEffectRoute |
+| UiTextureOnlyRebuildReplacement | UI / UiRouteFamily | FontAtlasMissing, PrefabDependencyMissing | TextureReadability | MaterialFidelity, UiConstruction, UnityImport, VisibleRender | TextureOnlyRebuild | ReusableUiGraphicsAndConstructionRoute |
+
+Every ID referenced by a replacement rule must resolve exactly in LC-I07 or the LC-I11 capability set. Lists are duplicate-free and Ordinal sorted. The rule table is declarative data only; metadata, payload, expression, callback, arbitrary predicate, regex, ScriptBlock, and executable operation are forbidden.
 
 Each capability row is exactly:
 
@@ -777,6 +838,8 @@ allowedFamilyDecisions
 requiredAcceptedEvidenceKinds
 ```
 
+Every capability row has `required=true`. `eligibleActorRoles` is `Enemy` only for EnemyModelSkeletonAnimationSet, `Player` only for PlayerModelSkeletonAnimationSet, and empty for the other five capabilities. An empty eligibleActorRoles set means ActorRole is not an eligibility dimension; it never means any ActorRole for an Actor capability.
+
 The required capability IDs are exactly:
 
 ```text
@@ -790,6 +853,24 @@ PlayableCombatSfx
 ```
 
 The set of `(capabilityId,lane,familyKindId,routeKind)` candidates in LC-I11 must equal the duplicate-free union of all LC-I07 capabilityProjectionRules. LC-I11 adds global required/decision/evidence predicates but cannot add, remove, or remap a lane contribution. Any mismatch is LF-03 before C6 decision evaluation.
+
+The exact capability rows, sorted Ordinal by capabilityId, are:
+
+| capabilityId | eligibleLanes | eligibleFamilyKindIds | eligibleActorRoles | eligibleRouteKinds | allowedFamilyDecisions | requiredAcceptedEvidenceKinds |
+|---|---|---|---|---|---|---|
+| CombatEffectRoute | Effects | EffectRouteFamily | empty | EffectBehaviorReconstructed, OriginalAsset | PrototypeReplacement, UseOriginalAsset | EffectBehavior, MaterialFidelity, UnityImport, VisibleRender |
+| EnemyModelSkeletonAnimationSet | Actor | ActorRouteFamily | Enemy | OriginalAsset, PrototypeController | PrototypeReplacement, UseOriginalAsset | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender |
+| PlayableBgmRoute | Audio | AudioRouteFamily | empty | DecodedAudio, OriginalAsset | PrototypeReplacement, UseOriginalAsset | AudioPlayback, HumanListening, LoopBehavior |
+| PlayableCombatSfx | Audio | AudioRouteFamily | empty | DecodedAudio, OriginalAsset | PrototypeReplacement, UseOriginalAsset | AudioPlayback, HumanListening |
+| PlayerModelSkeletonAnimationSet | Actor | ActorRouteFamily | Player | OriginalAsset, PrototypeController | PrototypeReplacement, UseOriginalAsset | AnimationPlayback, MaterialFidelity, UnityImport, VisibleRender |
+| RecognizableEnvironmentOrMapModules | Environment | EnvironmentModuleFamily | empty | OriginalAsset | UseOriginalAsset | MaterialFidelity, UnityImport, VisibleRender |
+| ReusableUiGraphicsAndConstructionRoute | UI | UiRouteFamily | empty | OriginalAsset, TextureOnlyRebuild | PrototypeReplacement, UseOriginalAsset | MaterialFidelity, UiConstruction, UnityImport, VisibleRender |
+
+For each exact candidate tuple, C5 owns a separate capability-suitability requirement. C6 may satisfy the tuple only when that exact requirement is SuitabilityAccepted and the family/route also satisfies the row's decision and requiredAcceptedEvidenceKinds. LoopMode and LoopBehavior are technical facts/evidence only: neither identifies BGM or combat SFX. A BGM suitability result cannot satisfy PlayableCombatSfx, and vice versa, even when the same representative and route are used.
+
+Decision-to-route projection is exact: UseOriginalAsset projects only `OriginalAsset`; PrototypeReplacement projects only the routeKind of its single matching replacement rule. A decision cannot choose another eligibleRouteKind merely because that route appears in the capability row. Thus `(PrototypeReplacement,OriginalAsset)` and `(UseOriginalAsset,DecodedAudio|PrototypeController|TextureOnlyRebuild|EffectBehaviorReconstructed)` are invalid transitions.
+
+Array order is exact: replacementRules by replacementRuleId and capabilities by capabilityId, both Ordinal. Every nested collection is a duplicate-free Ordinal set. The physical-contract Task must reject at least: stored decisionPolicyFingerprint or any additional top-level property; wrong immutable constant; changed bytes with reused ID/version; non-singleton or wrong hard-stop set; nonempty diagnostic-only set; missing/duplicate/misordered replacement or capability row; unresolved family/check/failure/evidence/route/capability ID; any LC-I07 candidate-union loss or addition; a decision-to-route mismatch; suitability evidence reused across capability, route, family, or requirement; and any metadata, payload, expression, callback, regex, ScriptBlock, or executable operation. Passed validation must byte-compare LC-I11 with its positive fixture and compute, never read, decisionPolicyFingerprint.
 
 **C6-O01 authoring reuse ledger v2** top level is exactly:
 
@@ -888,7 +969,7 @@ reusableBytes
 isolatedBytes
 ```
 
-Each capability row is exactly `capabilityId`, `status`, `satisfyingFamilyIds`, `routeKinds`, `failureAttribution`, `evidence`. The capability identity resolves to exactly one LC-I11 row. Status is `Satisfied`, `Unsatisfied`, or `Blocked`.
+Each capability row is exactly `capabilityId`, `status`, `satisfyingFamilyIds`, `routeKinds`, `suitabilityAssessmentIds`, `failureAttribution`, `evidence`. The capability identity resolves to exactly one LC-I11 row. Every suitabilityAssessmentId resolves to a SuitabilityAccepted C5-O02 row for the same capability, one projected routeKind, and one satisfying family. Status is `Satisfied`, `Unsatisfied`, or `Blocked`.
 
 **C6-O02 family decision package** uses the C6 support-package prefix followed by `decisions`, `issues`. Each decision row is exactly `decisionId`, `familyId`, `decision`, `repairClass`, `replacementRouteKind`, `ruleId`, `inputStaticFingerprint`, `inputEvidenceFingerprint`, `repairHistoryFingerprint`, `failureAttribution`, `nextAllowedAction`, `evidence`.
 
@@ -956,7 +1037,7 @@ evidence
 
 ### 1.10 Diagnostic summary and report contract
 
-Every C3-O04/C4-O03/C5-O04/C6-O05 JSON summary is exactly:
+Every C3-O04/C4-O03 JSON summary is exactly:
 
 ```text
 schemaVersion
@@ -972,6 +1053,8 @@ coverage
 failureAccounting
 decision
 ```
+
+C5-O04/C6-O05 use the same shape but insert `decisionPolicyFingerprint` immediately after `policySetFingerprint`. It is computed from accepted LC-I11 bytes and is never copied from LC-I11.
 
 Each direct input/output is exactly `artifactId`, `path`, `sha256`. Failure accounting is exactly `inputSubjectCount`, `acceptedInputSubjectCount`, `inputFailureCount`, `notEvaluatedInputSubjectCount`, `outputCandidateCount`, `projectedOutputCount`, `outputFailureCount`, `issueCount`, `gateStatus`, `inputFailures`, `inputSuppressions`, `outputFailures`, in that order. Decision is exactly `failureAttribution`, `nextAllowedAction`.
 
@@ -999,7 +1082,7 @@ Coverage keys are stage-specific and exact:
 
 - C3: `dispatchEligibleObjectCount`, `dispatchEligibleObjectBytes`, `assignedFamilyMemberCount`, `assignedFamilyMemberBytes`, `retainedForDiagnosisObjectCount`, `retainedForDiagnosisObjectBytes`, `configurationOnlyObjectCount`, `configurationOnlyObjectBytes`, `familyCount`, `referenceCount`, `resolvedReferenceCount`, `missingReferenceCount`, `conflictReferenceCount`.
 - C4: `familyCount`, `memberCount`, `memberBytes`, `staticPassedCount`, `staticPassedBytes`, `staticFailedCount`, `staticFailedBytes`, `uncheckedCount`, `uncheckedBytes`, `requiredCheckCount`, `passedCheckCount`, `failedCheckCount`, `uncheckedCheckCount`.
-- C5: `familyCount`, `riskVariantCount`, `representativeRequirementCount`, `representativeRequiredCount`, `evidenceAcceptedCount`, `evidenceMissingCount`, `evidenceStaleCount`, `unityExecutionUnavailableCount`, `representativeRejectedCount`, `c7RequestCount`.
+- C5: `familyCount`, `riskVariantCount`, `representativeRequirementCount`, `representativeRequiredCount`, `evidenceAcceptedCount`, `evidenceMissingCount`, `evidenceStaleCount`, `unityExecutionUnavailableCount`, `representativeRejectedCount`, `capabilitySuitabilityRequirementCount`, `suitabilityRequiredCount`, `suitabilityAcceptedCount`, `suitabilityMissingCount`, `suitabilityStaleCount`, `suitabilityExecutionUnavailableCount`, `suitabilityRejectedCount`, `c7RequestCount`.
 - C6: `dispatchEligibleObjectCount`, `dispatchEligibleObjectBytes`, `assignedFamilyMemberCount`, `assignedFamilyMemberBytes`, `retainedForDiagnosisObjectCount`, `retainedForDiagnosisObjectBytes`, `configurationOnlyObjectCount`, `configurationOnlyObjectBytes`, `totalFamilyCount`, `needsDiagnosisFamilyCount`, `useOriginalAssetFamilyCount`, `repairOnceFamilyCount`, `prototypeReplacementFamilyCount`, `retainForLaterFamilyCount`, `diagnosticOnlyFamilyCount`, `stopFamilyCount`, `totalMemberCount`, `totalMemberBytes`, `acceptedOriginalPoolMemberCount`, `acceptedOriginalPoolMemberBytes`, `acceptedReplacementSourcePoolMemberCount`, `acceptedReplacementSourcePoolMemberBytes`, `isolatedMemberCount`, `isolatedMemberBytes`, `requiredCapabilityCount`, `satisfiedCapabilityCount`, `unsatisfiedCapabilityCount`, `blockedCapabilityCount`.
 
 The report is UTF-8 without BOM, LF-only, exactly one final LF, and the exact template below. Placeholders use the corresponding JSON scalar and are not emitted literally.
@@ -1030,13 +1113,13 @@ The report is never a machine consumer. Its content fingerprint remains part of 
 
 The current `authoring-reuse-ledger.schema.json` cannot represent member identities, bytes, representative partitions, pool isolation, capability projection, policy fingerprints, or complete direct input fingerprints. C6-O01 cannot be projected losslessly into it. A C0 contract change to authoring reuse ledger v2 is required before C6 implementation.
 
-The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. LC-I11, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
+The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. Physical LC-I11 artifacts, LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
 
 LC-I07's logical and physical registry contract is complete: its non-self-referential fingerprint boundary, exact first-version identity, five policy rows, nested reference sets, NotApplicable/check/axis semantics, capability predicates, repair predicates, ordering, and LF-03 vectors are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical to the registry, focused negative fixtures prove the key fail-closed rules, and the executable contract validator verifies exact-byte formatting, fingerprint, reference closure, row conservation, and capability coverage. This fixture-only completion does not start C3 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
-LC-I11 still stores `decisionPolicyFingerprint` while defining it over the exact LC-I11 bytes, so its fingerprint boundary remains self-referential and unclosed. The later LC-I11 contract Task must explicitly remove the stored self-hash or obtain separate approval for another non-self-referential encoding; no C6 implementation may infer a rule here.
+LC-I11's logical contract is closed: it stores no decisionPolicyFingerprint; C5/C6 compute the fingerprint over exact accepted LC-I11 bytes. Its immutable identity, hard-stop set, empty diagnostic-only set, four replacement rules, seven capability rows, LC-I07 union constraint, and C5 capability-suitability boundary are exact. The physical registry, JSON Schema, byte-identical positive fixture, focused negative fixtures, and executable validator remain a separate fixture-only Task.
 
-The current status vocabulary lacks the exact `familyParentStatus`, `memberStaticStatus`, `representativeAssessment`, `authoringPoolStatus`, and `capabilityStatus` dimensions frozen above. C0 must add all five before implementation; component-local aliases are forbidden.
+The current status vocabulary lacks the exact `familyParentStatus`, `memberStaticStatus`, `representativeAssessment`, `capabilitySuitabilityStatus`, `authoringPoolStatus`, and `capabilityStatus` dimensions frozen above. C0 must add all six before implementation; component-local aliases are forbidden.
 
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
@@ -1057,19 +1140,24 @@ All derived IDs use the exact C2 HI-01 framed UTF-8 byte encoding, including dom
 | LX-HI-07 member static result | `member-static-sha256:` / `C4MemberStaticV1` | assetObjectId, familyId, staticStatus, checkResultIds set |
 | LX-HI-08 risk variant | no prefix / `C5RiskVariantV1` | familyId, riskAxisId, source fact rows |
 | LX-HI-09 representative requirement | `representative-requirement-sha256:` / `C5RepresentativeRequirementV1` | familyId, riskAxisId, riskVariantId, candidateMemberIds set, requiredEvidenceKinds set |
-| LX-HI-10 evidence package | `evidence-package-sha256:` / `C5EvidencePackageV1` | requirementId, representativeAssetObjectId, executorKind, executionStatus, inputFingerprint, observation digests set, evidencePaths set |
+| LX-HI-10 evidence package | `evidence-package-sha256:` / `C5EvidencePackageV1` | requirementId, requirementKind, representativeAssetObjectId, executorKind, executionStatus, inputFingerprint, observation digests set, evidencePaths set |
 | LX-HI-11 evidence assessment | `evidence-assessment-sha256:` / `C5EvidenceAssessmentV1` | requirementId, nullable representativeAssetObjectId, assessmentStatus, nullable evidencePackageId, expectedInputFingerprint, nullable observedInputFingerprint |
 | LX-HI-12 family decision | `family-decision-sha256:` / `C6FamilyDecisionV1` | familyId, decisionPolicyFingerprint, ruleId, decision, nullable repairClass, nullable replacementRouteKind, inputStaticFingerprint, inputEvidenceFingerprint, repairHistoryFingerprint |
-| LX-HI-13 capability projection | `capability-projection-sha256:` / `C6CapabilityProjectionV1` | capabilityId, decisionPolicyFingerprint, status, satisfyingFamilyIds set, routeKinds set, evidence set |
+| LX-HI-13 capability projection | `capability-projection-sha256:` / `C6CapabilityProjectionV1` | capabilityId, decisionPolicyFingerprint, status, satisfyingFamilyIds set, routeKinds set, suitabilityAssessmentIds set, evidence set |
 | LX-HI-14 stage input | no prefix / `LifecycleStageInputV1` | artifact entries encoded exactly as C2 HI-13a and sorted by portable path |
 | LX-HI-15 diagnostic bundle | no prefix / `LifecycleDiagnosticBundleV1` | summary/report path-SHA entries sorted by portable path |
 | LX-HI-16 repair attempt | `repair-attempt-sha256:` / `C6RepairAttemptV1` | familyId, repairClass, attemptNumber, inputFingerprint, nullable outputFingerprint, expectedChangeMeasure, observedChange, outcome, evidence set |
 | LX-HI-17 accounting row | `lifecycle-accounting-sha256:` / `LifecycleAccountingV1` | owningArray, stageId, subjectKind, subjectId, reasonCode, attribution, evidence set |
 | LX-HI-18 residual issue | `residual-issue-sha256:` / `C6ResidualIssueV1` | familyId, issueClass, subjectIds set, failureAttribution, evidence set |
+| LX-HI-19 capability suitability requirement | `capability-suitability-requirement-sha256:` / `C5CapabilitySuitabilityRequirementV1` | decisionPolicyFingerprint, familyId, capabilityId, routeKind, candidateMemberIds set, nullable selectedRepresentativeAssetObjectId, requiredEvidenceKinds set |
+| LX-HI-20 capability suitability assessment | `capability-suitability-assessment-sha256:` / `C5CapabilitySuitabilityAssessmentV1` | suitabilityRequirementId, assessmentStatus, nullable evidencePackageId, expectedInputFingerprint, nullable observedInputFingerprint |
+| LX-HI-21 evidence requirement input | no prefix / `C5EvidenceRequirementInputV1` | policySetFingerprint, decisionPolicyFingerprint, requirementId, requirementKind, nullable representativeAssetObjectId, inputStaticFingerprint, requiredEvidenceKinds set |
 
-`factContractFingerprint`, `policySetFingerprint`, and `decisionPolicyFingerprint` are CT-04 SHA-256 over the exact bytes of LC-I13, LC-I07, and LC-I11 respectively. LC-I07 does not contain policySetFingerprint; C3-C6 compute it externally from the complete accepted registry bytes. Content changes always change the fingerprint even when version text is unchanged; version reuse with different bytes is invalid.
+`factContractFingerprint`, `policySetFingerprint`, and `decisionPolicyFingerprint` are CT-04 SHA-256 over the exact bytes of LC-I13, LC-I07, and LC-I11 respectively. LC-I07 does not contain policySetFingerprint and LC-I11 does not contain decisionPolicyFingerprint; consumers compute both externally from the complete accepted registry bytes. Content changes always change the fingerprint even when version text is unchanged; version reuse with different bytes is invalid.
 
 `inputStaticFingerprint` is LX-HI-14 over the exact current C4-O01, C4-O02, and C4-O03 summary/report artifact set for the generation. `inputEvidenceFingerprint` is LX-HI-14 over the exact current C5-O01, C5-O02, and C5-O04 summary/report artifact set. `repairHistoryFingerprint` is CT-04 SHA-256 over the exact LC-I12 bytes; the exact empty-attempts artifact therefore has a real non-null fingerprint. These three fingerprints are calculated from registered bytes and cannot be display constants.
+
+LX-HI-21 is computed once per C5-O01 requirement after representative selection. Its inputStaticFingerprint is the exact current C4 generation defined above. A null representative remains a distinct framed null. LC-I10 copies this digest as inputFingerprint and C5-O02 copies it as expectedInputFingerprint; observedInputFingerprint is the package value when a package exists. Any policy byte, requirement identity/type, representative, static generation, or required-evidence change therefore makes old evidence stale without reading a filename or display field.
 
 Each LC-I10 observation digest is the independently framed record `C5EvidenceObservationV1` over evidenceKind, outcome, contentFingerprint, and evidence set, in that order. LX-HI-10 sorts those complete nested records by their lowercase SHA-256. No unregistered observation digest is allowed.
 
@@ -1159,6 +1247,22 @@ The selected representative, when non-null, belongs to the same family, is C4 St
 
 Evidence absence, staleness, Unity unavailability, or representative rejection is a valid C5 assessment outcome, not a C5 contract failure. C5 never writes EvidenceAccepted without exact package freshness and complete required Passed evidence kinds.
 
+### SP-51 C5 capability-suitability subjects
+
+Universe: one LX-HI-19 requirement for every LC-I11-admitted `(familyId,capabilityId,routeKind)` tuple. Partitions are exactly:
+
+```text
+capabilitySuitabilityRequirementCount
+= suitabilityRequiredCount
+ + suitabilityAcceptedCount
+ + suitabilityMissingCount
+ + suitabilityStaleCount
+ + suitabilityExecutionUnavailableCount
+ + suitabilityRejectedCount
+```
+
+The family must match the capability's lane/family kind and, for Actor capabilities, its exact ActorRole. The route must be in both LC-I07 and LC-I11 for that capability. Every subject has one LX-HI-20 assessment. SuitabilityAccepted requires exact fresh Passed `CapabilitySuitability` evidence for that subject; evidence for another capability, route, family, or requirement is nonmatching. Missing, stale, unavailable, and rejected suitability are valid C5 outcomes and produce C7 requests where applicable; they never become inferred success.
+
 ### SP-60 C6 family decision subjects
 
 Universe: every C3 family. Partitions are the seven existing disposition values:
@@ -1208,11 +1312,11 @@ requiredCapabilityCount
  + blockedCapabilityCount
 ```
 
-Satisfied requires at least one exact matching capability rule, a qualifying family/route, all rule-required evidence accepted, and only an allowed family decision. RepairOnce, NeedsDiagnosis, RetainForLater, DiagnosticOnly, and Stop never satisfy a capability.
+Satisfied requires at least one exact matching capability rule, a qualifying family/route, all rule-required evidence accepted, the exact C5 capability/route suitability assessment SuitabilityAccepted, and only an allowed family decision. RepairOnce, NeedsDiagnosis, RetainForLater, DiagnosticOnly, and Stop never satisfy a capability.
 
 PrototypeReplacement may satisfy only a rule whose `allowedFamilyDecisions` explicitly includes it and whose original source members are in AcceptedReplacementSourcePool. Thus authoring readiness can be true while OriginalAssetBatchCoverage is less than 100 percent; the two conclusions remain independent.
 
-Capability status is exact: Satisfied follows the rule above; Blocked means at least one policy-eligible family exists but its current decision/evidence state is NeedsDiagnosis, RepairOnce, PrototypeReplacement without accepted required route evidence, RetainForLater, or another nonterminal route; Unsatisfied means no policy-eligible family/route exists or every eligible family is DiagnosticOnly or Stop.
+Capability status is exact: Satisfied follows the rule above; Blocked means at least one policy-eligible family exists but its current decision/evidence state is NeedsDiagnosis, RepairOnce, PrototypeReplacement without accepted required route evidence, RetainForLater, SuitabilityRequired, SuitabilityMissing, SuitabilityStale, or SuitabilityExecutionUnavailable; Unsatisfied means no policy-eligible family/route exists, every eligible family is DiagnosticOnly or Stop, or every otherwise eligible exact route has SuitabilityRejected.
 
 ```text
 StellaSora2AuthoringReady
@@ -1232,12 +1336,14 @@ C6 applies one deterministic rule in this exact order after all inputs are fresh
 2. `HardStopRule`: any LC-I11 hard-stop failure class -> Stop.
 3. `NeedsDiagnosisRule`: missing, conflicting, or non-unique failure attribution or decision input -> NeedsDiagnosis.
 4. `RepairOnceRule`: exactly one eligible repair rule, required inputs present, measurable expected change defined, and no matching LC-I12 attempt row -> RepairOnce.
-5. `PrototypeReplacementRule`: exactly one eligible replacement rule, every named original-media static check Passed, and every required replacement-route evidence kind accepted -> PrototypeReplacement.
-6. `UseOriginalAssetRule`: every member StaticPassed, every C5 requirement EvidenceAccepted, no missing/stale/unavailable/rejected requirement, and no unresolved C3 reference -> UseOriginalAsset.
-7. `RetainForLaterRule`: every member StaticPassed but at least one requirement is EvidenceMissing, EvidenceStale, or UnityExecutionUnavailable -> RetainForLater.
+5. `PrototypeReplacementRule`: exactly one eligible replacement rule, a nonempty actionable failure-class set within the rule, every named original-media static check Passed, and every required replacement-route evidence kind accepted -> PrototypeReplacement.
+6. `UseOriginalAssetRule`: every member StaticPassed, every C5 risk-variant requirement EvidenceAccepted, no missing/stale/unavailable/rejected risk requirement, and no unresolved C3 reference -> UseOriginalAsset.
+7. `RetainForLaterRule`: every member StaticPassed but at least one risk-variant requirement is EvidenceMissing, EvidenceStale, or UnityExecutionUnavailable -> RetainForLater.
 8. `TerminalStopRule`: any remaining valid terminal asset outcome -> Stop.
 
 Two matching repair/replacement/decision rules are a contract conflict, not a tie to be broken by order. RepairOnce can be emitted only before the one allowed attempt. The same failure after that attempt evaluates again without RepairOnce eligibility.
+
+SP-51 capability-suitability outcomes never change the family decision selected above. They affect only SP-61: a reusable or replacement family may remain valid while one capability/route is Blocked or Unsatisfied. This prevents a CombatSfx suitability rejection from turning an otherwise reusable BGM family into an asset-level rejection.
 
 ---
 
@@ -1261,7 +1367,7 @@ Contract failures differ from valid asset/evidence outcomes. A contract failure 
 | LF-12 | C5 package stale | requirement ID | EvidenceStale | C5 Passed outputs allowed | Request fresh evidence only |
 | LF-13 | C7/G4 reports unavailable | requirement ID | UnityExecutionUnavailable | C5 Passed outputs allowed | Preserve distinction from rejection |
 | LF-14 | Required evidence rejects representative | requirement ID | RepresentativeRejected | C5 Passed outputs allowed | C6 decides diagnosis/repair/replacement/stop |
-| LF-15 | C5 package identity/manifest mismatch, duplicate assessment, or requirement conservation mismatch | artifact, requirement, or C5 conservation check | one contract failure | C5 diagnostic only | Correct evidence authority/producer |
+| LF-15 | C5 package identity/manifest mismatch, duplicate risk/suitability assessment, wrong capability/route evidence, or requirement conservation mismatch | artifact, requirement, or C5 conservation check | one contract failure | C5 diagnostic only | Correct evidence authority/producer |
 | LF-16 | C6 stale child, duplicate/missing family/member, or family/member conservation mismatch | C6 freshness/conservation check | one contract failure | C6 diagnostic only | Correct exact owning input; do not rerun heavy work implicitly |
 | LF-17 | C6 zero/multiple decision rule or invalid decision transition | familyId | one contract failure | C6 diagnostic only | Correct LC-I11 or source attribution |
 | LF-18 | C6 capability projection contradiction or loss | capabilityId or capability conservation check | one contract failure | C6 diagnostic only | Correct capability policy/projection |
@@ -1296,6 +1402,8 @@ Reason codes are exact:
 | LF-21 | ProjectionInvalid |
 
 `PrerequisiteUnavailable` is reserved for inputSuppressions and `SuppressedByGate` for derived outputFailures. Valid qualification outcomes LF-04, LF-06 when uniquely attributable, LF-07, LF-08, and LF-10 through LF-14 do not enter inputFailures merely because their asset/evidence outcome is non-passing.
+
+LF-10 through LF-14 also own the parallel SP-51 outcomes for a suitabilityRequirementId: no StaticPassed candidate -> SuitabilityRequired; no package -> SuitabilityMissing; stale package -> SuitabilityStale; Unavailable execution -> SuitabilityExecutionUnavailable; Rejected CapabilitySuitability observation -> SuitabilityRejected. They reuse the same LF reasonCode and remain valid C5 rows. A package bound to the wrong capability or route is instead LF-15 and suppresses all C5 success outputs.
 
 Logical output conservation is fixed:
 
@@ -1338,6 +1446,9 @@ Implementation plans and completion verification must instantiate these from zer
 | Evidence package exists for wrong requirement | LF-15; not EvidenceAccepted |
 | Evidence input fingerprint changed | EvidenceStale; C3/C4 fingerprints unchanged |
 | Unity unavailable | UnityExecutionUnavailable, not RepresentativeRejected and not EvidenceMissing |
+| Looped audio has no BGM suitability package | SuitabilityMissing for PlayableBgmRoute; LoopMode/LoopBehavior never supplies BGM identity |
+| One audio representative has BGM suitability but no combat-SFX suitability | BGM tuple may pass; PlayableCombatSfx remains Blocked/Unsatisfied according to its own suitability partition |
+| Suitability package names the right capability but wrong route | LF-15; no SuitabilityAccepted and no cross-route reuse |
 | Static all pass but one required evidence missing | RetainForLater, never UseOriginalAsset |
 | One hard-stop member and one good member | family Stop; both member rows retained and nonaccepted members isolated |
 | Eligible replacement route uses qualified original media | PrototypeReplacement may satisfy an explicitly allowed capability but adds zero OriginalAssetBatchCoverage |
@@ -1349,7 +1460,7 @@ Implementation plans and completion verification must instantiate these from zer
 | C5 attempts Unity | LF-20; no success outputs |
 | Failed stage leaves stale success files | consumer rejects generation by fingerprint |
 
-Every counterexample must verify all simultaneous SP-30/SP-31/SP-40/SP-50/SP-60/SP-61 formulas that are applicable, exact failure ownership, and the stage output vector.
+Every counterexample must verify all simultaneous SP-30/SP-31/SP-40/SP-50/SP-51/SP-60/SP-61 formulas that are applicable, exact failure ownership, and the stage output vector.
 
 ---
 
@@ -1363,7 +1474,7 @@ Refresh boundaries are exact:
 - C3 output change -> rerun C4, C5, C6.
 - C4 static evidence or output change -> rerun C4, C5, C6; C3 remains unchanged.
 - LC-I09/I10 C7/G4 evidence change -> rerun C5 and C6 only.
-- LC-I11 decision/capability policy change -> rerun C6 only.
+- LC-I11 decision/capability policy change -> rerun C5, then C6; C3 and C4 remain unchanged.
 - LC-I12 repair-attempt history change -> rerun C6 only.
 - G5 schema/aggregation change -> rerun G5 only when C6-O04 remains current.
 
@@ -1373,14 +1484,14 @@ No refresh may launch Unity, extraction, import, or another stage unless its exa
 
 ## Phase A Implementation Preconditions And Sequence
 
-This design grants no C3-C6 implementation. LC-I13, the pure LC-I06 fixture-only projection, and the LC-I07 strong lane-policy registry/schema/fixtures are complete. Before C3 begins, separate reviewed Tasks must still complete the LC-I11 decision policy schema/fixture, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
+This design grants no C3-C6 implementation. LC-I13, the pure LC-I06 fixture-only projection, the LC-I07 strong lane-policy registry/schema/fixtures, and the logical LC-I11 decision/capability contract are complete. Before C3 begins, separate reviewed Tasks must still implement the LC-I11 registry/schema/fixtures, LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
 
 The later implementation sequence is:
 
-1. Remaining fixture-only artifact Tasks for LC-I11, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 and LC-I07 are complete, while LC-I06 remains outside SP-09 publication.
+1. Remaining fixture-only artifact Tasks for the closed LC-I11 contract, LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13 and LC-I07 are complete, while LC-I06 remains outside SP-09 publication.
 2. C3 family registry Task; prove SP-30/SP-31 and C3 output vector.
 3. C4 static qualification Task; prove every lane check matrix and SP-40.
-4. C5 requirement/evidence Task; prove all six statuses and SP-50 without C7/G4 execution.
+4. C5 requirement/evidence Task; prove all six risk statuses, all six suitability statuses, SP-50, and SP-51 without C7/G4 execution.
 5. C6 decision/ledger Task; prove precedence, coverage/readiness independence, SP-60/SP-61, and G5-only handoff.
 6. Independent C3-C6 completion audit across all fixed counterexamples.
 
@@ -1395,6 +1506,7 @@ The design is closed only when all of the following remain true under review:
 - every lane difference is a typed, versioned, fingerprinted policy row rather than component-local interpretation;
 - every required static check has one terminal C4 outcome and Unchecked is never Passed;
 - every risk variant has one C5 requirement and one of the six exact assessment states;
+- every admitted family/capability/route tuple has one C5 suitability requirement and one of the six exact suitability states;
 - C5 does not run Unity and C7/G4 cannot mutate C3/C4 facts;
 - C6 is the sole decision/ledger owner and does not rerun or reinterpret child gates;
 - OriginalAssetBatchCoverage and StellaSora2AuthoringReady are independently conserved and projected;
