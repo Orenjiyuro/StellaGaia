@@ -21,6 +21,7 @@ $vocabulary=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset
 
 function Clone-Value($Value){$Value|ConvertTo-Json -Depth 100|ConvertFrom-Json -Depth 100 -DateKind String}
 function Get-Sha256([string]$Text){[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text))).ToLowerInvariant()}
+function CanonicalJson($Value){(($Value|ConvertTo-Json -Depth 100)-replace"`r`n","`n")+"`n"}
 function Scalar([string]$Name,[string]$Value){"${Name}:$([Text.Encoding]::UTF8.GetByteCount($Value)):${Value}`n"}
 function SetFrame([string]$Name,[string[]]$Values){$ordered=@($Values|Sort-Object -CaseSensitive -Unique);$count=[string]$ordered.Count;$text="${Name}.count:$([Text.Encoding]::UTF8.GetByteCount($count)):$count`n";for($i=0;$i-lt$ordered.Count;$i++){$text+=Scalar "${Name}[$i]" $ordered[$i]};$text}
 function ObservationFrame($Observation){"C5EvidenceObservationV1`n"+(Scalar evidenceKind $Observation.evidenceKind)+(Scalar outcome $Observation.outcome)+(Scalar contentFingerprint $Observation.contentFingerprint)+(SetFrame evidence @($Observation.evidence))}
@@ -49,20 +50,21 @@ foreach($family in $familyRegistry.families){
 $inputStaticFingerprint=Get-StaticInputFingerprint
 
 function Run-Kernel($Facts,$Packages){
-    Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows $Facts -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages $Packages
+    $packageBytes=@($Packages|ForEach-Object{CanonicalJson $_})
+    Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows $Facts -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages $Packages -EvidencePackageBytes $packageBytes
 }
 
 $base=Run-Kernel @($riskFacts) @()
 if($base.status-cne'Passed'){throw "C5-0 base failed: $($base.issues -join '; ')"}
 $unboundLanePolicy=Clone-Value $lanePolicy;$unboundLanePolicy.policySetVersion='9.9.9'
-$unboundLane=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $unboundLanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+$unboundLane=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $unboundLanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @() -EvidencePackageBytes @()
 if($unboundLane.status-cne'Failed'-or$unboundLane.issues-cnotcontains'LC-I07 execution object does not match accepted bytes.'){throw 'C5 LC-I07 object/bytes binding RED failed.'}
 $unboundDecisionPolicy=Clone-Value $decisionPolicy;$unboundDecisionPolicy.decisionPolicyVersion='9.9.9'
-$unboundDecision=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $unboundDecisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+$unboundDecision=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $unboundDecisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @() -EvidencePackageBytes @()
 if($unboundDecision.status-cne'Failed'-or$unboundDecision.issues-cnotcontains'LC-I11 execution object does not match accepted bytes.'){throw 'C5 LC-I11 object/bytes binding RED failed.'}
 $tuplePolicy=Clone-Value $lanePolicy;$tupleAxis=@($tuplePolicy.policies|Where-Object lane -CEQ Audio)[0].riskAxisDefinitions[0];[Array]::Reverse($tupleAxis.sourceFactKinds)
 $tupleBytes=(($tuplePolicy|ConvertTo-Json -Depth 100)-replace"`r`n","`n")+"`n"
-$tupleResult=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $tuplePolicy -LanePolicyBytes $tupleBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+$tupleResult=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $tuplePolicy -LanePolicyBytes $tupleBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @() -EvidencePackageBytes @()
 $baseAudioVariants=@($base.requirements|Where-Object{$_.familyId-ceq(@($familyRegistry.families|Where-Object lane -CEQ Audio)[0].familyId)}|ForEach-Object riskVariantId)
 $tupleAudioVariants=@($tupleResult.requirements|Where-Object{$_.familyId-ceq(@($familyRegistry.families|Where-Object lane -CEQ Audio)[0].familyId)}|ForEach-Object riskVariantId)
 if((@($baseAudioVariants|Sort-Object)-join',')-ceq(@($tupleAudioVariants|Sort-Object)-join',')){throw 'C5 Tuple positional identity RED failed.'}
@@ -104,6 +106,9 @@ $riskPassedObservations=@($riskRequirement.requiredEvidenceKinds|ForEach-Object{
 $riskAcceptedPackage=New-Package $riskRequirement RiskVariant StaticHumanReview Completed $riskPassedObservations
 $riskAccepted=Run-Kernel @($riskFacts) @($riskAcceptedPackage)
 if($riskAccepted.status-cne'Passed'-or$riskAccepted.evidenceAcceptedCount-ne1-or$riskAccepted.evidenceMissingCount-ne11-or@($riskAccepted.assessments|Where-Object assessmentStatus -CEQ EvidenceAccepted)[0].missingEvidenceKinds.Count-ne0){throw 'Fresh complete risk evidence was not accepted.'}
+$differentRiskBytes=Clone-Value $riskAcceptedPackage;$differentRiskBytes.generatedAt='2026-07-16T05:00:01Z'
+$unboundEvidence=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @($riskAcceptedPackage) -EvidencePackageBytes @((CanonicalJson $differentRiskBytes))
+if($unboundEvidence.status-cne'Failed'-or$unboundEvidence.issues-cnotcontains'LC-I10 execution object does not match accepted bytes.'){throw 'C5 LC-I10 object/bytes binding failed.'}
 $riskStalePackage=Clone-Value $riskAcceptedPackage;$riskStalePackage.inputFingerprint=('b'*64);$riskStalePackage=Update-PackageId $riskStalePackage;$riskStale=Run-Kernel @($riskFacts) @($riskStalePackage)
 if($riskStale.status-cne'Passed'-or$riskStale.evidenceStaleCount-ne1-or$riskStale.evidenceMissingCount-ne11-or@($riskStale.assessments|Where-Object assessmentStatus -CEQ EvidenceStale)[0].failureAttribution-cnotlike'LF-12:*'){throw 'Freshness mismatch did not produce EvidenceStale.'}
 $riskRejectedPackage=Clone-Value $riskAcceptedPackage;$riskRejectedPackage.observations[0].outcome='Rejected';$riskRejectedPackage=Update-PackageId $riskRejectedPackage;$riskRejected=Run-Kernel @($riskFacts) @($riskRejectedPackage)
@@ -138,8 +143,23 @@ $directInputSpecs=[ordered]@{
 }
 $directInputs=@($directInputSpecs.GetEnumerator()|ForEach-Object{[pscustomobject][ordered]@{artifactId=[string]$_.Key;path=[string]$_.Value;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $_.Value)).Hash.ToLowerInvariant()}})
 $stage=[pscustomobject][ordered]@{generatedAt='2026-07-16T06:00:00Z';snapshotId=$familyRegistry.snapshotId;toolVersions=@('C5RequirementEvidenceGate:1.0.0');directInputs=$directInputs}
-function Run-Gate($Packages,$StageValue=$stage){
-    Invoke-C5RequirementEvidenceGate -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -EvidencePackages $Packages -Stage $StageValue
+function New-EvidenceAuthority($Packages,[string]$RequirementGenerationFingerprint){
+    $packageBytes=@($Packages|ForEach-Object{CanonicalJson $_})
+    $entryList=[Collections.Generic.List[object]]::new()
+    for($index=0;$index-lt$Packages.Count;$index++){
+        $package=$Packages[$index];$suffix=([string]$package.evidencePackageId).Substring('evidence-package-sha256:'.Length)
+        $entryList.Add([pscustomobject][ordered]@{path="Tools/AssetImport/Fixtures/FamilyQualificationGate/Evidence/$suffix.json";sha256=Get-Sha256 $packageBytes[$index];evidencePackageId=$package.evidencePackageId;requirementId=$package.requirementId})
+    }
+    $entryList.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.path,[string]$b.path)})
+    $manifest=[pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T05:30:00Z';inputFingerprint=$RequirementGenerationFingerprint;entries=@($entryList.ToArray())}
+    $manifestBytes=CanonicalJson $manifest
+    $authorityStage=Clone-Value $stage
+    $authorityStage.directInputs=@($authorityStage.directInputs)+@([pscustomobject][ordered]@{artifactId='LC-I09';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json';sha256=Get-Sha256 $manifestBytes})+@($manifest.entries|ForEach-Object{[pscustomobject][ordered]@{artifactId='LC-I10';path=$_.path;sha256=$_.sha256}})
+    [pscustomobject]@{manifest=$manifest;manifestBytes=$manifestBytes;packages=$Packages;packageBytes=$packageBytes;stage=$authorityStage}
+}
+function Run-Gate($Packages,$StageValue=$stage,$Manifest=$null,$ManifestBytes=$null,$PackageBytes=$null){
+    if($null-eq$PackageBytes){$PackageBytes=@($Packages|ForEach-Object{CanonicalJson $_})}
+    Invoke-C5RequirementEvidenceGate -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -EvidenceManifest $Manifest -EvidenceManifestBytes $ManifestBytes -EvidencePackages $Packages -EvidencePackageBytes $PackageBytes -Stage $StageValue
 }
 $gate=Run-Gate @()
 if($gate.gateStatus-cne'Passed'-or(@($gate.PSObject.Properties.Name)-join',')-cne'gateStatus,representativeRequirements,evidenceAssessment,c7EvidenceRequest,summary,report,texts,executorLaunchCount,heavyOperationCount'){throw 'C5-2 Passed result vector shape failed.'}
@@ -156,6 +176,32 @@ if($gate.summary.coverage.capabilitySuitabilityRequirementCount-ne($gate.summary
 $requestShape='requirementId,requirementKind,familyId,lane,capabilityId,routeKind,representativeAssetObjectId,requiredEvidenceKinds,reasonCode,priority,evidence'
 foreach($request in $gate.c7EvidenceRequest.requests){if((@($request.PSObject.Properties.Name)-join',')-cne$requestShape-or$request.reasonCode -CNotIn @('EvidenceMissing','EvidenceStale','UnityExecutionUnavailable','SuitabilityMissing','SuitabilityStale','SuitabilityExecutionUnavailable')){throw 'C5-O03 request shape or reason failed.'};if($request.requirementKind-ceq'RiskVariant'-and($null-ne$request.capabilityId-or$null-ne$request.routeKind-or$request.priority-cne'Coverage')){throw 'C5-O03 risk request typing failed.'};if($request.requirementKind-ceq'CapabilitySuitability'-and($null-eq$request.capabilityId-or$null-eq$request.routeKind-or$request.priority-cne'RequiredCapability')){throw 'C5-O03 suitability request typing failed.'}}
 if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.policySetFingerprint-cne'7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862'-or$gate.summary.decisionPolicyFingerprint-cne'82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a'){throw 'C5 exact-byte input/policy fingerprints failed.'}
+$authority=New-EvidenceAuthority @($riskAcceptedPackage) $gate.summary.inputFingerprint
+$authorityGate=Run-Gate $authority.packages $authority.stage $authority.manifest $authority.manifestBytes $authority.packageBytes
+if($authorityGate.gateStatus-cne'Passed'-or$authorityGate.summary.directInputs.Count-ne16-or$authorityGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint-or$authorityGate.summary.coverage.evidenceAcceptedCount-ne1-or$authorityGate.summary.coverage.evidenceMissingCount-ne11){throw 'LC-I09/LC-I10 authority did not produce one exact accepted evidence result.'}
+$newGenerationPackage=Clone-Value $riskAcceptedPackage;$newGenerationPackage.generatedAt='2026-07-16T05:00:02Z'
+$newAuthority=New-EvidenceAuthority @($newGenerationPackage) $gate.summary.inputFingerprint
+$newGenerationGate=Run-Gate $newAuthority.packages $newAuthority.stage $newAuthority.manifest $newAuthority.manifestBytes $newAuthority.packageBytes
+if($newGenerationGate.gateStatus-cne'Passed'-or$newGenerationGate.summary.coverage.evidenceAcceptedCount-ne1-or$newGenerationGate.summary.inputFingerprint-ceq$authorityGate.summary.inputFingerprint){throw 'LC-I10 exact-byte generation change did not refresh C5 inputFingerprint.'}
+$wrongManifestFingerprint=Clone-Value $authority.manifest;$wrongManifestFingerprint.inputFingerprint=('0'*64);$wrongManifestBytes=CanonicalJson $wrongManifestFingerprint
+$wrongManifestStage=Clone-Value $authority.stage;@($wrongManifestStage.directInputs|Where-Object artifactId -CEQ 'LC-I09')[0].sha256=Get-Sha256 $wrongManifestBytes
+$wrongManifestGate=Run-Gate $authority.packages $wrongManifestStage $wrongManifestFingerprint $wrongManifestBytes $authority.packageBytes
+if($wrongManifestGate.gateStatus-cne'Failed'-or$wrongManifestGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-15:C5:EvidenceContract'){throw 'LC-I09 stale requirement-generation fingerprint did not fail closed.'}
+$unboundManifest=Clone-Value $authority.manifest;$unboundManifest.generatedAt='2026-07-16T05:30:01Z'
+$unboundManifestGate=Run-Gate $authority.packages $authority.stage $unboundManifest $authority.manifestBytes $authority.packageBytes
+if($unboundManifestGate.gateStatus-cne'Failed'){throw 'LC-I09 object/bytes mismatch did not fail closed.'}
+$wrongManifestDirectStage=Clone-Value $authority.stage;@($wrongManifestDirectStage.directInputs|Where-Object artifactId -CEQ 'LC-I09')[0].sha256=('0'*64)
+$wrongManifestDirectGate=Run-Gate $authority.packages $wrongManifestDirectStage $authority.manifest $authority.manifestBytes $authority.packageBytes
+if($wrongManifestDirectGate.gateStatus-cne'Failed'){throw 'LC-I09 direct-input SHA mismatch did not fail closed.'}
+$wrongEntrySha=Clone-Value $authority.manifest;$wrongEntrySha.entries[0].sha256=('0'*64);$wrongEntryBytes=CanonicalJson $wrongEntrySha
+$wrongEntryStage=Clone-Value $authority.stage;@($wrongEntryStage.directInputs|Where-Object artifactId -CEQ 'LC-I09')[0].sha256=Get-Sha256 $wrongEntryBytes
+$wrongEntryGate=Run-Gate $authority.packages $wrongEntryStage $wrongEntrySha $wrongEntryBytes $authority.packageBytes
+if($wrongEntryGate.gateStatus-cne'Failed'){throw 'LC-I09 package SHA mismatch did not fail closed.'}
+$missingPackageInputStage=Clone-Value $authority.stage;$missingPackageInputStage.directInputs=@($missingPackageInputStage.directInputs|Where-Object artifactId -CNE 'LC-I10')
+$missingPackageInputGate=Run-Gate $authority.packages $missingPackageInputStage $authority.manifest $authority.manifestBytes $authority.packageBytes
+if($missingPackageInputGate.gateStatus-cne'Failed'){throw 'Missing LC-I10 direct input did not fail closed.'}
+$orphanPackageGate=Run-Gate @($riskAcceptedPackage)
+if($orphanPackageGate.gateStatus-cne'Failed'){throw 'LC-I10 package without LC-I09 authority did not fail closed.'}
 if((@($gate.representativeRequirements.requirements.requirementId|Sort-Object)-join',')-cne(@($base.requirements.requirementId|Sort-Object)-join',')){throw 'C5 gate changed kernel requirement identities.'}
 if($gate.report.Contains("`r")-or-not$gate.report.EndsWith("`n")-or$gate.report.EndsWith("`n`n")){throw 'C5 report byte format failed.'}
 $outputTextById=@{'C5-O01'=$gate.texts.representativeRequirements;'C5-O02'=$gate.texts.evidenceAssessment;'C5-O03'=$gate.texts.c7EvidenceRequest;'C5-O04-Report'=$gate.report}

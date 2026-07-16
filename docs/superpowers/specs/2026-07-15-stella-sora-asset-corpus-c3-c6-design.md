@@ -669,7 +669,9 @@ Family `staticOutcome` is StaticQualified only when every member is StaticPassed
 
 ### 1.7 C5 input and output shapes
 
-LC-I09 top level is exactly `schemaVersion`, `generatedAt`, `inputFingerprint`, `entries`. Each entry is exactly `path`, `sha256`, `evidencePackageId`, `requirementId`. Paths and identities are unique and Ordinal sorted. Every requirementId resolves to exactly one C5-O01 risk-variant or capability-suitability requirement; cross-array duplicates are invalid.
+LC-I09 top level is exactly `schemaVersion`, `generatedAt`, `inputFingerprint`, `entries`. Its `inputFingerprint` is the LX-HI-14 fingerprint of the exact current C5 direct-input set before LC-I09/LC-I10 are added; it therefore equals the `inputFingerprint` of the no-evidence C5-O01 requirement generation consumed by C7/G4. Each entry is exactly `path`, `sha256`, `evidencePackageId`, `requirementId`. Paths and identities are unique and Ordinal sorted. Every requirementId resolves to exactly one C5-O01 risk-variant or capability-suitability requirement; cross-array duplicates are invalid.
+
+C5 accepts LC-I09 and LC-I10 only as parsed objects paired with their exact accepted UTF-8 byte streams. It rejects an object/bytes mismatch. The LC-I09 direct-input row must use the registered manifest path and the SHA-256 of the exact manifest bytes. Every LC-I09 entry must resolve one and only one supplied LC-I10 object/bytes pair; its path and SHA must equal the corresponding LC-I10 direct-input row, and its `evidencePackageId` and `requirementId` must equal the package content. No unlisted, missing, duplicate, or extra package/direct-input row is allowed. When LC-I09 is absent, the manifest bytes, LC-I10 objects/bytes, and LC-I09/LC-I10 direct-input rows must all be absent. After this authority validation, the complete LC-I09 plus LC-I10 path/SHA set participates in the current C5 LX-HI-14, so any manifest byte or evidence-package byte change changes the C5 generation fingerprint even when the framed LX-HI-10 identity remains unchanged.
 
 Each LC-I10 package is exactly:
 
@@ -1125,6 +1127,8 @@ The C3-2 correction checkpoint closes the previously incomplete C3 assignment/re
 
 The exact-byte/Ordinal correction checkpoint is complete for the existing C3-C5 execution path. C3 and C4 now accept the exact LC-I07 byte stream separately from its parsed execution object; C5 does the same for LC-I07 and LC-I11. Each gate rejects an object that is not the parsed content of the bytes used for its fingerprint. Identity, set, subject, and output ordering in the C3-C5 modules uses `StringComparer.Ordinal`, enforced by module-AST regression assertions, and C5 risk-variant framing preserves the positional `sourceFactKinds` Tuple order instead of sorting it. No C6 implementation exists after the blocked C6-0 rollback, so the same binding/Ordinal rule remains a mandatory C6 implementation precondition rather than a completed C6 claim.
 
+The C5 LC-I09/LC-I10 authority correction is complete for the fixture-only gate. The manifest binds the exact no-evidence requirement generation, every manifest row closes over one exact-byte package and one direct-input path/SHA row, and an object/bytes mismatch, absent authority, missing/extra package, or identity/SHA mismatch is LF-15 with diagnostic-only output. LC-I09 and every listed LC-I10 are included in the current C5 LX-HI-14; a package generation byte change therefore refreshes C5 even when evidence semantics and LX-HI-10 remain unchanged. This checkpoint does not create or execute C7/G4, publish C5, or authorize C6.
+
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
 ---
@@ -1503,7 +1507,7 @@ The later implementation sequence is:
 9. C6-1 authoring-ledger output Task; complete ledger v2, SP-60/SP-61, coverage/readiness independence, and the G5-only handoff.
 10. Independent C3-C6 completion audit across all fixed counterexamples.
 
-After independent review, C3-2 and the exact-byte/Ordinal correction are inserted checkpoints between C5-2 and any renewed C6-0 attempt. They complete required support-fact/SP-31 behavior, bind parsed policy objects to the accepted bytes used for fingerprints, and preserve positional Tuple identity. The next separate correction checkpoint must complete C5 LC-I09/LC-I10 manifest/package authority and evidence-generation freshness; this sequence does not authorize that work automatically.
+After independent review, C3-2, the exact-byte/Ordinal correction, and the C5 LC-I09/LC-I10 authority correction are inserted checkpoints between C5-2 and any renewed C6-0 attempt. They complete required support-fact/SP-31 behavior, bind parsed policy/evidence objects to the accepted bytes used for fingerprints, preserve positional Tuple identity, and make evidence-generation bytes part of C5 freshness. These corrections do not authorize C6 automatically.
 
 Each Task remains 20-30 minutes with 2-5 minute Steps, exact files, RED/GREEN evidence, protected-input checks, forbidden-path checks, precise staging, one commit, and a stop checkpoint. No plan authorizes the next Task automatically.
 
