@@ -1113,13 +1113,13 @@ The report is never a machine consumer. Its content fingerprint remains part of 
 
 The current `authoring-reuse-ledger.schema.json` cannot represent member identities, bytes, representative partitions, pool isolation, capability projection, policy fingerprints, or complete direct input fingerprints. C6-O01 cannot be projected losslessly into it. A C0 contract change to authoring reuse ledger v2 is required before C6 implementation.
 
-The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. LC-I12, vocabulary, and ledger-v2 contract work remain required before C3 implementation.
+The current published C2 output set still does not include LC-I06. LC-I13 freezes the package schema and carrier invariants, and the reviewed pure fixture-only C2 typed-fact projection now produces and verifies LC-I06 without changing SP-09. Any published or real-generation LC-I06 still requires a separate reviewed publication contract. LC-I12 remains required only before C6 RepairOnce evaluation, authoring reuse ledger v2 only before C6 output implementation, and each remaining lifecycle vocabulary dimension only when its direct stage consumer begins.
 
 LC-I07's logical and physical registry contract is complete: its non-self-referential fingerprint boundary, exact first-version identity, five policy rows, nested reference sets, NotApplicable/check/axis semantics, capability predicates, repair predicates, ordering, and LF-03 vectors are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical to the registry, focused negative fixtures prove the key fail-closed rules, and the executable contract validator verifies exact-byte formatting, fingerprint, reference closure, row conservation, and capability coverage. This fixture-only completion does not start C3 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
 LC-I11's logical and physical registry contract is complete: it stores no decisionPolicyFingerprint; C5/C6 compute the fingerprint over exact accepted LC-I11 bytes. Its immutable identity, singleton hard-stop set, empty diagnostic-only set, four replacement rules, seven capability rows, exact 13-tuple LC-I07 union, and C5 capability-suitability boundary are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical, focused negative fixtures prove key fail-closed rules, and the executable validator verifies canonical bytes, SHA-256 `82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a`, reference closure, route/capability matching, and tuple conservation. This fixture-only completion does not start C3/C5 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
-The status vocabulary now contains the exact `familyParentStatus` dimension consumed by C3. The exact `memberStaticStatus`, `representativeAssessment`, `capabilitySuitabilityStatus`, `authoringPoolStatus`, and `capabilityStatus` dimensions remain deferred until their direct C4, C5, or C6 consumer begins; component-local aliases are forbidden.
+The status vocabulary now contains the exact `familyParentStatus` dimension consumed by C3 and `memberStaticStatus` dimension consumed by the C4-0 walking skeleton. The exact `representativeAssessment`, `capabilitySuitabilityStatus`, `authoringPoolStatus`, and `capabilityStatus` dimensions remain deferred until their direct C5 or C6 consumer begins; component-local aliases are forbidden.
 
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
@@ -1490,10 +1490,11 @@ The later implementation sequence is:
 
 1. C3-0 pure family-membership walking skeleton; prove the executable SP-30 core and cross-lane-reference independence without publication.
 2. C3-1 family registry Task; complete SP-30/SP-31 and the C3 output vector.
-3. C4 static qualification Task; prove every lane check matrix and SP-40.
-4. C5 requirement/evidence Task; prove all six risk statuses, all six suitability statuses, SP-50, and SP-51 without C7/G4 execution.
-5. C6 decision/ledger Task; prove precedence, coverage/readiness independence, SP-60/SP-61, and G5-only handoff.
-6. Independent C3-C6 completion audit across all fixed counterexamples.
+3. C4-0 pure member-static walking skeleton; consume only `memberStaticStatus` and prove the executable five-lane SP-40 core without publication.
+4. C4-1 static output-vector Task; complete C4-O01/O02/O03 and contract-failure semantics.
+5. C5 requirement/evidence Task; prove all six risk statuses, all six suitability statuses, SP-50, and SP-51 without C7/G4 execution.
+6. C6 decision/ledger Task; prove precedence, coverage/readiness independence, SP-60/SP-61, and G5-only handoff.
+7. Independent C3-C6 completion audit across all fixed counterexamples.
 
 Each Task remains 20-30 minutes with 2-5 minute Steps, exact files, RED/GREEN evidence, protected-input checks, forbidden-path checks, precise staging, one commit, and a stop checkpoint. No plan authorizes the next Task automatically.
 

@@ -52,6 +52,11 @@
     "RetainedForDiagnosis",
     "ConfigurationOnly"
   ],
+  "memberStaticStatus": [
+    "StaticPassed",
+    "StaticFailed",
+    "Unchecked"
+  ],
   "sourceKind": [
     "PcInstall",
     "PcPatchOrCache",

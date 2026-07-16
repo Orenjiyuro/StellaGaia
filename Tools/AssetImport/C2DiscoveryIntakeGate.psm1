@@ -15,7 +15,7 @@ $script:Registry = @(
     [pscustomobject]@{ artifactId='AR-I10'; path='Tools/AssetImport/Fixtures/DiscoveryGate/expected-discovery-inputs.json'; requirement='ConditionalAuthority' }
     [pscustomobject]@{ artifactId='AR-I11'; path='Tools/AssetImport/Fixtures/DiscoveryGate/approved-discovery-input-exclusions.json'; requirement='ConditionalApproval' }
 )
-$script:RequiredHashes=@('548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac','acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462','c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1','b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c','34be62cf31be7d7533a61521325a4a563b2aec962266ac471879dd9d2aa1a3dd','45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449')
+$script:RequiredHashes=@('548803c8dc13e4538008207b5e8f0ecb37620bd65d26056d47f9a35616f97bac','acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462','c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1','b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c','97e9657edd4add13647e7d3a81cd2a53e2c9589ece75c99ef3ba28b6ff1f0f30','45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449')
 $script:MissingProjectionFields=@(
     'structuredObjectCoverage.catalogedContainerCount','structuredObjectCoverage.catalogedContainerBytes','structuredObjectCoverage.nonContainerFileCount','structuredObjectCoverage.nonContainerFileBytes','structuredObjectCoverage.fileDiscoverySubjectCount','structuredObjectCoverage.fileDiscoverySubjectBytes',
     'structuredObjectCoverage.notAttemptedFileCount','structuredObjectCoverage.notAttemptedFileBytes','structuredObjectCoverage.parsedFileCount','structuredObjectCoverage.parsedFileBytes','structuredObjectCoverage.opaqueFileCount','structuredObjectCoverage.opaqueFileBytes','structuredObjectCoverage.failedFileCount','structuredObjectCoverage.failedFileBytes','structuredObjectCoverage.fileDiscoveryConflictFileCount','structuredObjectCoverage.fileDiscoveryConflictFileBytes',
@@ -420,7 +420,7 @@ function Invoke-C2PublicationTransactionCore {
 
 function New-C2PublicationTestSerialization {
     param([ValidateSet('Passed','Failed')][string]$GateStatus,[string]$GeneratedAt='2026-07-15T00:00:00Z')
-    $generatedAt=$GeneratedAt;$snapshotId='snapshot-pc-install-001';$inputFingerprint='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';$discoveryInputFingerprint=if($GateStatus-ceq'Passed'){'8a2e24d787415e8f71546126ca4748fff240c91a1657c89a3e0d7ec93daa69a9'}else{$null}
+    $generatedAt=$GeneratedAt;$snapshotId='snapshot-pc-install-001';$inputFingerprint='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';$discoveryInputFingerprint=if($GateStatus-ceq'Passed'){'bb81f5c24dd6c887bd4b2afad03798143e465262f09e57345dff42243b7b2341'}else{$null}
     $failures=if($GateStatus-ceq'Passed'){@()}else{@('AR-O01','AR-O02','AR-O03','AR-O04')|ForEach-Object{New-C2AccountingRow outputFailures OutputArtifact $_ SuppressedByGate "SuppressedByGate:$_" @()}};$projected=if($GateStatus-ceq'Passed'){5}else{1}
     $texts=@{};for($i=0;$i-lt7;$i++){if($GateStatus-ceq'Passed'-or$i-ge4){$texts[$script:OutputRegistry[$i].path]=if($i-eq4){"report-$GateStatus-$generatedAt`n"}elseif($i-eq5){ConvertTo-C2CanonicalJson ([pscustomobject][ordered]@{generatedAt=$generatedAt;outputFailures=@($failures);outputExclusions=@()})}else{ConvertTo-C2CanonicalJson ([pscustomobject][ordered]@{artifactId=$script:OutputRegistry[$i].artifactId;gateStatus=$GateStatus;generatedAt=$generatedAt;index=$i})}}}
     $nonSummary=@($texts.Keys|ForEach-Object{[pscustomobject][ordered]@{path=$_;sha256=Get-C2Sha256 $script:Utf8.GetBytes([string]$texts[$_])}});$discoveryArtifactFingerprint=Get-C2RegisteredArtifactFingerprint Discovery $GateStatus $nonSummary
@@ -1337,7 +1337,7 @@ function Test-C2FixtureContracts {
         'AR-I02'='schemaVersion,snapshotId,generatedAt,inputFingerprint,toolVersions,sources,files,objects'
         'AR-I03'='schemaVersion,generatedAt,snapshotId,inputFingerprint,ledgerInputFingerprint,ledgerPath,toolVersions,operationIdentity,directChildSummaries,directChildReports,failureAttribution,nextAllowedAction,sourceCount,sourceFileCount,catalogedFileCount,explicitlyExcludedFileCount,sourceBytes,catalogedBytes,explicitlyExcludedBytes,sources,exclusions'
         'AR-I04'='$schema,$id,title,type,required,additionalProperties,properties,$defs'
-        'AR-I05'='schemaVersion,generatedAt,corpus,extraction,semantics,configurationDisposition,unity,disposition,familyStaticOutcome,familyParentStatus,sourceKind'
+        'AR-I05'='schemaVersion,generatedAt,corpus,extraction,semantics,configurationDisposition,unity,disposition,familyStaticOutcome,familyParentStatus,memberStaticStatus,sourceKind'
         'AR-I06'='$schema,$id,title,type,required,additionalProperties,properties,$defs'
         'AR-I07'='schemaVersion,snapshotId,inputFingerprint,rows'
         'AR-I08'='schemaVersion,snapshotId,inputFingerprint,rows'
@@ -1347,7 +1347,7 @@ function Test-C2FixtureContracts {
     foreach($id in $top.Keys){if((@($Documents[$id].PSObject.Properties.Name)-join ',') -cne $top[$id]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id top-level shape"}}}
     foreach($id in @('AR-I04','AR-I06')){if(-not(Test-C2SchemaDocument $Documents[$id])){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId=$id;message="$id schema document semantics"}}}
     try{$ledgerJson=$Documents['AR-I02']|ConvertTo-Json -Depth 100 -Compress;$ledgerSchema=$Documents['AR-I04']|ConvertTo-Json -Depth 100 -Compress;if(-not($ledgerJson|Test-Json -Schema $ledgerSchema -ErrorAction Stop)){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message='ledger schema'}}}catch{return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I02';message="ledger schema: $($_.Exception.Message)"}}
-    $expectedVocabulary=[ordered]@{corpus='Cataloged,Missing,StaleInput';extraction='NotAttempted,ExtractedReadable,CrossToolVerified,Opaque,Failed';semantics='Known,PartiallyKnown,Unknown';configurationDisposition='Parsed,DiscoveredOpaque,Encrypted,RequiresRuntimeType,LikelyServerDependent,NotConfiguration';unity='NotTested,StaticQualified,RepresentativeValidated,Rejected,UnityExecutionUnavailable';disposition='NeedsDiagnosis,UseOriginalAsset,RepairOnce,PrototypeReplacement,RetainForLater,DiagnosticOnly,Stop';familyStaticOutcome='StaticQualified,StaticRejected,NeedsDiagnosis';familyParentStatus='AssignedFamilyMember,RetainedForDiagnosis,ConfigurationOnly';sourceKind='PcInstall,PcPatchOrCache,AndroidApk,AndroidDataOrCache'}
+    $expectedVocabulary=[ordered]@{corpus='Cataloged,Missing,StaleInput';extraction='NotAttempted,ExtractedReadable,CrossToolVerified,Opaque,Failed';semantics='Known,PartiallyKnown,Unknown';configurationDisposition='Parsed,DiscoveredOpaque,Encrypted,RequiresRuntimeType,LikelyServerDependent,NotConfiguration';unity='NotTested,StaticQualified,RepresentativeValidated,Rejected,UnityExecutionUnavailable';disposition='NeedsDiagnosis,UseOriginalAsset,RepairOnce,PrototypeReplacement,RetainForLater,DiagnosticOnly,Stop';familyStaticOutcome='StaticQualified,StaticRejected,NeedsDiagnosis';familyParentStatus='AssignedFamilyMember,RetainedForDiagnosis,ConfigurationOnly';memberStaticStatus='StaticPassed,StaticFailed,Unchecked';sourceKind='PcInstall,PcPatchOrCache,AndroidApk,AndroidDataOrCache'}
     foreach($name in $expectedVocabulary.Keys){if((@($Documents['AR-I05'].$name)-join ',') -cne $expectedVocabulary[$name]){return [pscustomobject]@{status='Failed';owner='FT-02';reason='InvalidSchema';subjectId='AR-I05';message="vocabulary $name"}}}
     $snapshot=$Documents['AR-I01'].snapshotId;$fingerprint=$Documents['AR-I01'].inputFingerprint
     if($snapshot -cne 'snapshot-pc-install-001' -or $Documents['AR-I01'].ledgerPath -cne $script:Registry[1].path -or $Documents['AR-I01'].summaryPath -cne $script:Registry[2].path){return [pscustomobject]@{status='Failed';owner='FT-01';reason='IdentityMismatch';subjectId='C2Check:C1Handoff';message='handoff identity'}}
@@ -1378,7 +1378,7 @@ function Invoke-C2DiscoveryIntakeGateInternal {
         'acb47d05af73235baa6cb3ceccc8639287b8cf38a907292fc0281e7a189db462',
         'c626562bc0e5b13d11417d407deb53eb403496b3953faa131f38aafcc50215e1',
         'b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c',
-        '34be62cf31be7d7533a61521325a4a563b2aec962266ac471879dd9d2aa1a3dd',
+        '97e9657edd4add13647e7d3a81cd2a53e2c9589ece75c99ef3ba28b6ff1f0f30',
         '45a094d25b2e221f46f4f4948c0dae188d3a9a77aa520243f02fd8242038c449'
     )
     $gitExecutable=if($null -eq $GitTransport){(Get-Command git.exe -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source}else{$null}

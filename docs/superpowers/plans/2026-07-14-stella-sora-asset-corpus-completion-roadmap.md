@@ -2,7 +2,7 @@
 
 > **Status:** Approved sequencing and effort-control roadmap. This document grants no implementation, real-asset access, extraction, import, Unity, Phase B, merge, or worktree-removal authority. Each implementation slice still requires its own reviewed central contracts, 20–30 minute Task, and explicit authorization.
 
-**Current baseline:** `codex/asset-corpus-integration` includes the LC-I07 and LC-I11 physical contract checkpoints plus C3-0/C3-1 fixture-only family membership and output-vector execution. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. The C2 Phase B fixture-to-real runbook is written, but Phase B remains unauthorized. C3–C6 responsibilities and input/output contracts are defined; C3 fixture-only outputs are complete, while C3 publication, C4-C6, G5 integration, Phase B execution, and C7/G4 Unity have not started.
+**Current baseline:** `codex/asset-corpus-integration` includes the LC-I07 and LC-I11 physical contract checkpoints, C3-0/C3-1 fixture-only family membership and output-vector execution, and the C4-0 member-static walking skeleton. C0 and C1 Phase A are complete. C2 Phase A intake through SP-09 publication is implemented and its complete fixture-only path has passed completion verification. The C2 Phase B fixture-to-real runbook is written, but Phase B remains unauthorized. C3–C6 responsibilities and input/output contracts are defined; C3 fixture-only outputs and the first runnable C4 member/check partition are complete, while C3 publication, the complete C4 output vector, C5-C6, G5 integration, Phase B execution, and C7/G4 Unity have not started.
 
 ## 1. Program Goal And Definition Of Done
 
@@ -98,6 +98,8 @@ C3-0 walking-skeleton checkpoint: `familyParentStatus` is the only newly introdu
 
 C3-1 output-vector checkpoint: the pure gate now emits byte-frozen C3-O01 family registry, C3-O02 member ledger, C3-O03 reference package, and C3-O04 summary/report fixtures. It computes LX-HI-14 input freshness from the exact direct-input entries, conserves member counts and bytes, partitions references as Resolved/Missing/Conflict, and proves Passed `4/4/0` plus LF-02/LF-03/LF-05 diagnostic-only `4/1/3` vectors. It performs no publication and does not authorize C4 automatically.
 
+C4-0 walking-skeleton checkpoint: `memberStaticStatus` is the only newly introduced lifecycle vocabulary dimension and is consumed immediately by a pure member-static kernel. The fixture-only executable path evaluates all 36 LC-I07 checks across the five assigned lanes, proves member and byte partitions `5 = 3 + 1 + 1` and `1500 = 1000 + 200 + 300`, preserves explicit Failed and Unchecked outcomes, requires every Passed check's complete strongly typed evidence-kind set and computed evidence fingerprint, and rejects missing, duplicate, or invalid check rows. It performs no publication and does not emit the complete C4-O01/O02/O03 vector.
+
 ### R5 — C0 Contract Change And Lightweight G5
 
 Resolve the exact C2/C3–C6 projection gap through one reviewed C0 contract change. Implement G5 as a freshness-validating aggregator only; it must not refresh snapshots, extraction, static gates, or Unity.
@@ -170,6 +172,6 @@ Plans and historical checklists do not grant execution authority.
 
 ## 8. Immediate Next Checkpoint
 
-LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The pure LC-I06 fixture-only producer is implemented against the frozen three-input sub-contract. LC-I07 and LC-I11 each have closed logical and physical contracts; LC-I11 uses an external exact-byte fingerprint and preserves the C5 strong typed capability-suitability evidence boundary. C3-0/C3-1 now supply the complete fixture-only C3 family-membership and output-vector path.
+LC-I13 is frozen as a strict typed lane-fact schema with a valid six-carrier fixture, schema-byte fingerprint binding, duplicate subject/kind rejection, and negative carrier coverage. The pure LC-I06 fixture-only producer is implemented against the frozen three-input sub-contract. LC-I07 and LC-I11 each have closed logical and physical contracts; LC-I11 uses an external exact-byte fingerprint and preserves the C5 strong typed capability-suitability evidence boundary. C3-0/C3-1 supply the complete fixture-only C3 family-membership and output-vector path, and C4-0 supplies the first runnable member-static qualification path.
 
-The next normal Task is **C4-0: add only `memberStaticStatus` and implement the first runnable member-level static-qualification walking skeleton** as a separate 20-30 minute checkpoint. LC-I12 and authoring reuse ledger v2 remain deferred until C6. C3 publication, C2 Phase B execution, real assets, extraction, Unity, import, C5-C6 implementation, G5, and release work remain unauthorized.
+The next normal Task is **C4-1: complete the fixture-only C4-O01/O02/O03 output vector and C4 contract-failure semantics** as a separate 20-30 minute checkpoint. LC-I12 and authoring reuse ledger v2 remain deferred until C6. C3/C4 publication, C2 Phase B execution, real assets, extraction, Unity, import, C5-C6 implementation, G5, and release work remain unauthorized.
