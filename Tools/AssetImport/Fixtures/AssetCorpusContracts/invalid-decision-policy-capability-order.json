@@ -1,0 +1,11 @@
+{
+  "capabilityIds": [
+    "EnemyModelSkeletonAnimationSet",
+    "CombatEffectRoute",
+    "PlayableBgmRoute",
+    "PlayableCombatSfx",
+    "PlayerModelSkeletonAnimationSet",
+    "RecognizableEnvironmentOrMapModules",
+    "ReusableUiGraphicsAndConstructionRoute"
+  ]
+}

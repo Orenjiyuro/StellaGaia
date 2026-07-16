@@ -1,0 +1,8 @@
+{
+  "declarations": [
+    "TextureReadability"
+  ],
+  "references": [
+    "MissingStaticCheck"
+  ]
+}

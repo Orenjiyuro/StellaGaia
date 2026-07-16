@@ -811,6 +811,111 @@ function Get-LanePolicyRegistrySemanticIssues {
     return $result.ToArray()
 }
 
+function Get-DecisionPolicyRegistrySemanticIssues {
+    param(
+        [Parameter(Mandatory)][object] $Registry,
+        [Parameter(Mandatory)][object] $LanePolicyRegistry
+    )
+    $result = [System.Collections.Generic.List[string]]::new()
+    try {
+        if ((@($Registry.PSObject.Properties.Name) -join ',') -cne 'schemaVersion,generatedAt,decisionPolicyId,decisionPolicyVersion,hardStopFailureClasses,diagnosticOnlyFamilyKinds,replacementRules,capabilities') {
+            $result.Add('Decision policy registry top-level shape is not exact.')
+        }
+        if ($null -ne $Registry.PSObject.Properties['decisionPolicyFingerprint']) {
+            $result.Add('Decision policy registry must not store decisionPolicyFingerprint.')
+        }
+        if ($Registry.schemaVersion -cne '1.0.0' -or $Registry.generatedAt -cne '2026-07-16T00:00:00Z' -or $Registry.decisionPolicyId -cne 'StellaSoraAuthoringDecisionPolicy' -or $Registry.decisionPolicyVersion -cne '1.0.0') {
+            $result.Add('Decision policy registry immutable identity is invalid.')
+        }
+        if (-not (Test-LanePolicySetEquals @($Registry.hardStopFailureClasses) @('CoreDataMissing'))) {
+            $result.Add('Decision policy hard-stop failure class set is invalid.')
+        }
+        if (@($Registry.diagnosticOnlyFamilyKinds).Count -ne 0) {
+            $result.Add('Decision policy diagnostic-only family-kind set must be empty.')
+        }
+
+        $replacementIds = @($Registry.replacementRules | ForEach-Object replacementRuleId)
+        $expectedReplacementIds = @('ActorPrototypeControllerReplacement','AudioDecodedRouteReplacement','EffectBehaviorReconstructionReplacement','UiTextureOnlyRebuildReplacement')
+        if (($replacementIds -join ',') -cne ($expectedReplacementIds -join ',')) {
+            $result.Add('Decision policy replacement rules are not the exact Ordinal set.')
+        }
+        $capabilityIds = @($Registry.capabilities | ForEach-Object capabilityId)
+        $expectedCapabilityIds = @('CombatEffectRoute','EnemyModelSkeletonAnimationSet','PlayableBgmRoute','PlayableCombatSfx','PlayerModelSkeletonAnimationSet','RecognizableEnvironmentOrMapModules','ReusableUiGraphicsAndConstructionRoute')
+        if (($capabilityIds -join ',') -cne ($expectedCapabilityIds -join ',')) {
+            $result.Add('Decision policy capabilities are not the exact Ordinal set.')
+        }
+
+        $lanePolicies = @{}
+        foreach ($policy in @($LanePolicyRegistry.policies)) { $lanePolicies[[string]$policy.lane] = $policy }
+        foreach ($rule in @($Registry.replacementRules)) {
+            if ((@($rule.PSObject.Properties.Name) -join ',') -cne 'replacementRuleId,lane,familyKindIds,requiredFailureClasses,requiredStaticCheckIds,requiredAcceptedEvidenceKinds,routeKind,capabilityIds') {
+                $result.Add("Decision policy replacement rule shape is invalid for '$($rule.replacementRuleId)'.")
+            }
+            foreach ($name in @('familyKindIds','requiredFailureClasses','requiredStaticCheckIds','requiredAcceptedEvidenceKinds','capabilityIds')) {
+                if (-not (Test-LanePolicyOrdinalSet @($rule.$name))) {
+                    $result.Add("Decision policy replacement set '$name' is invalid for '$($rule.replacementRuleId)'.")
+                }
+            }
+            $lanePolicy = $lanePolicies[[string]$rule.lane]
+            if ($null -eq $lanePolicy) {
+                $result.Add("Decision policy replacement lane is unresolved: '$($rule.lane)'.")
+                continue
+            }
+            $knownFamilies = @($lanePolicy.familyKinds | ForEach-Object familyKindId)
+            $knownChecks = @($lanePolicy.staticCheckDefinitions | ForEach-Object checkId)
+            foreach ($id in @($rule.familyKindIds)) { if ($knownFamilies -cnotcontains $id) { $result.Add("Decision policy family reference is unresolved: '$id'.") } }
+            foreach ($id in @($rule.requiredStaticCheckIds)) { if ($knownChecks -cnotcontains $id) { $result.Add("Decision policy static-check reference is unresolved: '$id'.") } }
+            foreach ($id in @($rule.capabilityIds)) {
+                $capability = @($Registry.capabilities | Where-Object capabilityId -CEQ $id)
+                if ($capability.Count -ne 1) { $result.Add("Decision policy capability reference is unresolved: '$id'."); continue }
+                if (@($capability[0].eligibleLanes) -cnotcontains $rule.lane -or @($capability[0].eligibleRouteKinds) -cnotcontains $rule.routeKind) {
+                    $result.Add("Decision policy replacement route/capability mismatch for '$($rule.replacementRuleId)/$id'.")
+                }
+            }
+        }
+
+        foreach ($capability in @($Registry.capabilities)) {
+            if ((@($capability.PSObject.Properties.Name) -join ',') -cne 'capabilityId,required,eligibleLanes,eligibleFamilyKindIds,eligibleActorRoles,eligibleRouteKinds,allowedFamilyDecisions,requiredAcceptedEvidenceKinds' -or $capability.required -ne $true) {
+                $result.Add("Decision policy capability identity/shape is invalid for '$($capability.capabilityId)'.")
+            }
+            foreach ($name in @('eligibleLanes','eligibleFamilyKindIds','eligibleActorRoles','eligibleRouteKinds','allowedFamilyDecisions','requiredAcceptedEvidenceKinds')) {
+                if (-not (Test-LanePolicyOrdinalSet @($capability.$name))) {
+                    $result.Add("Decision policy capability set '$name' is invalid for '$($capability.capabilityId)'.")
+                }
+            }
+            foreach ($lane in @($capability.eligibleLanes)) {
+                if (-not $lanePolicies.ContainsKey([string]$lane)) { $result.Add("Decision policy capability lane is unresolved: '$lane'."); continue }
+                $knownFamilies = @($lanePolicies[[string]$lane].familyKinds | ForEach-Object familyKindId)
+                foreach ($id in @($capability.eligibleFamilyKindIds)) { if ($knownFamilies -cnotcontains $id) { $result.Add("Decision policy capability family is unresolved for '$($capability.capabilityId)/$id'.") } }
+            }
+        }
+
+        $decisionTuples = [System.Collections.Generic.List[string]]::new()
+        foreach ($capability in @($Registry.capabilities)) {
+            foreach ($lane in @($capability.eligibleLanes)) {
+                foreach ($family in @($capability.eligibleFamilyKindIds)) {
+                    foreach ($route in @($capability.eligibleRouteKinds)) { $decisionTuples.Add("$($capability.capabilityId)|$lane|$family|$route") }
+                }
+            }
+        }
+        $laneTuples = [System.Collections.Generic.List[string]]::new()
+        foreach ($policy in @($LanePolicyRegistry.policies)) {
+            foreach ($capability in @($policy.capabilityProjectionRules)) {
+                foreach ($family in @($capability.applicableFamilyKinds)) {
+                    foreach ($route in @($capability.requiredRouteKinds)) { $laneTuples.Add("$($capability.capabilityId)|$($policy.lane)|$family|$route") }
+                }
+            }
+        }
+        if ($decisionTuples.Count -ne 13 -or -not (Test-LanePolicySetEquals $decisionTuples.ToArray() $laneTuples.ToArray())) {
+            $result.Add('Decision policy capability projection tuple union does not equal LC-I07.')
+        }
+    }
+    catch {
+        $result.Add("Decision policy registry semantic validation threw: $($_.Exception.Message)")
+    }
+    return $result.ToArray()
+}
+
 function Get-NegativeFixtureSemanticIssues {
     param(
         [Parameter(Mandatory)]
@@ -851,6 +956,44 @@ function Get-NegativeFixtureSemanticIssues {
     if ($PrimaryRule -ceq 'LanePolicyMaxAttempts') {
         if ($Fixture.maxAttempts -ne 1) {
             $fixtureIssues.Add('Lane policy repair maxAttempts must be exactly 1.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'DecisionPolicyStoredFingerprint') {
+        if ($null -ne $Fixture.PSObject.Properties['decisionPolicyFingerprint']) {
+            $fixtureIssues.Add('Decision policy registry must not store decisionPolicyFingerprint.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'DecisionPolicyDiagnosticOnly') {
+        if (@($Fixture.diagnosticOnlyFamilyKinds).Count -ne 0) {
+            $fixtureIssues.Add('Decision policy diagnostic-only family-kind set must be empty.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'DecisionPolicyCapabilityOrder') {
+        $expected = @('CombatEffectRoute','EnemyModelSkeletonAnimationSet','PlayableBgmRoute','PlayableCombatSfx','PlayerModelSkeletonAnimationSet','RecognizableEnvironmentOrMapModules','ReusableUiGraphicsAndConstructionRoute')
+        if ((@($Fixture.capabilityIds) -join ',') -cne ($expected -join ',')) {
+            $fixtureIssues.Add('Decision policy capabilities are not the exact Ordinal set.')
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'DecisionPolicyUnresolvedReference') {
+        foreach ($reference in @($Fixture.references)) {
+            if (@($Fixture.declarations) -cnotcontains $reference) {
+                $fixtureIssues.Add("Decision policy reference is unresolved: '$reference'.")
+            }
+        }
+        return $fixtureIssues.ToArray()
+    }
+
+    if ($PrimaryRule -ceq 'DecisionPolicyTupleUnion') {
+        if (-not (Test-LanePolicySetEquals @($Fixture.actualTuples) @($Fixture.expectedTuples))) {
+            $fixtureIssues.Add('Decision policy capability projection tuple union does not equal LC-I07.')
         }
         return $fixtureIssues.ToArray()
     }
@@ -1219,6 +1362,11 @@ $schemaContracts = @(
         Name = 'c3-c6-lane-policy-registry.schema.json'
         Id = 'https://stellagaia.dev/schemas/c3-c6-lane-policy-registry.schema.json'
         Required = @('schemaVersion', 'generatedAt', 'policySetId', 'policySetVersion', 'policies')
+    },
+    [pscustomobject]@{
+        Name = 'c3-c6-decision-policy-registry.schema.json'
+        Id = 'https://stellagaia.dev/schemas/c3-c6-decision-policy-registry.schema.json'
+        Required = @('schemaVersion', 'generatedAt', 'decisionPolicyId', 'decisionPolicyVersion', 'hardStopFailureClasses', 'diagnosticOnlyFamilyKinds', 'replacementRules', 'capabilities')
     }
 )
 
@@ -1242,6 +1390,10 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-c3-c6-lane-policy-registry.json'
         SchemaName = 'c3-c6-lane-policy-registry.schema.json'
+    },
+    [pscustomobject]@{
+        Name = 'valid-c3-c6-decision-policy-registry.json'
+        SchemaName = 'c3-c6-decision-policy-registry.schema.json'
     }
 )
 
@@ -1300,6 +1452,31 @@ $negativeFixtureContracts = @(
         Name = 'invalid-lane-policy-max-attempts.json'
         Rule = 'LanePolicyMaxAttempts'
         ExpectedIssue = 'Lane policy repair maxAttempts must be exactly 1.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-decision-policy-stored-fingerprint.json'
+        Rule = 'DecisionPolicyStoredFingerprint'
+        ExpectedIssue = 'Decision policy registry must not store decisionPolicyFingerprint.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-decision-policy-diagnostic-only.json'
+        Rule = 'DecisionPolicyDiagnosticOnly'
+        ExpectedIssue = 'Decision policy diagnostic-only family-kind set must be empty.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-decision-policy-capability-order.json'
+        Rule = 'DecisionPolicyCapabilityOrder'
+        ExpectedIssue = 'Decision policy capabilities are not the exact Ordinal set.'
+    },
+    [pscustomobject]@{
+        Name = 'invalid-decision-policy-unresolved-reference.json'
+        Rule = 'DecisionPolicyUnresolvedReference'
+        ExpectedIssue = "Decision policy reference is unresolved: 'MissingStaticCheck'."
+    },
+    [pscustomobject]@{
+        Name = 'invalid-decision-policy-tuple-union.json'
+        Rule = 'DecisionPolicyTupleUnion'
+        ExpectedIssue = 'Decision policy capability projection tuple union does not equal LC-I07.'
     }
 )
 
@@ -1428,6 +1605,24 @@ if ($schemas.ContainsKey('c3-c6-lane-policy-registry.schema.json')) {
     }
 }
 
+if ($schemas.ContainsKey('c3-c6-decision-policy-registry.schema.json')) {
+    $schema = $schemas['c3-c6-decision-policy-registry.schema.json']
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-decision-policy-registry.schema.json' -Path '$defs.replacementRule.required' -Expected @('replacementRuleId', 'lane', 'familyKindIds', 'requiredFailureClasses', 'requiredStaticCheckIds', 'requiredAcceptedEvidenceKinds', 'routeKind', 'capabilityIds')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-decision-policy-registry.schema.json' -Path '$defs.capability.required' -Expected @('capabilityId', 'required', 'eligibleLanes', 'eligibleFamilyKindIds', 'eligibleActorRoles', 'eligibleRouteKinds', 'allowedFamilyDecisions', 'requiredAcceptedEvidenceKinds')
+    if ($null -ne (Get-PropertyByPath -Value $schema -Path 'properties.decisionPolicyFingerprint')) {
+        $issues.Add("Schema 'c3-c6-decision-policy-registry.schema.json' must not define a stored decisionPolicyFingerprint.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path 'properties.replacementRules.minItems') -ne 4 -or (Get-PropertyByPath -Value $schema -Path 'properties.replacementRules.maxItems') -ne 4) {
+        $issues.Add("Schema 'c3-c6-decision-policy-registry.schema.json' must freeze exactly four replacement rules.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path 'properties.capabilities.minItems') -ne 7 -or (Get-PropertyByPath -Value $schema -Path 'properties.capabilities.maxItems') -ne 7) {
+        $issues.Add("Schema 'c3-c6-decision-policy-registry.schema.json' must freeze exactly seven capabilities.")
+    }
+    if ((Get-PropertyByPath -Value $schema -Path 'properties.hardStopFailureClasses.items.const') -cne 'CoreDataMissing' -or (Get-PropertyByPath -Value $schema -Path 'properties.diagnosticOnlyFamilyKinds.maxItems') -ne 0) {
+        $issues.Add("Schema 'c3-c6-decision-policy-registry.schema.json' must freeze hard-stop and diagnostic-only policy.")
+    }
+}
+
 $fixtures = @{}
 foreach ($contract in $fixtureContracts) {
     $fixturePath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot $contract.Name))
@@ -1527,6 +1722,44 @@ if ($null -ne $lanePolicyFixture) {
     }
     foreach ($lanePolicyIssue in @(Get-LanePolicyRegistrySemanticIssues -Registry $lanePolicyFixture)) {
         $issues.Add("Fixture 'valid-c3-c6-lane-policy-registry.json' semantic contract failed: $lanePolicyIssue")
+    }
+}
+
+$decisionPolicyFixture = $fixtures['valid-c3-c6-decision-policy-registry.json']
+if ($null -ne $decisionPolicyFixture) {
+    $decisionPolicyRegistryPath = [System.IO.Path]::GetFullPath((Join-Path $ContractRoot 'c3-c6-decision-policy-registry.json'))
+    if (-not [System.IO.File]::Exists($decisionPolicyRegistryPath)) {
+        $issues.Add("Decision policy registry '$decisionPolicyRegistryPath' does not exist.")
+    }
+    else {
+        $registryBytes = [System.IO.File]::ReadAllBytes($decisionPolicyRegistryPath)
+        $fixtureBytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath((Join-Path $FixtureRoot 'valid-c3-c6-decision-policy-registry.json')))
+        if (-not [System.Linq.Enumerable]::SequenceEqual[byte]($registryBytes, $fixtureBytes)) {
+            $issues.Add('Decision policy registry and its positive fixture are not byte-identical.')
+        }
+        $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($registryBytes)).ToLowerInvariant()
+        if ($actualFingerprint -cne '82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a') {
+            $issues.Add("Decision policy registry exact-byte fingerprint is unexpected: '$actualFingerprint'.")
+        }
+        $registryText = [Text.Encoding]::UTF8.GetString($registryBytes)
+        if ($registryBytes.Length -ge 3 -and $registryBytes[0] -eq 0xEF -and $registryBytes[1] -eq 0xBB -and $registryBytes[2] -eq 0xBF) {
+            $issues.Add('Decision policy registry must be UTF-8 without BOM.')
+        }
+        if ($registryText.Contains("`r") -or -not $registryText.EndsWith("`n") -or $registryText.EndsWith("`n`n")) {
+            $issues.Add('Decision policy registry must use LF line endings and exactly one final LF.')
+        }
+        $canonicalText = (($decisionPolicyFixture | ConvertTo-Json -Depth 100) -replace "`r`n", "`n") + "`n"
+        if ($registryText -cne $canonicalText) {
+            $issues.Add('Decision policy registry is not canonical two-space PowerShell JSON serialization.')
+        }
+    }
+    if ($null -eq $lanePolicyFixture) {
+        $issues.Add('Decision policy semantic validation requires the LC-I07 lane policy fixture.')
+    }
+    else {
+        foreach ($decisionPolicyIssue in @(Get-DecisionPolicyRegistrySemanticIssues -Registry $decisionPolicyFixture -LanePolicyRegistry $lanePolicyFixture)) {
+            $issues.Add("Fixture 'valid-c3-c6-decision-policy-registry.json' semantic contract failed: $decisionPolicyIssue")
+        }
     }
 }
 

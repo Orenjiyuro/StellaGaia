@@ -1,0 +1,296 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T00:00:00Z",
+  "decisionPolicyId": "StellaSoraAuthoringDecisionPolicy",
+  "decisionPolicyVersion": "1.0.0",
+  "hardStopFailureClasses": [
+    "CoreDataMissing"
+  ],
+  "diagnosticOnlyFamilyKinds": [],
+  "replacementRules": [
+    {
+      "replacementRuleId": "ActorPrototypeControllerReplacement",
+      "lane": "Actor",
+      "familyKindIds": [
+        "ActorRouteFamily"
+      ],
+      "requiredFailureClasses": [
+        "ControllerMissing"
+      ],
+      "requiredStaticCheckIds": [
+        "AnimationClipReadability",
+        "AvatarClosure",
+        "ControllerReferenceClassification",
+        "DependencyClosure",
+        "MaterialDependencyClosure",
+        "MeshReadability",
+        "SkeletonClosure",
+        "TextureDependencyClosure"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "routeKind": "PrototypeController",
+      "capabilityIds": [
+        "EnemyModelSkeletonAnimationSet",
+        "PlayerModelSkeletonAnimationSet"
+      ]
+    },
+    {
+      "replacementRuleId": "AudioDecodedRouteReplacement",
+      "lane": "Audio",
+      "familyKindIds": [
+        "AudioRouteFamily"
+      ],
+      "requiredFailureClasses": [
+        "SemanticUnknown"
+      ],
+      "requiredStaticCheckIds": [
+        "ChannelLayoutValidity",
+        "DecodeOutcome",
+        "LoopValidity",
+        "MediaReadability"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening"
+      ],
+      "routeKind": "DecodedAudio",
+      "capabilityIds": [
+        "PlayableBgmRoute",
+        "PlayableCombatSfx"
+      ]
+    },
+    {
+      "replacementRuleId": "EffectBehaviorReconstructionReplacement",
+      "lane": "Effects",
+      "familyKindIds": [
+        "EffectRouteFamily"
+      ],
+      "requiredFailureClasses": [
+        "EffectBehaviorMissing"
+      ],
+      "requiredStaticCheckIds": [
+        "AudioDependencyClosure",
+        "EffectSystemReadability",
+        "MaterialDependencyClosure",
+        "MeshDependencyClosure",
+        "PrefabDependencyClosure",
+        "ShaderDependencyClosure",
+        "TextureDependencyClosure"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "routeKind": "EffectBehaviorReconstructed",
+      "capabilityIds": [
+        "CombatEffectRoute"
+      ]
+    },
+    {
+      "replacementRuleId": "UiTextureOnlyRebuildReplacement",
+      "lane": "UI",
+      "familyKindIds": [
+        "UiRouteFamily"
+      ],
+      "requiredFailureClasses": [
+        "FontAtlasMissing",
+        "PrefabDependencyMissing"
+      ],
+      "requiredStaticCheckIds": [
+        "TextureReadability"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "routeKind": "TextureOnlyRebuild",
+      "capabilityIds": [
+        "ReusableUiGraphicsAndConstructionRoute"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "capabilityId": "CombatEffectRoute",
+      "required": true,
+      "eligibleLanes": [
+        "Effects"
+      ],
+      "eligibleFamilyKindIds": [
+        "EffectRouteFamily"
+      ],
+      "eligibleActorRoles": [],
+      "eligibleRouteKinds": [
+        "EffectBehaviorReconstructed",
+        "OriginalAsset"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ]
+    },
+    {
+      "capabilityId": "EnemyModelSkeletonAnimationSet",
+      "required": true,
+      "eligibleLanes": [
+        "Actor"
+      ],
+      "eligibleFamilyKindIds": [
+        "ActorRouteFamily"
+      ],
+      "eligibleActorRoles": [
+        "Enemy"
+      ],
+      "eligibleRouteKinds": [
+        "OriginalAsset",
+        "PrototypeController"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ]
+    },
+    {
+      "capabilityId": "PlayableBgmRoute",
+      "required": true,
+      "eligibleLanes": [
+        "Audio"
+      ],
+      "eligibleFamilyKindIds": [
+        "AudioRouteFamily"
+      ],
+      "eligibleActorRoles": [],
+      "eligibleRouteKinds": [
+        "DecodedAudio",
+        "OriginalAsset"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ]
+    },
+    {
+      "capabilityId": "PlayableCombatSfx",
+      "required": true,
+      "eligibleLanes": [
+        "Audio"
+      ],
+      "eligibleFamilyKindIds": [
+        "AudioRouteFamily"
+      ],
+      "eligibleActorRoles": [],
+      "eligibleRouteKinds": [
+        "DecodedAudio",
+        "OriginalAsset"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening"
+      ]
+    },
+    {
+      "capabilityId": "PlayerModelSkeletonAnimationSet",
+      "required": true,
+      "eligibleLanes": [
+        "Actor"
+      ],
+      "eligibleFamilyKindIds": [
+        "ActorRouteFamily"
+      ],
+      "eligibleActorRoles": [
+        "Player"
+      ],
+      "eligibleRouteKinds": [
+        "OriginalAsset",
+        "PrototypeController"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ]
+    },
+    {
+      "capabilityId": "RecognizableEnvironmentOrMapModules",
+      "required": true,
+      "eligibleLanes": [
+        "Environment"
+      ],
+      "eligibleFamilyKindIds": [
+        "EnvironmentModuleFamily"
+      ],
+      "eligibleActorRoles": [],
+      "eligibleRouteKinds": [
+        "OriginalAsset"
+      ],
+      "allowedFamilyDecisions": [
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ]
+    },
+    {
+      "capabilityId": "ReusableUiGraphicsAndConstructionRoute",
+      "required": true,
+      "eligibleLanes": [
+        "UI"
+      ],
+      "eligibleFamilyKindIds": [
+        "UiRouteFamily"
+      ],
+      "eligibleActorRoles": [],
+      "eligibleRouteKinds": [
+        "OriginalAsset",
+        "TextureOnlyRebuild"
+      ],
+      "allowedFamilyDecisions": [
+        "PrototypeReplacement",
+        "UseOriginalAsset"
+      ],
+      "requiredAcceptedEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ]
+    }
+  ]
+}

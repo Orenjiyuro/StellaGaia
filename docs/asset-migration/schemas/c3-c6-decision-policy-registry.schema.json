@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/c3-c6-decision-policy-registry.schema.json",
+  "title": "StellaSora C3-C6 Decision Policy Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "decisionPolicyId",
+    "decisionPolicyVersion",
+    "hardStopFailureClasses",
+    "diagnosticOnlyFamilyKinds",
+    "replacementRules",
+    "capabilities"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "generatedAt": { "type": "string", "format": "date-time", "const": "2026-07-16T00:00:00Z" },
+    "decisionPolicyId": { "type": "string", "const": "StellaSoraAuthoringDecisionPolicy" },
+    "decisionPolicyVersion": { "type": "string", "const": "1.0.0" },
+    "hardStopFailureClasses": {
+      "type": "array",
+      "items": { "type": "string", "const": "CoreDataMissing" },
+      "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true
+    },
+    "diagnosticOnlyFamilyKinds": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "replacementRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/replacementRule" },
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" },
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "stringSet": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "uniqueItems": true
+    },
+    "lane": { "type": "string", "enum": ["Actor", "Audio", "Effects", "Environment", "UI"] },
+    "familyDecision": { "type": "string", "enum": ["PrototypeReplacement", "UseOriginalAsset"] },
+    "replacementRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replacementRuleId",
+        "lane",
+        "familyKindIds",
+        "requiredFailureClasses",
+        "requiredStaticCheckIds",
+        "requiredAcceptedEvidenceKinds",
+        "routeKind",
+        "capabilityIds"
+      ],
+      "properties": {
+        "replacementRuleId": { "$ref": "#/$defs/nonEmptyString" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "familyKindIds": { "$ref": "#/$defs/stringSet" },
+        "requiredFailureClasses": { "$ref": "#/$defs/stringSet" },
+        "requiredStaticCheckIds": { "$ref": "#/$defs/stringSet" },
+        "requiredAcceptedEvidenceKinds": { "$ref": "#/$defs/stringSet" },
+        "routeKind": { "$ref": "#/$defs/nonEmptyString" },
+        "capabilityIds": { "$ref": "#/$defs/stringSet" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilityId",
+        "required",
+        "eligibleLanes",
+        "eligibleFamilyKindIds",
+        "eligibleActorRoles",
+        "eligibleRouteKinds",
+        "allowedFamilyDecisions",
+        "requiredAcceptedEvidenceKinds"
+      ],
+      "properties": {
+        "capabilityId": { "$ref": "#/$defs/nonEmptyString" },
+        "required": { "type": "boolean", "const": true },
+        "eligibleLanes": { "$ref": "#/$defs/stringSet" },
+        "eligibleFamilyKindIds": { "$ref": "#/$defs/stringSet" },
+        "eligibleActorRoles": { "$ref": "#/$defs/stringSet" },
+        "eligibleRouteKinds": { "$ref": "#/$defs/stringSet" },
+        "allowedFamilyDecisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/familyDecision" },
+          "uniqueItems": true
+        },
+        "requiredAcceptedEvidenceKinds": { "$ref": "#/$defs/stringSet" }
+      }
+    }
+  }
+}

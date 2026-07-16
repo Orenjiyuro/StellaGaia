@@ -1,0 +1,8 @@
+{
+  "expectedTuples": [
+    "PlayableBgmRoute|Audio|AudioRouteFamily|OriginalAsset"
+  ],
+  "actualTuples": [
+    "PlayableCombatSfx|Audio|AudioRouteFamily|OriginalAsset"
+  ]
+}
