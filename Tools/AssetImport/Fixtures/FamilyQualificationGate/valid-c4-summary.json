@@ -79,12 +79,12 @@
     {
       "artifactId": "C4-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json",
-      "sha256": "a77c516228364dae41f846e11a71b7768518d73e2a5c869c9f79e10a6bb51e85"
+      "sha256": "8a54a11bc4ccddb36fe95569d7b8a9b9046f9520c5414acef790a6b0aacd0454"
     },
     {
       "artifactId": "C4-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json",
-      "sha256": "55f8db98cf084b0ee5f937eef274a51662448e2a7e0a5da0d01070c04402db9b"
+      "sha256": "b52ec88dacca21950e8355a18c48e258f825ed50958253c1aa89121ddba20fb4"
     }
   ],
   "coverage": {

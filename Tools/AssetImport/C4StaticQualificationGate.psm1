@@ -47,6 +47,8 @@ function Get-C4StaticCheckResultId([object]$Row) {
     $text = 'C4StaticCheckV1' + "`n"
     foreach ($name in @('assetObjectId','familyId','checkId','outcome','reasonCode')) { $text += ConvertTo-C4ScalarLine $name ([string]$Row.$name) }
     $text += ConvertTo-C4NullableLine observedFingerprint $Row.observedFingerprint
+    $text += Add-C4SetFrame failureClasses @($Row.failureClasses)
+    $text += Add-C4SetFrame availableInputKinds @($Row.availableInputKinds)
     $text += Add-C4SetFrame evidence @($Row.evidence)
     "static-check-sha256:$(Get-C4Sha256 $text)"
 }
@@ -54,6 +56,8 @@ function Get-C4StaticCheckResultId([object]$Row) {
 function Get-C4MemberStaticResultId([object]$Row) {
     $text = 'C4MemberStaticV1' + "`n"
     foreach ($name in @('assetObjectId','familyId','staticStatus')) { $text += ConvertTo-C4ScalarLine $name ([string]$Row.$name) }
+    $text += Add-C4SetFrame actionableFailureClasses @($Row.actionableFailureClasses)
+    $text += Add-C4SetFrame availableInputKinds @($Row.availableInputKinds)
     $text += Add-C4SetFrame checkResultIds @($Row.checkResultIds)
     "member-static-sha256:$(Get-C4Sha256 $text)"
 }
@@ -181,7 +185,7 @@ function Invoke-C4StaticQualificationKernel {
 
     $observationByKey = @{}
     foreach ($observation in $StaticObservationRows) {
-        if ((@($observation.PSObject.Properties.Name) -join ',') -cne 'assetObjectId,familyId,checkId,outcome,reasonCode,observedFingerprint,evidenceKinds,evidence') {
+        if ((@($observation.PSObject.Properties.Name) -join ',') -cne 'assetObjectId,familyId,checkId,outcome,reasonCode,observedFingerprint,failureClasses,evidenceKinds,evidence') {
             Add-C4Issue $issues 'Invalid static observation row shape.'
             continue
         }
@@ -202,6 +206,7 @@ function Invoke-C4StaticQualificationKernel {
             if (@($check.applicableFamilyKinds) -cnotcontains $familyKindId) { continue }
             $inapplicable = $false
             $missingInput = $false
+            $knownFactKinds = [Collections.Generic.List[string]]::new()
             foreach ($factKindValue in @($check.requiredFactKinds)) {
                 $factKind = [string]$factKindValue
                 $factKey = "$([string]$member.assetObjectId)|$factKind"
@@ -217,11 +222,14 @@ function Invoke-C4StaticQualificationKernel {
                 elseif ([string]$fact.factStatus -cne 'Known') {
                     Add-C4Issue $issues 'Invalid static fact status.'
                 }
+                else {
+                    $knownFactKinds.Add($factKind)
+                }
             }
             if ($inapplicable) { continue }
             $key = "$([string]$member.assetObjectId)|$([string]$check.checkId)"
             $requiredByKey[$key] = $true
-            $requiredRows.Add([pscustomobject][ordered]@{ member = $member; check = $check; missingInput = $missingInput; key = $key })
+            $requiredRows.Add([pscustomobject][ordered]@{ member = $member; check = $check; missingInput = $missingInput; knownFactKinds = @(Get-C4OrdinalValues $knownFactKinds.ToArray() -Unique); key = $key })
         }
     }
 
@@ -232,6 +240,8 @@ function Invoke-C4StaticQualificationKernel {
     $allowedOutcomes = @('Passed', 'Failed', 'Unchecked')
     $allowedReasons = @('None', 'MissingInputFact', 'PrerequisiteFailed', 'ToolUnavailable', 'UnsupportedFormat', 'ReadFailure', 'DependencyMissing', 'ConflictDetected', 'PolicyViolation')
     $allowedUncheckedReasons = @('MissingInputFact', 'PrerequisiteFailed', 'ToolUnavailable', 'UnsupportedFormat')
+    $allowedFailureClasses = @('ReadFailure','MissingDependency','ShaderMismatch','MaterialMismatch','ImportSettingMismatch','ControllerMissing','DecodeFailure','SemanticUnknown','PrefabDependencyMissing','FontAtlasMissing','EffectBehaviorMissing','CoreDataMissing')
+    $allowedEvidenceKinds = @('FileReadability','ObjectReadability','SerializedMetadata','DependencyGraph','PrefabYaml','MaterialShaderGraph','TextureMetadata','AudioMetadata','DecoderProbe','UnityImport','VisibleRender','AnimationPlayback','AudioPlayback','HumanListening','LoopBehavior','MaterialFidelity','UiConstruction','EffectBehavior','CapabilitySuitability')
     $checkResults = [Collections.Generic.List[object]]::new()
     foreach ($required in $requiredRows) {
         if (-not $observationByKey.ContainsKey([string]$required.key)) {
@@ -256,6 +266,12 @@ function Invoke-C4StaticQualificationKernel {
         $rawEvidenceKinds = @($observation.evidenceKinds)
         $evidenceKinds = @(Get-C4OrdinalValues $rawEvidenceKinds -Unique)
         if (-not (Test-C4ExactSet $rawEvidenceKinds $evidenceKinds)) { Add-C4Issue $issues 'Static observation evidenceKinds must be an Ordinal set.' }
+        elseif (@($evidenceKinds | Where-Object { $allowedEvidenceKinds -cnotcontains $_ }).Count) { Add-C4Issue $issues 'Static observation evidenceKinds are invalid.' }
+        $rawFailureClasses = [object[]]@($observation.failureClasses)
+        $failureClasses = [string[]]@(Get-C4OrdinalValues $rawFailureClasses -Unique)
+        if ($null -eq $observation.failureClasses -or -not (Test-C4ExactSet $rawFailureClasses $failureClasses) -or @($failureClasses | Where-Object { $allowedFailureClasses -cnotcontains $_ }).Count) { Add-C4Issue $issues 'Static observation failureClasses are invalid.' }
+        if ($outcome -ceq 'Failed' -and $failureClasses.Count -eq 0) { Add-C4Issue $issues 'Failed static observation requires failureClasses.' }
+        if ($outcome -cne 'Failed' -and $failureClasses.Count -ne 0) { Add-C4Issue $issues 'Non-failed static observation forbids failureClasses.' }
         if ($outcome -ceq 'Passed') {
             $missingEvidenceKinds = @($check.requiredEvidenceKinds | Where-Object { $_ -cnotin $evidenceKinds })
             if ($missingEvidenceKinds.Count) { Add-C4Issue $issues 'Passed static observation is missing required evidence kinds.' }
@@ -264,7 +280,8 @@ function Invoke-C4StaticQualificationKernel {
         $orderedEvidence = @(Get-C4OrdinalValues $rawEvidence -Unique)
         if ($rawEvidence.Count -eq 0) { Add-C4Issue $issues 'Static observation evidence is empty.' }
         elseif (-not (Test-C4ExactSet $rawEvidence $orderedEvidence)) { Add-C4Issue $issues 'Static observation evidence must be an Ordinal set.' }
-        $identityRow = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;checkId=[string]$check.checkId;outcome=$outcome;reasonCode=$reasonCode;observedFingerprint=$fingerprint;evidence=@(Get-C4OrdinalValues @($observation.evidence))}
+        $availableInputKinds = @(Get-C4OrdinalValues @($required.knownFactKinds + $evidenceKinds) -Unique)
+        $identityRow = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;checkId=[string]$check.checkId;outcome=$outcome;reasonCode=$reasonCode;observedFingerprint=$fingerprint;failureClasses=$failureClasses;availableInputKinds=$availableInputKinds;evidence=@(Get-C4OrdinalValues @($observation.evidence))}
         $checkResults.Add([pscustomobject][ordered]@{
             staticCheckResultId = Get-C4StaticCheckResultId $identityRow
             assetObjectId = [string]$member.assetObjectId
@@ -274,6 +291,8 @@ function Invoke-C4StaticQualificationKernel {
             outcome = $outcome
             reasonCode = $reasonCode
             observedFingerprint = $fingerprint
+            failureClasses = $failureClasses
+            availableInputKinds = $availableInputKinds
             evidence = @(Get-C4OrdinalValues @($observation.evidence))
         })
     }
@@ -296,7 +315,9 @@ function Invoke-C4StaticQualificationKernel {
         $failed = @($checks | Where-Object outcome -CEQ 'Failed').Count
         $unchecked = @($checks | Where-Object outcome -CEQ 'Unchecked').Count
         $staticStatus = if ($failed) { 'StaticFailed' } elseif ($unchecked) { 'Unchecked' } else { 'StaticPassed' }
-        $identity = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;staticStatus=$staticStatus;checkResultIds=@($checks.staticCheckResultId)}
+        $actionableFailureClasses = @(Get-C4OrdinalValues @($checks | Where-Object outcome -CEQ 'Failed' | ForEach-Object failureClasses | ForEach-Object { $_ }) -Unique)
+        $availableInputKinds = @(Get-C4OrdinalValues @($checks | ForEach-Object availableInputKinds | ForEach-Object { $_ }) -Unique)
+        $identity = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;staticStatus=$staticStatus;actionableFailureClasses=$actionableFailureClasses;availableInputKinds=$availableInputKinds;checkResultIds=@($checks.staticCheckResultId)}
         $memberResults.Add([pscustomobject][ordered]@{
             memberStaticResultId = Get-C4MemberStaticResultId $identity
             assetObjectId = [string]$member.assetObjectId
@@ -308,6 +329,8 @@ function Invoke-C4StaticQualificationKernel {
             passedCheckCount = $passed
             failedCheckCount = $failed
             uncheckedCheckCount = $unchecked
+            actionableFailureClasses = $actionableFailureClasses
+            availableInputKinds = $availableInputKinds
             staticCheckResultIds = @($checks.staticCheckResultId)
         })
     }
@@ -327,6 +350,8 @@ function Invoke-C4StaticQualificationKernel {
             staticFailedBytes = [long](($members | Where-Object staticStatus -CEQ 'StaticFailed' | ForEach-Object serializedSizeBytes | Measure-Object -Sum).Sum)
             uncheckedCount = @($members | Where-Object staticStatus -CEQ 'Unchecked').Count
             uncheckedBytes = [long](($members | Where-Object staticStatus -CEQ 'Unchecked' | ForEach-Object serializedSizeBytes | Measure-Object -Sum).Sum)
+            actionableFailureClasses = @(Get-C4OrdinalValues @($members | ForEach-Object actionableFailureClasses | ForEach-Object { $_ }) -Unique)
+            availableInputKinds = @(Get-C4OrdinalValues @($members | ForEach-Object availableInputKinds | ForEach-Object { $_ }) -Unique)
             requiredCheckCount = $familyChecks.Count
             passedCheckCount = @($familyChecks | Where-Object outcome -CEQ 'Passed').Count
             failedCheckCount = @($familyChecks | Where-Object outcome -CEQ 'Failed').Count
@@ -434,13 +459,13 @@ function Invoke-C4StaticQualificationGate {
     $memberRows=[Collections.Generic.List[object]]::new()
     foreach($member in @(Get-C4OrdinalRows @($kernel.memberResults) @('assetObjectId'))){
         $checks=@(Get-C4OrdinalRows @($kernel.checkResults | Where-Object assetObjectId -CEQ $member.assetObjectId) @('checkId'))
-        $projectedChecks=@($checks|ForEach-Object{[pscustomobject][ordered]@{checkResultId=$_.staticCheckResultId;checkId=$_.checkId;outcome=$_.outcome;reasonCode=$_.reasonCode;observedFingerprint=$_.observedFingerprint;evidence=@($_.evidence)}})
+        $projectedChecks=@($checks|ForEach-Object{[pscustomobject][ordered]@{checkResultId=$_.staticCheckResultId;checkId=$_.checkId;outcome=$_.outcome;reasonCode=$_.reasonCode;observedFingerprint=$_.observedFingerprint;failureClasses=@($_.failureClasses);availableInputKinds=@($_.availableInputKinds);evidence=@($_.evidence)}})
         $uncheckedReasons=@(Get-C4OrdinalValues @($checks|Where-Object outcome -CEQ Unchecked|ForEach-Object reasonCode) -Unique)
         $failedCheck=$checks|Where-Object outcome -CEQ Failed|Select-Object -First 1
         $uncheckedCheck=$checks|Where-Object outcome -CEQ Unchecked|Select-Object -First 1
         $failureAttribution=if($member.staticStatus-ceq'StaticFailed'){"LF-08:$($failedCheck.checkId)"}elseif($member.staticStatus-ceq'Unchecked'){"LF-07:$($uncheckedCheck.checkId)"}else{'None; all required static checks passed.'}
         $nextAction=if($member.staticStatus-ceq'StaticFailed'){'Apply C6 decision rules later.'}elseif($member.staticStatus-ceq'Unchecked'){'Resolve named reason; never project Passed.'}else{'Retain as a StaticPassed C5 candidate.'}
-        $memberRows.Add([pscustomobject][ordered]@{staticResultId=$member.memberStaticResultId;assetObjectId=$member.assetObjectId;familyId=$member.familyId;lane=$member.lane;requiredCheckCount=$member.requiredCheckCount;passedCheckCount=$member.passedCheckCount;failedCheckCount=$member.failedCheckCount;uncheckedCheckCount=$member.uncheckedCheckCount;staticStatus=$member.staticStatus;uncheckedReasonCodes=$uncheckedReasons;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;checkResults=$projectedChecks;evidence=@(Get-C4OrdinalValues @($checks|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
+        $memberRows.Add([pscustomobject][ordered]@{staticResultId=$member.memberStaticResultId;assetObjectId=$member.assetObjectId;familyId=$member.familyId;lane=$member.lane;requiredCheckCount=$member.requiredCheckCount;passedCheckCount=$member.passedCheckCount;failedCheckCount=$member.failedCheckCount;uncheckedCheckCount=$member.uncheckedCheckCount;staticStatus=$member.staticStatus;uncheckedReasonCodes=$uncheckedReasons;actionableFailureClasses=@($member.actionableFailureClasses);availableInputKinds=@($member.availableInputKinds);failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;checkResults=$projectedChecks;evidence=@(Get-C4OrdinalValues @($checks|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
     }
 
     $familyRows=[Collections.Generic.List[object]]::new()
@@ -450,7 +475,7 @@ function Invoke-C4StaticQualificationGate {
         $sourceMember=if($staticOutcome-ceq'StaticRejected'){$members|Where-Object staticStatus -CEQ StaticFailed|Select-Object -First 1}elseif($staticOutcome-ceq'NeedsDiagnosis'){$members|Where-Object staticStatus -CEQ Unchecked|Select-Object -First 1}else{$null}
         $failureAttribution=if($null-ne$sourceMember){$sourceMember.failureAttribution}else{'None; every family member is StaticPassed.'}
         $nextAction=if($staticOutcome-ceq'StaticRejected'){'Apply C6 decision rules later.'}elseif($staticOutcome-ceq'NeedsDiagnosis'){'Resolve unchecked member reasons before original-asset reuse.'}else{'Provide family static qualification to C5.'}
-        $familyRows.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;memberCount=$family.memberCount;memberBytes=$family.memberBytes;staticPassedCount=$family.staticPassedCount;staticPassedBytes=$family.staticPassedBytes;staticFailedCount=$family.staticFailedCount;staticFailedBytes=$family.staticFailedBytes;uncheckedCount=$family.uncheckedCount;uncheckedBytes=$family.uncheckedBytes;staticOutcome=$staticOutcome;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;memberStaticResultIds=@(Get-C4OrdinalValues @($members.staticResultId));evidence=@(Get-C4OrdinalValues @($members|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
+        $familyRows.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;memberCount=$family.memberCount;memberBytes=$family.memberBytes;staticPassedCount=$family.staticPassedCount;staticPassedBytes=$family.staticPassedBytes;staticFailedCount=$family.staticFailedCount;staticFailedBytes=$family.staticFailedBytes;uncheckedCount=$family.uncheckedCount;uncheckedBytes=$family.uncheckedBytes;staticOutcome=$staticOutcome;actionableFailureClasses=@($family.actionableFailureClasses);availableInputKinds=@($family.availableInputKinds);failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;memberStaticResultIds=@(Get-C4OrdinalValues @($members.staticResultId));evidence=@(Get-C4OrdinalValues @($members|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
     }
 
     $memberStaticQualification=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;memberResults=$memberRows.ToArray()}

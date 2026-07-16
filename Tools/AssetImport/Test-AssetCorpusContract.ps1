@@ -1969,7 +1969,7 @@ if ($null -ne $repairHistoryFixture) {
             $issues.Add('Repair-attempt history and its positive fixture are not byte-identical.')
         }
         $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($historyBytes)).ToLowerInvariant()
-        if ($actualFingerprint -cne '294462818ed846bd31b239cf5ee5f1c51b6b7e3986b2fd329d7274469c38d95c') {
+        if ($actualFingerprint -cne 'fb8f7a53bcae8f15b9b2380d86b1e98415f7aa8da68ba647b1bca874bc38fa28') {
             $issues.Add("Repair-attempt history exact-byte fingerprint is unexpected: '$actualFingerprint'.")
         }
         $historyText = [Text.Encoding]::UTF8.GetString($historyBytes)

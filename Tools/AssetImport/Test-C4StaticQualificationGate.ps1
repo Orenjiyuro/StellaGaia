@@ -41,6 +41,7 @@ foreach ($member in $assigned) {
         elseif ($member.lane -ceq 'Actor' -and $check.checkId -ceq 'AnimationClipReadability') {
             $outcome = 'Unchecked'; $reasonCode = 'ToolUnavailable'
         }
+        $failureClasses = [string[]]@(if ($outcome -ceq 'Failed') { 'ImportSettingMismatch' })
         $observations.Add([pscustomobject][ordered]@{
             assetObjectId = [string]$member.assetObjectId
             familyId = [string]$member.familyId
@@ -48,6 +49,7 @@ foreach ($member in $assigned) {
             outcome = $outcome
             reasonCode = $reasonCode
             observedFingerprint = if ($outcome -ceq 'Passed') { Get-FixtureFingerprint "$($member.assetObjectId)|$($check.checkId)|fixture-evidence" } else { $null }
+            failureClasses = $failureClasses
             evidenceKinds = @($check.requiredEvidenceKinds)
             evidence = @('Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')
         })
@@ -74,10 +76,30 @@ if ($result.memberResults.Count -ne 5 -or @($result.memberResults.assetObjectId 
 if (@($result.memberResults | Where-Object staticStatus -CEQ 'StaticPassed').Count -ne 3 -or @($result.memberResults | Where-Object staticStatus -CEQ 'StaticFailed').Count -ne 1 -or @($result.memberResults | Where-Object staticStatus -CEQ 'Unchecked').Count -ne 1) { throw 'C4-0 member status projection failed.' }
 foreach ($memberResult in $result.memberResults) {
     if ($memberResult.requiredCheckCount -ne ($memberResult.passedCheckCount + $memberResult.failedCheckCount + $memberResult.uncheckedCheckCount)) { throw 'C4-0 member check conservation failed.' }
+    $expectedFailureClasses = if ($memberResult.staticStatus -ceq 'StaticFailed') { @('ImportSettingMismatch') } else { @() }
+    if ((@($memberResult.actionableFailureClasses) -join ',') -cne ($expectedFailureClasses -join ',')) { throw 'C4-0 member actionable failure-class projection failed.' }
+    $expectedInputKinds = @($result.checkResults | Where-Object assetObjectId -CEQ $memberResult.assetObjectId | ForEach-Object availableInputKinds | Sort-Object -CaseSensitive -Unique)
+    if ((@($memberResult.availableInputKinds) -join ',') -cne ($expectedInputKinds -join ',')) { throw 'C4-0 member available-input projection failed.' }
 }
 foreach ($familyResult in $result.familyResults) {
     if ($familyResult.memberCount -ne ($familyResult.staticPassedCount + $familyResult.staticFailedCount + $familyResult.uncheckedCount)) { throw 'C4-0 family member conservation failed.' }
+    $expectedFailureClasses = @($result.memberResults | Where-Object familyId -CEQ $familyResult.familyId | ForEach-Object actionableFailureClasses | Sort-Object -CaseSensitive -Unique)
+    $expectedInputKinds = @($result.memberResults | Where-Object familyId -CEQ $familyResult.familyId | ForEach-Object availableInputKinds | Sort-Object -CaseSensitive -Unique)
+    if ((@($familyResult.actionableFailureClasses) -join ',') -cne ($expectedFailureClasses -join ',') -or (@($familyResult.availableInputKinds) -join ',') -cne ($expectedInputKinds -join ',')) { throw 'C4-0 family typed projection conservation failed.' }
 }
+foreach ($checkResult in $result.checkResults) {
+    if ($checkResult.outcome -ceq 'Failed' -and (@($checkResult.failureClasses) -join ',') -cne 'ImportSettingMismatch') { throw 'C4-0 failed check lost typed failure class.' }
+    if ($checkResult.outcome -cne 'Failed' -and @($checkResult.failureClasses).Count) { throw 'C4-0 non-failed check gained a failure class.' }
+}
+$alternateFailureRows = @(Clone-Value $observations)
+$alternateFailureObservation = @($alternateFailureRows | Where-Object outcome -CEQ 'Failed')[0]
+$alternateFailureObservation.failureClasses = @('MaterialMismatch')
+$alternateFailureResult = Run-Kernel @($facts) $alternateFailureRows
+$originalFailedCheck = @($result.checkResults | Where-Object outcome -CEQ 'Failed')[0]
+$alternateFailedCheck = @($alternateFailureResult.checkResults | Where-Object outcome -CEQ 'Failed')[0]
+$originalFailedMember = @($result.memberResults | Where-Object staticStatus -CEQ 'StaticFailed')[0]
+$alternateFailedMember = @($alternateFailureResult.memberResults | Where-Object staticStatus -CEQ 'StaticFailed')[0]
+if ($alternateFailureResult.status -cne 'Passed' -or $alternateFailedCheck.staticCheckResultId -ceq $originalFailedCheck.staticCheckResultId -or $alternateFailedMember.memberStaticResultId -ceq $originalFailedMember.memberStaticResultId -or (@($alternateFailedMember.actionableFailureClasses) -join ',') -cne 'MaterialMismatch') { throw 'Typed failure-class identity sensitivity failed.' }
 if (@($result.checkResults | Where-Object outcome -CEQ 'Unchecked' | Where-Object reasonCode -CEQ 'None').Count) { throw 'Unchecked was projected as Passed.' }
 
 $missingRows = @($observations | Where-Object { -not ($_.assetObjectId -ceq $assigned[0].assetObjectId -and $_.checkId -ceq @($policy.policies | Where-Object lane -CEQ $assigned[0].lane)[0].staticCheckDefinitions[0].checkId) })
@@ -93,6 +115,16 @@ $invalidRows[0].reasonCode = 'ToolUnavailable'
 $invalidResult = Run-Kernel @($facts) $invalidRows
 if ($invalidResult.status -cne 'Failed' -or $invalidResult.issues -cnotcontains 'Passed static observation must use reasonCode None.') { throw 'LF-09 invalid reason fail-closed behavior failed.' }
 
+$missingFailureClasses = @(Clone-Value $observations)
+@($missingFailureClasses | Where-Object outcome -CEQ 'Failed')[0].failureClasses = @()
+$missingFailureResult = Run-Kernel @($facts) $missingFailureClasses
+if ($missingFailureResult.status -cne 'Failed' -or $missingFailureResult.issues -cnotcontains 'Failed static observation requires failureClasses.') { throw 'Typed failure-class absence did not fail closed.' }
+
+$textFailureClass = @(Clone-Value $observations)
+@($textFailureClass | Where-Object outcome -CEQ 'Failed')[0].failureClasses = @('LF-08:ColliderValidity')
+$textFailureResult = Run-Kernel @($facts) $textFailureClass
+if ($textFailureResult.status -cne 'Failed' -or $textFailureResult.issues -cnotcontains 'Static observation failureClasses are invalid.') { throw 'Text attribution was accepted as a failure class.' }
+
 $missingEvidenceRows = @(Clone-Value $observations)
 $passedWithEvidence = @($missingEvidenceRows | Where-Object outcome -CEQ 'Passed')[0]
 $passedWithEvidence.evidenceKinds = @($passedWithEvidence.evidenceKinds | Select-Object -Skip 1)
@@ -105,9 +137,11 @@ $actorFact = @($unknownFacts | Where-Object { $_.assetObjectId -ceq $actor.asset
 $actorFact.factStatus = 'Unknown'
 $unknownRows = @(Clone-Value $observations)
 $actorObservation = @($unknownRows | Where-Object { $_.assetObjectId -ceq $actor.assetObjectId -and $_.checkId -ceq 'AnimationClipReadability' })[0]
-$actorObservation.outcome = 'Unchecked'; $actorObservation.reasonCode = 'MissingInputFact'; $actorObservation.observedFingerprint = $null
+$actorObservation.outcome = 'Unchecked'; $actorObservation.reasonCode = 'MissingInputFact'; $actorObservation.observedFingerprint = $null; $actorObservation.failureClasses = @()
 $unknownResult = Run-Kernel $unknownFacts $unknownRows
-if ($unknownResult.status -cne 'Passed' -or @($unknownResult.checkResults | Where-Object { $_.assetObjectId -ceq $actor.assetObjectId -and $_.checkId -ceq 'AnimationClipReadability' })[0].outcome -cne 'Unchecked') { throw 'Missing fact did not remain explicit Unchecked.' }
+if ($unknownResult.status -cne 'Passed' -or @($unknownResult.checkResults | Where-Object { $_.assetObjectId -ceq $actor.assetObjectId -and $_.checkId -ceq 'AnimationClipReadability' })[0].outcome -cne 'Unchecked') { throw "Missing fact did not remain explicit Unchecked: $($unknownResult.status); $($unknownResult.issues -join '; ')" }
+$unknownCheck = @($unknownResult.checkResults | Where-Object { $_.assetObjectId -ceq $actor.assetObjectId -and $_.checkId -ceq 'AnimationClipReadability' })[0]
+if (@($unknownCheck.availableInputKinds) -ccontains 'AnimationSetShapeId' -or @($unknownCheck.availableInputKinds) -cnotcontains 'SerializedMetadata') { throw 'Unknown fact incorrectly satisfied availableInputKinds.' }
 
 $notApplicableFacts = @(Clone-Value $facts)
 $naFact = @($notApplicableFacts | Where-Object { $_.assetObjectId -ceq $actor.assetObjectId -and $_.factKind -ceq 'AnimationSetShapeId' })[0]
@@ -146,10 +180,10 @@ if ((@($gate.memberStaticQualification.PSObject.Properties.Name)-join',') -cne '
 if ((@($gate.summary.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,stageId,snapshotId,inputFingerprint,policySetFingerprint,toolVersions,directInputs,directOutputs,coverage,failureAccounting,decision') { throw 'C4-O03 summary top-level shape failed.' }
 if ($gate.memberStaticQualification.memberResults.Count -ne 5 -or $gate.familyStaticSummary.families.Count -ne 5 -or $gate.summary.coverage.requiredCheckCount -ne 36) { throw 'C4-1 success artifact counts failed.' }
 if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.inputFingerprint-in@(('1'*64),('2'*64),('a'*64))){throw'C4-1 computed input fingerprint failed.'}
-$memberShape='staticResultId,assetObjectId,familyId,lane,requiredCheckCount,passedCheckCount,failedCheckCount,uncheckedCheckCount,staticStatus,uncheckedReasonCodes,failureAttribution,nextAllowedAction,checkResults,evidence'
-$checkShape='checkResultId,checkId,outcome,reasonCode,observedFingerprint,evidence'
+$memberShape='staticResultId,assetObjectId,familyId,lane,requiredCheckCount,passedCheckCount,failedCheckCount,uncheckedCheckCount,staticStatus,uncheckedReasonCodes,actionableFailureClasses,availableInputKinds,failureAttribution,nextAllowedAction,checkResults,evidence'
+$checkShape='checkResultId,checkId,outcome,reasonCode,observedFingerprint,failureClasses,availableInputKinds,evidence'
 foreach($memberResult in $gate.memberStaticQualification.memberResults){if((@($memberResult.PSObject.Properties.Name)-join',')-cne$memberShape){throw'C4-O01 member shape failed.'};foreach($checkResult in $memberResult.checkResults){if((@($checkResult.PSObject.Properties.Name)-join',')-cne$checkShape){throw'C4-O01 check shape failed.'}}}
-$familyShape='familyId,lane,memberCount,memberBytes,staticPassedCount,staticPassedBytes,staticFailedCount,staticFailedBytes,uncheckedCount,uncheckedBytes,staticOutcome,failureAttribution,nextAllowedAction,memberStaticResultIds,evidence'
+$familyShape='familyId,lane,memberCount,memberBytes,staticPassedCount,staticPassedBytes,staticFailedCount,staticFailedBytes,uncheckedCount,uncheckedBytes,staticOutcome,actionableFailureClasses,availableInputKinds,failureAttribution,nextAllowedAction,memberStaticResultIds,evidence'
 foreach($familyResult in $gate.familyStaticSummary.families){if((@($familyResult.PSObject.Properties.Name)-join',')-cne$familyShape){throw'C4-O02 family shape failed.'};if($familyResult.memberCount-ne($familyResult.staticPassedCount+$familyResult.staticFailedCount+$familyResult.uncheckedCount)){throw'C4-O02 family conservation failed.'}}
 $coverageShape='familyCount,memberCount,memberBytes,staticPassedCount,staticPassedBytes,staticFailedCount,staticFailedBytes,uncheckedCount,uncheckedBytes,requiredCheckCount,passedCheckCount,failedCheckCount,uncheckedCheckCount'
 $accountingShape='inputSubjectCount,acceptedInputSubjectCount,inputFailureCount,notEvaluatedInputSubjectCount,outputCandidateCount,projectedOutputCount,outputFailureCount,issueCount,gateStatus,inputFailures,inputSuppressions,outputFailures'

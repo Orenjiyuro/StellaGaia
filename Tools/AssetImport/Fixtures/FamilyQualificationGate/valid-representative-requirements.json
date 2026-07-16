@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "generatedAt": "2026-07-16T06:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "f52cfe882ffd0d540922a96e4532c67858cf34a3a04bb6fb7bcd28a906de0598",
+  "inputFingerprint": "41450b1c2c32a957e36abd8e4c28e7d8971a4009096dd0ad5139713c8974252d",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "requirements": [
@@ -22,7 +22,7 @@
         "HumanListening",
         "LoopBehavior"
       ],
-      "expectedInputFingerprint": "9ab77d20751f7af76b197ea5e7815a52c719bcb8abce09a9011be10c638c928e",
+      "expectedInputFingerprint": "34b67b19b3090dc10413c8f011800bfdd50b408209875da7d8f00afaf557474a",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -44,7 +44,7 @@
         "HumanListening",
         "LoopBehavior"
       ],
-      "expectedInputFingerprint": "dce796057ab378fbe34519c39d1ec30c572317d2e7d2f493947f7cda399ea951",
+      "expectedInputFingerprint": "32bb4b470b162cf92b2b764e0c4d31151dd45dd4458ec775b1030da28a15ecc2",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -65,7 +65,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "9e940ee814bbc3736f04ad3cf31f4a37caa1954561b23653ae9212b402efd689",
+      "expectedInputFingerprint": "e51781e404ca7f3ce70ac3e4c2bb62523b15fd97097f8ee2451872732b1a98ab",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -87,7 +87,7 @@
         "HumanListening",
         "LoopBehavior"
       ],
-      "expectedInputFingerprint": "729a1e249b709062540b7bfd01560d5e2721185a1bd80f19db47097b2b2adbf4",
+      "expectedInputFingerprint": "93645ed9dbfed282c8a65082096693e293c77abdd56ff484b9b05ee22536479d",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -109,7 +109,7 @@
         "HumanListening",
         "LoopBehavior"
       ],
-      "expectedInputFingerprint": "4d7c2da5de873ac505500d95bb2d88cb18d0e089b388d9496d4c83d569531200",
+      "expectedInputFingerprint": "5f02fd595fed4f2936bfb20754b3c2174cf7f1c0d2726358eecec1109d0c5838",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -129,7 +129,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "b5144f34a1f5fd0a0c10ebd9bceefa0616b16b68d309d590719b130ab5dac330",
+      "expectedInputFingerprint": "c4e1cd28aadd97f2eabb25be1a7230c80e998ec72249f34dbe9ac604d0e2fb76",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -150,7 +150,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "abacfd9f418781ea7afe6e4733f51434e208dc42c294306442ef0639e7a0afde",
+      "expectedInputFingerprint": "8ca660ba095b3675a58fb8d67cc6ebf04ff2baf8498526a34fedf005ad8b8ae3",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -171,7 +171,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "5861b7664f68709632adfc58aa6edc922998a3184bc76bf64bed34082b0c3139",
+      "expectedInputFingerprint": "a3fed39ea1143614c30104ba3887fca86300149f59dd9d06201c31cf7442ef89",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -195,7 +195,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "e24a2dc8d7941755e9c2783896c58ecbfe9af880a3d3660111d5d2a38e566a39",
+      "expectedInputFingerprint": "a1e4666dea6f0dd31adced389e0ebfeaf7b36a087087d1c2491df995554977ed",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -215,7 +215,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "2055f16f35c99d7f047620159d43bc6814e04fabe0e367120dbd619369589672",
+      "expectedInputFingerprint": "b91a530800883f010a0a60723afa54c06f6f0e2459efb6d4ff5920db4630a437",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -238,7 +238,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "2cad9a1438c305cc489601d79e156af5ca96d4c5d807a58f35832d38738dc3bd",
+      "expectedInputFingerprint": "865c6e66018edfde091b064777f07609d37616e460150dde8f1ff8cabb7c0313",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -261,7 +261,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "bcc204d80122c2a518c9dd1093d7e332fece4efad494fa0b7f39410dafb14556",
+      "expectedInputFingerprint": "0b3d69e44c3447c4fd43d495a8495a677ea547ceb9d7ea55b664ab70b6827010",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -285,7 +285,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "396a6e5a5a7053a396156a1e6804efd71bbec91245dba28cf83f76b10e2593c3",
+      "expectedInputFingerprint": "ac753073568a1930b81ceeb65c20a02841b25cfc3128729338e920506c2c8399",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -309,7 +309,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "29fef36f216a214bcfbf3f599fdd17fd607b8086a8a4d318472a1c104bca34c7",
+      "expectedInputFingerprint": "6f9eeb6caf17870d600efddaf2d066ded6a47e28e371511039c390063ab5f054",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -330,7 +330,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "290c5426ad938d8cc663bb4f520e9f3adac58ad9fa333c01583b95f72d10546a",
+      "expectedInputFingerprint": "8d1861800ee8bebab6dd48aadb2ceffb9f8723917d8e32452fce3270c33bf9fb",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -353,7 +353,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "d0e839c9643490316e322a6cfd2215caf721516b9e8e0b6c3db4844c2586669b",
+      "expectedInputFingerprint": "e70b88a1536951a476294f34ec58d87af0e8c913799e5f0ce588fb5ef49dd9cd",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -373,7 +373,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "c568300ce0a8620d3261cda6b90f0a464169674fd42d29bc661002c0f766a2d0",
+      "expectedInputFingerprint": "4870aa502c8ce6237b1fc621b5da3c581468909f0cacf4cbd1f9be5132ad829a",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -396,7 +396,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "d5103d2e0ae53a064b59257d4680ee21061ab5c8480a59cd00a2c30240ce19d1",
+      "expectedInputFingerprint": "5d221558028782aa104769c94ad032a36099c289743b654856f697af50d0fc8e",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -420,7 +420,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "4124b46762ee1c64090b4a5d575497bb2bd0861b671b51d664acbeff41d016f6",
+      "expectedInputFingerprint": "0b2d74e343cd65a1412540618f6717cc66bb9b70d4ab79802110fe9e9b5a4db5",
       "assessmentStatus": "EvidenceMissing",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -440,7 +440,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "fa7c775ca6d3e723169102f49650706e4aa015c3f2c84de549a706640a21c5f5",
+      "expectedInputFingerprint": "c52f2c99acc8f60a4a612919c6189cb21b5f32124c3ebf71a4e8ff632ad165f2",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -461,7 +461,7 @@
         "UnityImport",
         "VisibleRender"
       ],
-      "expectedInputFingerprint": "3f4e702de68ef95629c483e05080d08db0f31ce139cf31b69709166a43ae1c31",
+      "expectedInputFingerprint": "122419840fb0e8301363587ec6786ba4b3066fde07d24b120fd9fb212934e88a",
       "assessmentStatus": "RepresentativeRequired",
       "evidence": [
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
@@ -482,7 +482,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "5b4f40828ed199cfeaf20bccd86e9baacd2601c378dc8aeeea584fd3511e6d0a",
+      "expectedInputFingerprint": "8a3601dbf94b2f4750f6bd1232d77f9234c520f7aac7b198cb0f097f49ae635a",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -501,7 +501,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "79e05770b56d8dfcdc0fc5ef022d5d12ab7193479a4b59035205e5d03b29c03b",
+      "expectedInputFingerprint": "aa96e573d6bb219faed5bc15cc7a0dd421ecd3770d79ab3ad9b4b6244cbb0f44",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -520,7 +520,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "fe333f7156d0025f469b77a3ad7951baefb2c89e33527bf8a385468d81199ccc",
+      "expectedInputFingerprint": "65fd7702778468866e73eb9a80dd8b7afa01e5cab34ee856ae7b1eb8aca35354",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -537,7 +537,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "5e1510b6e8c159b0b6a681a3fd298fe3e7261a0471e03b0a5103c0da1ae0d0f8",
+      "expectedInputFingerprint": "dae1a7f4aae414cbea2910b9d141530c13970cff6bfa6f2b8f7d0c7b50cc1c8f",
       "assessmentStatus": "SuitabilityRequired",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -554,7 +554,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "0294d3581b8cbb36e4a2646192f36b882a6ac86b1718b0e76157bbb464106871",
+      "expectedInputFingerprint": "706500ba64961a0f78fff89429378c7f5820d67b9da60d8215722d4f10d6988c",
       "assessmentStatus": "SuitabilityRequired",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -573,7 +573,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "52619e29017bab189052dc287fd611719e871161eb97f0cf7ce235b272003b1e",
+      "expectedInputFingerprint": "aa171286a80e4e30bb04dc972e27fae342251ba95560ca7b2d8f93452466bb85",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -592,7 +592,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "267e48b46c1c672649874224a02e707b882b7a10f9830db1d584c362df80d10c",
+      "expectedInputFingerprint": "c47bfad76b9c217262180c1f5c6a6f5dee9ced76af585eded2abb55bb2f25f79",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -611,7 +611,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "1d8f54f1eca938b129a7f63b8139685f1b2fbce4406ff82a7ce9aa7ad7c707f0",
+      "expectedInputFingerprint": "3f62eab923fda9f0b9a02da91be0d06633433ba1eeed902fd90b7545aa742367",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -630,7 +630,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "babbecd1ccbb5f78ec289d1b4826b7c1edbdd4a4989f386f2a2f4388c44b5ac1",
+      "expectedInputFingerprint": "711cb6840d51fc2e421ce661dee3bf017a4043c6b3d8775072beeab87eb02b1e",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -647,7 +647,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "565f2fa6b1b5418d1f6c7d662c2844dc25dd873d752014c5851aabaf56f95853",
+      "expectedInputFingerprint": "e5c7acb3ba9afe0f855c1edd83b8e1ab0263bd91d631832abb6a62e582772879",
       "assessmentStatus": "SuitabilityRequired",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
@@ -666,7 +666,7 @@
       "requiredEvidenceKinds": [
         "CapabilitySuitability"
       ],
-      "expectedInputFingerprint": "131420614d6dbe32a930e45be0dad83ceeff043d36ba01d6bf9b32335e5a06ab",
+      "expectedInputFingerprint": "1a9477557b04ca21ea2e321cda77b45f82f0539f7d8154655c18b38ed319eb95",
       "assessmentStatus": "SuitabilityMissing",
       "evidence": [
         "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
