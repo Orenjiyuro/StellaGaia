@@ -1119,7 +1119,7 @@ LC-I07's logical and physical registry contract is complete: its non-self-refere
 
 LC-I11's logical and physical registry contract is complete: it stores no decisionPolicyFingerprint; C5/C6 compute the fingerprint over exact accepted LC-I11 bytes. Its immutable identity, singleton hard-stop set, empty diagnostic-only set, four replacement rules, seven capability rows, exact 13-tuple LC-I07 union, and C5 capability-suitability boundary are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical, focused negative fixtures prove key fail-closed rules, and the executable validator verifies canonical bytes, SHA-256 `82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a`, reference closure, route/capability matching, and tuple conservation. This fixture-only completion does not start C3/C5 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
-The status vocabulary now contains the exact `familyParentStatus` and `memberStaticStatus` dimensions consumed by C3/C4 plus `representativeAssessment` and `capabilitySuitabilityStatus` consumed by the C5-0/C5-1 no-Unity kernel. That kernel now verifies immutable LX-HI-10 package identities and proves all six risk and suitability assessment states, including exact freshness and capability/route isolation, without launching C7/G4. The exact `authoringPoolStatus` and `capabilityStatus` dimensions remain deferred until their direct C6 consumer begins; component-local aliases are forbidden.
+The status vocabulary now contains the exact `familyParentStatus` and `memberStaticStatus` dimensions consumed by C3/C4 plus `representativeAssessment` and `capabilitySuitabilityStatus` consumed by the C5 no-Unity gate. C5 verifies immutable LX-HI-10 package identities, proves all six risk and suitability assessment states, and emits the complete byte-frozen C5-O01/O02/O03/O04 Passed and LF-15 diagnostic vectors without launching C7/G4. The exact `authoringPoolStatus` and `capabilityStatus` dimensions remain deferred until the next C6-0 walking skeleton consumes them immediately; component-local aliases are forbidden.
 
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
@@ -1495,8 +1495,9 @@ The later implementation sequence is:
 5. C5-0 no-Unity requirement/evidence walking skeleton; prove Required/Missing/Unavailable partitions and capability/route isolation.
 6. C5-1 immutable evidence assessment; prove Accepted/Stale/Rejected without C7/G4 execution.
 7. C5-2 complete fixture-only C5 output vector; serialize C5-O01/O02/O03/O04 and prove LF-15 diagnostic-only semantics.
-8. C6 decision/ledger Task; prove precedence, coverage/readiness independence, SP-60/SP-61, and G5-only handoff.
-9. Independent C3-C6 completion audit across all fixed counterexamples.
+8. C6-0 pure decision walking skeleton; add and immediately consume LC-I12 plus C6-owned vocabulary, proving precedence and capability separation without ledger serialization.
+9. C6-1 authoring-ledger output Task; complete ledger v2, SP-60/SP-61, coverage/readiness independence, and the G5-only handoff.
+10. Independent C3-C6 completion audit across all fixed counterexamples.
 
 Each Task remains 20-30 minutes with 2-5 minute Steps, exact files, RED/GREEN evidence, protected-input checks, forbidden-path checks, precise staging, one commit, and a stop checkpoint. No plan authorizes the next Task automatically.
 

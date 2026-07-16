@@ -1,11 +1,12 @@
 [CmdletBinding()]
-param()
+param([switch]$UpdateFixtures)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $module=Import-Module (Join-Path $PSScriptRoot 'C5RequirementEvidenceGate.psm1') -Force -PassThru
+if($module.ExportedFunctions.Keys-cnotcontains'Invoke-C5RequirementEvidenceGate'){throw 'C5-2 output-vector gate entry point is missing.'}
 $familyRegistry=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json')|ConvertFrom-Json -Depth 100 -DateKind String
 $memberStatic=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json')|ConvertFrom-Json -Depth 100 -DateKind String
 $lanePolicyPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
@@ -28,7 +29,7 @@ function New-Package($Requirement,[string]$Kind,[string]$Executor,[string]$Execu
 }
 function Get-StaticInputFingerprint {
     $paths=@('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json','Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md')
-    $entries=@($paths|ForEach-Object{[pscustomobject][ordered]@{path=$_;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $_)).Hash.ToLowerInvariant()}}|Sort-Object path -CaseSensitive)
+    $entryList=[Collections.Generic.List[object]]::new();foreach($path in $paths){$entryList.Add([pscustomobject][ordered]@{path=$path;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $path)).Hash.ToLowerInvariant()})};$entryList.Sort([Comparison[object]]{param($a,$b)[StringComparer]::Ordinal.Compare([string]$a.path,[string]$b.path)});$entries=@($entryList.ToArray())
     $count=[string]$entries.Count;$text="LifecycleStageInputV1`nentries.count:$([Text.Encoding]::UTF8.GetByteCount($count)):$count`n"
     for($index=0;$index-lt$entries.Count;$index++){$nested="C2ArtifactEntryV1`n"+(Scalar path $entries[$index].path)+(Scalar sha256 $entries[$index].sha256);$text+="entries[$index]:$([Text.Encoding]::UTF8.GetByteCount($nested)):$nested`n"}
     Get-Sha256 $text
@@ -115,6 +116,48 @@ $wrongKindPackage=Clone-Value $suitabilityAcceptedPackage;$wrongKindPackage.obse
 if($wrongKind.status-cne'Failed'-or$wrongKind.issues-cnotcontains'Capability suitability package identity mismatch.'-or$wrongKind.suitabilityAcceptedCount-ne0){throw 'Wrong capability-suitability observation kind was reused.'}
 $staleWrongKindPackage=Clone-Value $wrongKindPackage;$staleWrongKindPackage.inputFingerprint=('f'*64);$staleWrongKindPackage=Update-PackageId $staleWrongKindPackage;$staleWrongKind=Run-Kernel @($riskFacts) @($staleWrongKindPackage)
 if($staleWrongKind.status-cne'Failed'-or$staleWrongKind.issues-cnotcontains'Capability suitability package identity mismatch.'-or$staleWrongKind.suitabilityStaleCount-ne0){throw 'Staleness masked an LF-15 capability evidence identity failure.'}
+
+$directInputSpecs=[ordered]@{
+    'C3-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json';'C3-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json';'C3-O03'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json';'C3-O04-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json';'C3-O04-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md'
+    'C4-O01'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json';'C4-O02'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json';'C4-O03-Summary'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json';'C4-O03-Report'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md'
+    'LC-I06'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json';'LC-I07'='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json';'LC-I08'='docs/asset-migration/schemas/status-vocabulary.json';'LC-I11'='docs/asset-migration/schemas/c3-c6-decision-policy-registry.json';'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
+}
+$directInputs=@($directInputSpecs.GetEnumerator()|ForEach-Object{[pscustomobject][ordered]@{artifactId=[string]$_.Key;path=[string]$_.Value;sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $repositoryRoot $_.Value)).Hash.ToLowerInvariant()}})
+$stage=[pscustomobject][ordered]@{generatedAt='2026-07-16T06:00:00Z';snapshotId=$familyRegistry.snapshotId;toolVersions=@('C5RequirementEvidenceGate:1.0.0');directInputs=$directInputs}
+function Run-Gate($Packages,$StageValue=$stage){
+    Invoke-C5RequirementEvidenceGate -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -EvidencePackages $Packages -Stage $StageValue
+}
+$gate=Run-Gate @()
+if($gate.gateStatus-cne'Passed'-or(@($gate.PSObject.Properties.Name)-join',')-cne'gateStatus,representativeRequirements,evidenceAssessment,c7EvidenceRequest,summary,report,texts,executorLaunchCount,heavyOperationCount'){throw 'C5-2 Passed result vector shape failed.'}
+if($gate.summary.failureAccounting.outputCandidateCount-ne4-or$gate.summary.failureAccounting.projectedOutputCount-ne4-or$gate.summary.failureAccounting.outputFailureCount-ne0-or$gate.summary.directOutputs.Count-ne4){throw 'C5-2 Passed output conservation failed.'}
+$supportPrefix='schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,decisionPolicyFingerprint'
+if((@($gate.representativeRequirements.PSObject.Properties.Name)-join',')-cne"$supportPrefix,requirements,capabilitySuitabilityRequirements"-or(@($gate.evidenceAssessment.PSObject.Properties.Name)-join',')-cne"$supportPrefix,assessments,capabilitySuitabilityAssessments"-or(@($gate.c7EvidenceRequest.PSObject.Properties.Name)-join',')-cne"$supportPrefix,requests"){throw 'C5 success artifact top-level shape failed.'}
+if((@($gate.summary.PSObject.Properties.Name)-join',')-cne'schemaVersion,generatedAt,stageId,snapshotId,inputFingerprint,policySetFingerprint,decisionPolicyFingerprint,toolVersions,directInputs,directOutputs,coverage,failureAccounting,decision'){throw 'C5-O04 summary top-level shape failed.'}
+$coverageShape='familyCount,riskVariantCount,representativeRequirementCount,representativeRequiredCount,evidenceAcceptedCount,evidenceMissingCount,evidenceStaleCount,unityExecutionUnavailableCount,representativeRejectedCount,capabilitySuitabilityRequirementCount,suitabilityRequiredCount,suitabilityAcceptedCount,suitabilityMissingCount,suitabilityStaleCount,suitabilityExecutionUnavailableCount,suitabilityRejectedCount,c7RequestCount'
+$accountingShape='inputSubjectCount,acceptedInputSubjectCount,inputFailureCount,notEvaluatedInputSubjectCount,outputCandidateCount,projectedOutputCount,outputFailureCount,issueCount,gateStatus,inputFailures,inputSuppressions,outputFailures'
+if((@($gate.summary.coverage.PSObject.Properties.Name)-join',')-cne$coverageShape-or(@($gate.summary.failureAccounting.PSObject.Properties.Name)-join',')-cne$accountingShape){throw 'C5-O04 coverage/accounting shape failed.'}
+if($gate.representativeRequirements.requirements.Count-ne21-or$gate.representativeRequirements.capabilitySuitabilityRequirements.Count-ne11-or$gate.evidenceAssessment.assessments.Count-ne21-or$gate.evidenceAssessment.capabilitySuitabilityAssessments.Count-ne11-or$gate.c7EvidenceRequest.requests.Count-ne20){throw 'C5 success artifact subject counts failed.'}
+if($gate.summary.coverage.representativeRequirementCount-ne($gate.summary.coverage.representativeRequiredCount+$gate.summary.coverage.evidenceAcceptedCount+$gate.summary.coverage.evidenceMissingCount+$gate.summary.coverage.evidenceStaleCount+$gate.summary.coverage.unityExecutionUnavailableCount+$gate.summary.coverage.representativeRejectedCount)){throw 'C5-O04 SP-50 conservation failed.'}
+if($gate.summary.coverage.capabilitySuitabilityRequirementCount-ne($gate.summary.coverage.suitabilityRequiredCount+$gate.summary.coverage.suitabilityAcceptedCount+$gate.summary.coverage.suitabilityMissingCount+$gate.summary.coverage.suitabilityStaleCount+$gate.summary.coverage.suitabilityExecutionUnavailableCount+$gate.summary.coverage.suitabilityRejectedCount)){throw 'C5-O04 SP-51 conservation failed.'}
+$requestShape='requirementId,requirementKind,familyId,lane,capabilityId,routeKind,representativeAssetObjectId,requiredEvidenceKinds,reasonCode,priority,evidence'
+foreach($request in $gate.c7EvidenceRequest.requests){if((@($request.PSObject.Properties.Name)-join',')-cne$requestShape-or$request.reasonCode -CNotIn @('EvidenceMissing','EvidenceStale','UnityExecutionUnavailable','SuitabilityMissing','SuitabilityStale','SuitabilityExecutionUnavailable')){throw 'C5-O03 request shape or reason failed.'};if($request.requirementKind-ceq'RiskVariant'-and($null-ne$request.capabilityId-or$null-ne$request.routeKind-or$request.priority-cne'Coverage')){throw 'C5-O03 risk request typing failed.'};if($request.requirementKind-ceq'CapabilitySuitability'-and($null-eq$request.capabilityId-or$null-eq$request.routeKind-or$request.priority-cne'RequiredCapability')){throw 'C5-O03 suitability request typing failed.'}}
+if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.policySetFingerprint-cne'7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862'-or$gate.summary.decisionPolicyFingerprint-cne'82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a'){throw 'C5 exact-byte input/policy fingerprints failed.'}
+if((@($gate.representativeRequirements.requirements.requirementId|Sort-Object)-join',')-cne(@($base.requirements.requirementId|Sort-Object)-join',')){throw 'C5 gate changed kernel requirement identities.'}
+if($gate.report.Contains("`r")-or-not$gate.report.EndsWith("`n")-or$gate.report.EndsWith("`n`n")){throw 'C5 report byte format failed.'}
+$outputTextById=@{'C5-O01'=$gate.texts.representativeRequirements;'C5-O02'=$gate.texts.evidenceAssessment;'C5-O03'=$gate.texts.c7EvidenceRequest;'C5-O04-Report'=$gate.report}
+foreach($output in $gate.summary.directOutputs){if($output.sha256-cne(Get-Sha256 $outputTextById[$output.artifactId])){throw "C5 direct output hash mismatch: $($output.artifactId)"}}
+$artifactShape='artifactId,path,sha256';foreach($entry in @($gate.summary.directInputs)+@($gate.summary.directOutputs)){if((@($entry.PSObject.Properties.Name)-join',')-cne$artifactShape){throw 'C5 direct artifact row shape failed.'}}
+for($index=1;$index-lt$gate.summary.directInputs.Count;$index++){if([StringComparer]::Ordinal.Compare([string]$gate.summary.directInputs[$index-1].path,[string]$gate.summary.directInputs[$index].path)-ge0){throw 'C5 direct inputs are not Ordinal sorted.'}}
+$changedStage=Clone-Value $stage;$changedStage.directInputs[0].sha256=('0'*64);$changedGate=Run-Gate @() $changedStage
+if($changedGate.gateStatus-cne'Passed'-or$changedGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint){throw 'LX-HI-14 C5 direct-input mutation sensitivity failed.'}
+$missingInputStage=Clone-Value $stage;$missingInputStage.directInputs=@($missingInputStage.directInputs|Select-Object -Skip 1);$rejected=$false;try{Run-Gate @() $missingInputStage|Out-Null}catch{$rejected=$_.Exception.Message-ceq'C5 direct input set is invalid.'};if(-not$rejected){throw 'C5 missing direct input was not rejected.'}
+$fixturePayloads=[ordered]@{'valid-representative-requirements.json'=$gate.texts.representativeRequirements;'valid-evidence-assessment.json'=$gate.texts.evidenceAssessment;'valid-c7-evidence-request.json'=$gate.texts.c7EvidenceRequest;'valid-c5-summary.json'=$gate.texts.summary;'valid-c5-report.md'=$gate.report}
+if($UpdateFixtures){$utf8=[Text.UTF8Encoding]::new($false);foreach($name in $fixturePayloads.Keys){[IO.File]::WriteAllText((Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name"),$fixturePayloads[$name],$utf8)};'fixtures=Updated';return}
+foreach($name in $fixturePayloads.Keys){$path=Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name";if(-not(Test-Path -LiteralPath $path)){throw "C5-2 expected fixture missing: $name"};if([IO.File]::ReadAllText($path,[Text.UTF8Encoding]::new($false))-cne$fixturePayloads[$name]){throw "C5-2 fixture bytes mismatch: $name"}}
+$failedGate=Run-Gate @($unknownPackage)
+if($failedGate.gateStatus-cne'Failed'-or$null-ne$failedGate.representativeRequirements-or$null-ne$failedGate.evidenceAssessment-or$null-ne$failedGate.c7EvidenceRequest-or$failedGate.summary.failureAccounting.outputCandidateCount-ne4-or$failedGate.summary.failureAccounting.projectedOutputCount-ne1-or$failedGate.summary.failureAccounting.outputFailureCount-ne3-or$failedGate.summary.failureAccounting.issueCount-ne1-or$failedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-15:C5:EvidenceContract'-or$failedGate.summary.directOutputs.Count-ne1){throw 'C5-2 LF-15 diagnostic-only vector failed.'}
+$accountingRowShape='recordId,stageId,subjectKind,subjectId,reasonCode,attribution,evidence';if((@($failedGate.summary.failureAccounting.inputFailures[0].PSObject.Properties.Name)-join',')-cne$accountingRowShape-or$failedGate.summary.failureAccounting.inputFailures[0].subjectKind-cne'ConservationCheck'){throw 'C5 LF-15 accounting row shape failed.'};foreach($failure in $failedGate.summary.failureAccounting.outputFailures){if((@($failure.PSObject.Properties.Name)-join',')-cne$accountingRowShape-or$failure.reasonCode-cne'SuppressedByGate'){throw 'C5 suppressed output accounting failed.'}}
+if($gate.executorLaunchCount-ne0-or$gate.heavyOperationCount-ne0-or$failedGate.executorLaunchCount-ne0-or$failedGate.heavyOperationCount-ne0){throw 'C5-2 attempted C7/G4 or a heavy operation.'}
 $repeat=Run-Kernel @($riskFacts) @();if(($base|ConvertTo-Json -Depth 100)-cne($repeat|ConvertTo-Json -Depth 100)){throw 'C5-0 determinism failed.'}
 if(Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublication')){throw 'C5-0 touched publication state.'}
 
@@ -127,5 +170,8 @@ if(Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublicatio
 'acceptedStaleRejectedRiskCount=1/1/1'
 'acceptedStaleRejectedSuitabilityCount=1/1/1'
 'audioSuitabilityRequirementCount=4'
+'c7RequestCount=20'
+'passedOutputVector=4/4/0'
+'failedOutputVector=4/1/3'
 'executorLaunchCount=0'
 'publicationWriteCount=0'

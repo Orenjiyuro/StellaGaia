@@ -1,0 +1,676 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T06:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "3a70aa4e72c3e3de3a499dc1525f37c204cafa6ead5986b58349f05b8a8e2fb5",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
+  "requirements": [
+    {
+      "requirementId": "representative-requirement-sha256:0b743ef92edc6b7495d899855e872bf6397cf51cc71244fe4546070111a7d36e",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "riskAxisId": "LoopRoute",
+      "riskVariantId": "429515f4b0ec7d1f2271ca618393e7e447c28d840d2a55ce00b5653fd126c671",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ],
+      "expectedInputFingerprint": "a62ea7d3df44452a350b72ac53dee1680ee92d61094259cee5cafacd5ddf2c88",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:26a9d8f40879f00241ffc5ae362f4d37f1b838327a2750d3ccdb6a7950e9eef7",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "riskAxisId": "RendererShaderCombination",
+      "riskVariantId": "eb2b97406ddc4c15478be97ee07e922df5bf84e717d06c1d4c37980e23ed58b8",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "a1391a23bace2f2994270bac99a66716a0ec170c0c0ad39e3c54ccecbb96c01c",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:2e1ef56d86cd746eb505856ed4a2430bd97a79bcc68a975c7ea0eba6abacff31",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "riskAxisId": "ActorRole",
+      "riskVariantId": "b1a402cf41de6991355635e79a4bb89656db311f7280a21e9d6c1c69e61588d3",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "4962b8dc8d5810fa3b04d050e5f535e64a618b749e5aa6ff57f2df3ff89405d7",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:3859e5340f549ff28d9f24138aebfa4593f07dc9bf16def5d90bb1125ca56ce4",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "riskAxisId": "BankEventStructure",
+      "riskVariantId": "cfe1aa315c14c9333e824fb8f8b976ff0e9088f3edbf097caab9e43cf177a55e",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ],
+      "expectedInputFingerprint": "dd381a4db1ff6712386235a5a14158288f9559621fbb361270ac40385b7aa56c",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:394a2b4f3f143c92427a0c4b2953b5236e3860f5eb1ed40160ab8dd0130d3768",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "riskAxisId": "UiRoute",
+      "riskVariantId": "9d5395f25a3d6c770e269cf4fed23248249a020a9c19ba58ffd82bac7558be3b",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "ab9d93dda31f5483474131536594d37ea339d2350cf616789f08b092fd73910d",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:3e7c266a54d275627c2c1e82d4c70fcd10d2d9e1df7bbb5a55e3dd45f9cf7d1e",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "riskAxisId": "Encoding",
+      "riskVariantId": "54efc60a88c020b8a6230fee36b8e4eaff9312cd0ca34bf65f110e88af20dd25",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ],
+      "expectedInputFingerprint": "648bb6944aac1eadfab7de930a4f4cdd9c083086e9148c708c7cef7b8e4ec712",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:4d1efd3c26d968eb715829f3a274838487f90a738442e97a13a7180064d51d2d",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "riskAxisId": "PhysicsNavigationShape",
+      "riskVariantId": "532ad15bc30cf2ff074bb1dd54656d619f0379c5f6265b45036095be0bf33a95",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "d501aa0e7b3a90a9ecd8d48ba85e065a018bda0be5fbe509c01013fdba574371",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:4def11efc8e5d22018c234629f54cd09de2f7ba1fcd46721a1d0eff579ba99f3",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "riskAxisId": "AnimationSetShape",
+      "riskVariantId": "5bd0c5879829354d8a895d8e77574669edbcd8e89cbc7bfc062967599307453c",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "74d5d834414b07dc4acb7b59ea739a8db259c1ff6b1958996ada70346238b108",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:4f19632e766bdcc1a9d5bc516bc60f515c5833450d64775d9fc3aee6c9cdbb9f",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "riskAxisId": "ChannelLayout",
+      "riskVariantId": "2ae7c0b37f8d417a749daafdf7ca58bac31c609f8fe53a408d50d3f44db7c3f7",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ],
+      "expectedInputFingerprint": "96dea2f3772297ec56762ca9b559f309b0fa0675fb8c770c5885ec7cbbebe087",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:4f249a1292df3f2b9ff98e60d266abe8493fdc85c7e51c3fc367af8141bab5a4",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "riskAxisId": "SkeletonAvatar",
+      "riskVariantId": "23d84a74ee6ba5555d1853f3d23089bb7136f21070034f3ab96ab2a6a4e4a9e2",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "6870afaf5a38c4b4538c24c517dd837cc486ccecdd55f680afdf5d0ce1dbc7d8",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:54beeca853df02de6bec88a91f6dc9d48bd492207d5d89e05df19b207aef8ee5",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "riskAxisId": "ControllerRoute",
+      "riskVariantId": "0025a84405be406374267108e0fd26bda087332b1887e4751a7615e3b8c0e90d",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AnimationPlayback",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "c39b38609d0e8667bc9fa89cc06e6b87a768191d226baa48f02e30bad4ca0b6a",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:550b9be8cc638b072731d671266ec6d0d1b7d226cd8cbc38db284a2328510306",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "riskAxisId": "AudioCoupling",
+      "riskVariantId": "6e21b3b1326b323fedab0b8d4de563e783bf4aee79bc18058d5b8eec8f0b5ac1",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "83f25f85a8b2e527791cfa4c9066d8ebb6edcb7cccdd417f74c8095bb587d202",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:59d00413cb749bc0a88e298531a77b6b0894235a828f89a39becd13ce5853896",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "riskAxisId": "PrefabDependencyShape",
+      "riskVariantId": "21587b9b06250b3341cfeda462b524c3fa64cab9f5cd9848911b24e6d4b9dc66",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "e7bb9d8f66dac026beb9f5254d7971bc0ae546e5beeed68cc6f279cd71e20760",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:78d42b6ea9f0d696e17559a1e27935d284841c8de15392582f134f58298a73bf",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "riskAxisId": "RendererShaderCombination",
+      "riskVariantId": "07ed83aa168259d161b3cd819c3540be47a04dbdc5c81cd8e3c8867ec1a3b3d7",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "ec96e5ca91635a0543a547971a58134a3254a51c06cd4b9e5061520b0c0f3d0f",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:7a303136a578c8ae26e3de5d0a028aaba6070d71a641340097684d02f5279543",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "riskAxisId": "RendererShaderCombination",
+      "riskVariantId": "dd848f4a5919c049ee35bd5352c276a0fec7850cd1333d4738895937000c3792",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "f10be1a7113c4a2ecdcdfd1464e35cb4694fd2506359d9389e9be4d5cf53a98f",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:8614f4329f02153d10456a331d04b13990a9ae58869216ce83954bed6087d127",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "riskAxisId": "PrefabDependencyRisk",
+      "riskVariantId": "ce78ca8808c9374999d065a183c76804f7c46d3a358f99371c314971b130f251",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "a817aa6f44f8aeb475a8e359a84d18814771af3831b67256e3b04336ea31237d",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:9a8f102bf40bb544c59f8515b1fa33d3248023155180877de47c176b79cac08f",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "riskAxisId": "TextureFormat",
+      "riskVariantId": "f93afd79293bff296da643bd08ae11dd9d573bf584f3c41859a3eeb067b42b29",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "2c7da16d88bd5e30c72980175ec7ca8e445744cf6708f6c3c4215198fc3f40bb",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:a686eb8b58f5a434e96d5e5f79914123d9c8285194d3b2a707af2ea7fec998d3",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "riskAxisId": "PrefabDependencyShape",
+      "riskVariantId": "14dca59acb4d3dca64d116ae267a8314c919aae9573ac2e71388174da9501f47",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "b650e07e92ea0b912c9c95dc40fbcea264a09f817c00ba49e8c9c9b449af4a79",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:b2f708b83ea3d4ff65c203cd23a5175cb11e61d0c547b79fb3f89b32a689247c",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "riskAxisId": "ThemeModule",
+      "riskVariantId": "3b6670f5f6669c726d094ca63aca08d4ff4d0adfe98d821a1539e6aa9ecb86ab",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "c72313186c384ab66c49a4a41abe12a0d9672072ace3436122f9dbadec1a3a2c",
+      "assessmentStatus": "RepresentativeRequired",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:c58b441c07e1439267e93da1bc88bcbb4450ff0d3b72161333f3efec102ce1a9",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "riskAxisId": "EffectSystem",
+      "riskVariantId": "1b0b587538a48411d63840b416e3e72a01511b79bd02d8f2af0b1beff0f54886",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "EffectBehavior",
+        "MaterialFidelity",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "5b1a43dfa48d34a4f13d6bb4bda2a6ad5572906b791ad6dfa89ff7c708010054",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:e66c5c94da0a3101bbe4262d3e61796ded67abf93ac30113fbafdd3223147d8b",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "riskAxisId": "AtlasFontCombination",
+      "riskVariantId": "3a50b351349ea071e7d52805ae8ab4c99163a0361b4d066f6bd07a821907bcd1",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "expectedInputFingerprint": "ed46ab0c73f3bca8d4b547dd22e2cefae8503d2914bccfcb424890d4da8a2a52",
+      "assessmentStatus": "EvidenceMissing",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    }
+  ],
+  "capabilitySuitabilityRequirements": [
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:202c5e8f0c43a4b4efa5f6893d0f4cc515afeb78c509806e6edfb0081995ac34",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "capabilityId": "ReusableUiGraphicsAndConstructionRoute",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "74ef60faa875bb3a8bcb5a1d16c4cc693dc9ea12d29d2e29346b5f398c545770",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:29db0703d5f20c476797523de1547eb3654961dae95a9140b36afc88b8fa1106",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "capabilityId": "PlayableBgmRoute",
+      "routeKind": "DecodedAudio",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "9cb9a99f8e5bb5858325c5f30f09b4e8ad9e501d93e801b5ab03e547c54d26df",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:33f873172285885bb17904934dd38f59152658e79ea118db03f1f6031f1b6458",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "capabilityId": "PlayableCombatSfx",
+      "routeKind": "DecodedAudio",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "e65ef2aa38f8067783e246d4a258a9bc4ee01f46c05b517a086618f0285b261d",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:374f8bdd7dc3957ed59a8a0b85a31f7d0673a03389e95108dd94cb0a14a76a25",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "capabilityId": "RecognizableEnvironmentOrMapModules",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "33353a7216a0fe35979e7d390be751c3372d2be710e2346cc730483e5186dc4e",
+      "assessmentStatus": "SuitabilityRequired",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:4e10e31aa314db4135f7db387425a2e481082f638352f8d0cbb00945a4920a1f",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "capabilityId": "PlayerModelSkeletonAnimationSet",
+      "routeKind": "PrototypeController",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "b8a5983f3bbd01d3ed3cf0ba313ed7b37c4493fff235f26e5ac5a0aea5575016",
+      "assessmentStatus": "SuitabilityRequired",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:713c3a0b79624ced61074be44298bef2a78309f4e8dd3450eace02865de690c7",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "capabilityId": "CombatEffectRoute",
+      "routeKind": "EffectBehaviorReconstructed",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "f02a7cafdde6404670a9c893701a401925d6801b16710179c6de2b444956c1ad",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:af563d7b4d59b9ffba804fe3f88a64c349ebafc80b6406938661b789c3e420ba",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "capabilityId": "PlayableCombatSfx",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "62d5526f0d66b4939a87f2170e5ee6f882bbd83a1ad8cf945c44972d84ab36f7",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:b97c58e3627a8a1f4a7effc5f3dcfe8f82166474fc07af2c7d4583f3b56461b7",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "capabilityId": "ReusableUiGraphicsAndConstructionRoute",
+      "routeKind": "TextureOnlyRebuild",
+      "candidateMemberIds": [
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "b0aaa7cbf6b2b75c5a79444e7c577c98907a805742978bbe749c15dd3bd1b4cb",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:bd704c9248c7d2581ed440b891a1a6d7e65aa8055a52c8ec12b0ec9e78ed90bf",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "capabilityId": "CombatEffectRoute",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "d0b10c3071be4760da07727e37e89115bf8eb44042fb9487a0daae578de02337",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:c0c15adb24b93f2b9895fc06db3912d217060e979fa98ca440e3f0062e3b66d3",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "capabilityId": "PlayerModelSkeletonAnimationSet",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [],
+      "selectedRepresentativeAssetObjectId": null,
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "154325c824662076617a36b19d5560a2be5e9db304569f69bb8f0eeb1530c4da",
+      "assessmentStatus": "SuitabilityRequired",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    },
+    {
+      "suitabilityRequirementId": "capability-suitability-requirement-sha256:ced1e6cff9a69350ccbd0051846a272c8ecadb9826aec4b3830a31c019260e93",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "capabilityId": "PlayableBgmRoute",
+      "routeKind": "OriginalAsset",
+      "candidateMemberIds": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "selectedRepresentativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "selectionRule": "OrdinalFirstStaticPassed",
+      "requiredEvidenceKinds": [
+        "CapabilitySuitability"
+      ],
+      "expectedInputFingerprint": "abfab80904f8acad6c3f82beaa7837c771d54a50a876789e82dddf9578074436",
+      "assessmentStatus": "SuitabilityMissing",
+      "evidence": [
+        "docs/asset-migration/schemas/c3-c6-decision-policy-registry.json"
+      ]
+    }
+  ]
+}
