@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$UpdateFixtures)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -46,7 +46,7 @@ foreach ($member in $assigned) {
             reasonCode = $reasonCode
             observedFingerprint = if ($outcome -ceq 'Passed') { Get-FixtureFingerprint "$($member.assetObjectId)|$($check.checkId)|fixture-evidence" } else { $null }
             evidenceKinds = @($check.requiredEvidenceKinds)
-            evidence = @('Tools/AssetImport/Fixtures/FamilyQualificationGate/c4-walking-skeleton')
+            evidence = @('Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')
         })
     }
 }
@@ -116,10 +116,59 @@ $repeat = Run-Kernel @($facts) @($observations)
 if (($result | ConvertTo-Json -Depth 100) -cne ($repeat | ConvertTo-Json -Depth 100)) { throw 'C4-0 determinism failed.' }
 if (Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublication')) { throw 'C4-0 touched C2 publication state.' }
 
+$crossLaneReferences = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json') | ConvertFrom-Json -Depth 100 -DateKind String
+$directInputs = @(
+    [pscustomobject][ordered]@{artifactId='C3-O01';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json';sha256=('1'*64)},
+    [pscustomobject][ordered]@{artifactId='C3-O02';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json';sha256=('2'*64)},
+    [pscustomobject][ordered]@{artifactId='C3-O03';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json';sha256=('3'*64)},
+    [pscustomobject][ordered]@{artifactId='C3-O04-Summary';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json';sha256=('4'*64)},
+    [pscustomobject][ordered]@{artifactId='C3-O04-Report';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md';sha256=('5'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I01';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json';sha256=('6'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I02';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json';sha256=('7'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I03';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json';sha256=('8'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I06';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json';sha256=('9'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I07';path='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json';sha256=('a'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I08';path='docs/asset-migration/schemas/status-vocabulary.json';sha256=('b'*64)},
+    [pscustomobject][ordered]@{artifactId='LC-I13';path='docs/asset-migration/schemas/c2-lane-fact-package.schema.json';sha256=('c'*64)}
+)
+$stage = [pscustomobject][ordered]@{generatedAt='2026-07-16T04:00:00Z';snapshotId='snapshot-pc-install-001';toolVersions=@('C4StaticQualificationGate:1.0.0');directInputs=$directInputs}
+$gate = Invoke-C4StaticQualificationGate -FamilyRegistry $familyRegistry -FamilyMemberLedger $memberLedger -CrossLaneReferencePackage $crossLaneReferences -TypedFactRows @($facts) -LanePolicyRegistry $policy -MemberStaticStatuses @($vocabulary.memberStaticStatus) -StaticObservationRows @($observations) -Stage $stage
+if ($gate.gateStatus -cne 'Passed' -or (@($gate.PSObject.Properties.Name)-join',') -cne 'gateStatus,memberStaticQualification,familyStaticSummary,summary,report,texts') { throw 'C4-1 Passed result vector shape failed.' }
+if ($gate.summary.failureAccounting.outputCandidateCount -ne 3 -or $gate.summary.failureAccounting.projectedOutputCount -ne 3 -or $gate.summary.failureAccounting.outputFailureCount -ne 0 -or $gate.summary.directOutputs.Count -ne 3) { throw 'C4-1 Passed output conservation failed.' }
+if ((@($gate.memberStaticQualification.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,memberResults' -or (@($gate.familyStaticSummary.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,families') { throw 'C4 success artifact top-level shape failed.' }
+if ((@($gate.summary.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,stageId,snapshotId,inputFingerprint,policySetFingerprint,toolVersions,directInputs,directOutputs,coverage,failureAccounting,decision') { throw 'C4-O03 summary top-level shape failed.' }
+if ($gate.memberStaticQualification.memberResults.Count -ne 5 -or $gate.familyStaticSummary.families.Count -ne 5 -or $gate.summary.coverage.requiredCheckCount -ne 36) { throw 'C4-1 success artifact counts failed.' }
+if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.inputFingerprint-in@(('1'*64),('2'*64),('a'*64))){throw'C4-1 computed input fingerprint failed.'}
+$memberShape='staticResultId,assetObjectId,familyId,lane,requiredCheckCount,passedCheckCount,failedCheckCount,uncheckedCheckCount,staticStatus,uncheckedReasonCodes,failureAttribution,nextAllowedAction,checkResults,evidence'
+$checkShape='checkResultId,checkId,outcome,reasonCode,observedFingerprint,evidence'
+foreach($memberResult in $gate.memberStaticQualification.memberResults){if((@($memberResult.PSObject.Properties.Name)-join',')-cne$memberShape){throw'C4-O01 member shape failed.'};foreach($checkResult in $memberResult.checkResults){if((@($checkResult.PSObject.Properties.Name)-join',')-cne$checkShape){throw'C4-O01 check shape failed.'}}}
+$familyShape='familyId,lane,memberCount,memberBytes,staticPassedCount,staticPassedBytes,staticFailedCount,staticFailedBytes,uncheckedCount,uncheckedBytes,staticOutcome,failureAttribution,nextAllowedAction,memberStaticResultIds,evidence'
+foreach($familyResult in $gate.familyStaticSummary.families){if((@($familyResult.PSObject.Properties.Name)-join',')-cne$familyShape){throw'C4-O02 family shape failed.'};if($familyResult.memberCount-ne($familyResult.staticPassedCount+$familyResult.staticFailedCount+$familyResult.uncheckedCount)){throw'C4-O02 family conservation failed.'}}
+$coverageShape='familyCount,memberCount,memberBytes,staticPassedCount,staticPassedBytes,staticFailedCount,staticFailedBytes,uncheckedCount,uncheckedBytes,requiredCheckCount,passedCheckCount,failedCheckCount,uncheckedCheckCount'
+$accountingShape='inputSubjectCount,acceptedInputSubjectCount,inputFailureCount,notEvaluatedInputSubjectCount,outputCandidateCount,projectedOutputCount,outputFailureCount,issueCount,gateStatus,inputFailures,inputSuppressions,outputFailures'
+if((@($gate.summary.coverage.PSObject.Properties.Name)-join',')-cne$coverageShape-or(@($gate.summary.failureAccounting.PSObject.Properties.Name)-join',')-cne$accountingShape){throw'C4-O03 coverage/accounting shape failed.'}
+if($gate.summary.failureAccounting.inputFailureCount-ne0-or$gate.summary.decision.failureAttribution-cne'None; C4 lifecycle contract passed.'-or@($gate.memberStaticQualification.memberResults|Where-Object staticStatus -CEQ StaticFailed).Count-ne1-or@($gate.memberStaticQualification.memberResults|Where-Object staticStatus -CEQ Unchecked).Count-ne1){throw'LF-07/LF-08 valid outcome projection failed.'}
+if($gate.report.Contains("`r")-or-not$gate.report.EndsWith("`n")-or$gate.report.EndsWith("`n`n")){throw'C4 report byte format failed.'}
+$outputTextById=@{'C4-O01'=$gate.texts.memberStaticQualification;'C4-O02'=$gate.texts.familyStaticSummary;'C4-O03-Report'=$gate.report}
+foreach($output in $gate.summary.directOutputs){if($output.sha256-cne(Get-FixtureFingerprint $outputTextById[$output.artifactId]).Substring(7)){throw"C4 direct output hash mismatch: $($output.artifactId)"}}
+$changedStage=Clone-Value $stage;$changedStage.directInputs[0].sha256=('d'*64)
+$changedGate=Invoke-C4StaticQualificationGate -FamilyRegistry $familyRegistry -FamilyMemberLedger $memberLedger -CrossLaneReferencePackage $crossLaneReferences -TypedFactRows @($facts) -LanePolicyRegistry $policy -MemberStaticStatuses @($vocabulary.memberStaticStatus) -StaticObservationRows @($observations) -Stage $changedStage
+if($changedGate.gateStatus-cne'Passed'-or$changedGate.summary.inputFingerprint-ceq$gate.summary.inputFingerprint){throw'LX-HI-14 direct-input mutation sensitivity failed.'}
+$missingInputStage=Clone-Value $stage;$missingInputStage.directInputs=@($missingInputStage.directInputs|Select-Object -Skip 1);$rejected=$false;try{Invoke-C4StaticQualificationGate -FamilyRegistry $familyRegistry -FamilyMemberLedger $memberLedger -CrossLaneReferencePackage $crossLaneReferences -TypedFactRows @($facts) -LanePolicyRegistry $policy -MemberStaticStatuses @($vocabulary.memberStaticStatus) -StaticObservationRows @($observations) -Stage $missingInputStage|Out-Null}catch{$rejected=$_.Exception.Message-ceq'C4 direct input set is invalid.'};if(-not$rejected){throw'C4 missing direct input was not rejected.'}
+
+$fixturePayloads=[ordered]@{'valid-member-static-qualification.json'=$gate.texts.memberStaticQualification;'valid-family-static-summary.json'=$gate.texts.familyStaticSummary;'valid-c4-summary.json'=$gate.texts.summary;'valid-c4-report.md'=$gate.report}
+if($UpdateFixtures){$utf8=[Text.UTF8Encoding]::new($false);foreach($name in $fixturePayloads.Keys){[IO.File]::WriteAllText((Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name"),$fixturePayloads[$name],$utf8)};'fixtures=Updated';return}
+foreach($name in $fixturePayloads.Keys){$path=Join-Path $repositoryRoot "Tools/AssetImport/Fixtures/FamilyQualificationGate/$name";if(-not(Test-Path -LiteralPath $path)){throw "C4-1 expected fixture missing: $name"};if([IO.File]::ReadAllText($path,[Text.UTF8Encoding]::new($false))-cne$fixturePayloads[$name]){throw "C4-1 fixture bytes mismatch: $name"}}
+
+$failedGate = Invoke-C4StaticQualificationGate -FamilyRegistry $familyRegistry -FamilyMemberLedger $memberLedger -CrossLaneReferencePackage $crossLaneReferences -TypedFactRows @($facts) -LanePolicyRegistry $policy -MemberStaticStatuses @($vocabulary.memberStaticStatus) -StaticObservationRows $missingRows -Stage $stage
+if($failedGate.gateStatus-cne'Failed'-or$null-ne$failedGate.memberStaticQualification-or$null-ne$failedGate.familyStaticSummary-or$failedGate.summary.failureAccounting.outputCandidateCount-ne3-or$failedGate.summary.failureAccounting.projectedOutputCount-ne1-or$failedGate.summary.failureAccounting.outputFailureCount-ne2-or$failedGate.summary.failureAccounting.issueCount-ne1-or$failedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-09:C4:StaticConservation'-or$failedGate.summary.directOutputs.Count-ne1){throw'C4-1 LF-09 diagnostic-only vector failed.'}
+
 'status=Passed'
 'assignedMemberCount=5'
 'memberPartition=3/1/1'
 'memberBytePartition=1000/200/300'
 'requiredCheckPartition=34/1/1'
 'laneCheckCount=36'
+'passedOutputVector=3/3/0'
+'failedOutputVector=3/1/2'
 'publicationWriteCount=0'

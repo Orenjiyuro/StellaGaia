@@ -1,0 +1,466 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T04:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "5d6d3f8eb7ea495a4a148dbfe7811c2518d4577f91e9c60c63019a6187914ccc",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "memberResults": [
+    {
+      "staticResultId": "member-static-sha256:7affb541e42b9fcd9bd2b272b0d2fde14740605b8017be9b1ce34509a399193e",
+      "assetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "requiredCheckCount": 7,
+      "passedCheckCount": 7,
+      "failedCheckCount": 0,
+      "uncheckedCheckCount": 0,
+      "staticStatus": "StaticPassed",
+      "uncheckedReasonCodes": [],
+      "failureAttribution": "None; all required static checks passed.",
+      "nextAllowedAction": "Retain as a StaticPassed C5 candidate.",
+      "checkResults": [
+        {
+          "checkResultId": "static-check-sha256:88482e35b907e396b1cd973b2f77ffdc718f3101c5cf8631b574ba93d3c59218",
+          "checkId": "BankProvenance",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:ec19bd4387c27fecfaadf6ed5d6b5351c9dcd9441df8aa83b0dbe124f651dce1",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:b2ce666545954498afa518a5753c6f5fabda263f197e7d83e667609966802ffc",
+          "checkId": "ChannelLayoutValidity",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:fd639a95c8b0dc33616d68288ea3b1805a8f8c728a71d65a20ccc2b3303baf53",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:f6b4edf4cd99d06ea272f8cf709f08b9538d873445caa30f7bfc322fcab3e2fd",
+          "checkId": "DecodeOutcome",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:e8345b02e4b7c818ae3b1520aabbad8d3b5b89f1cf97482002bdce20d42ebb74",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:27310c8c40110e5ff6356c95c1c1ad1360306c3904ca3d553f46e39156a29fe0",
+          "checkId": "DependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:1b59edf7a13bac1d56ba64fe6c723632244b5f33a4588bf417069822c95959b5",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:2dbe63d48725ce1ab4349c689cda9600f00479e417b315fa87c356d33fc5abd2",
+          "checkId": "EventRelationship",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:d2070425fded5ee879129622a6ec3d9f55da9c1d804babfcbf49326b52e5a6e2",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:68ceee01ae88ee3ae57c2050a48f9e0e4782624f498cb36b56b5773026e4f391",
+          "checkId": "LoopValidity",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:ab7e49709f8e66859969fbd5f6d0576d988adba40f38f8ae7e206e8174f62fd1",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:25472a418c68514fdcf73dffb8596b0f8440c564a1d564948d22de6fea6f2f59",
+          "checkId": "MediaReadability",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:649ce29244127b54ceb89b0da6c0aac536be5879a0385a5848f76c57d4737fad",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        }
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "staticResultId": "member-static-sha256:67b84992f00e09e63b984a8454531205ae6571b4e3db9bdaf5bde6a79f381022",
+      "assetObjectId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "requiredCheckCount": 8,
+      "passedCheckCount": 7,
+      "failedCheckCount": 1,
+      "uncheckedCheckCount": 0,
+      "staticStatus": "StaticFailed",
+      "uncheckedReasonCodes": [],
+      "failureAttribution": "LF-08:ColliderValidity",
+      "nextAllowedAction": "Apply C6 decision rules later.",
+      "checkResults": [
+        {
+          "checkResultId": "static-check-sha256:b6170ce3db199be69782a2353170846f54abda368232e97aacdd882003dae807",
+          "checkId": "ColliderValidity",
+          "outcome": "Failed",
+          "reasonCode": "PolicyViolation",
+          "observedFingerprint": null,
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:ae001e61cffa9fe0db72da0a6a49775f3bd6410cf67b05f39afd0e541ac3c05b",
+          "checkId": "LightmapValidity",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:d283b8191712af6aa6c1547efc3ae14fbf717b4d2cdb5851e4c8980fc7ebfb44",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:b6cc5a8859f2ac15e542d425e74ee3dd4dc4bea46e9f84949d99c7b7d706476f",
+          "checkId": "MaterialDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:400da1edadcbd1b9f1dbe7926b81d0b8b361c3888ada93053f001ea72b572a35",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:1c343645e089bd263ff5e6763003303305f59e83bebe8bc8de9e54b6211fd461",
+          "checkId": "MeshReadability",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:64ce0a3b9d01fdc8d84c373998ab50b22983e8817818a7668f8883115606f996",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:8733d5799374850665beeef04e254cfcc94fd4dd8766aeb97dd08f8f7ef3ec0c",
+          "checkId": "NavMeshValidity",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:36b18b17e13d8b85f5e70d070dbb370b3f2ae28b23ce4f4d0bba1d809486b0ff",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:38c79db37a2a467d10994d9cae26b910c6fbb5719d36bf5680abad88cca97916",
+          "checkId": "PrefabDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:ccf6c1d4f5ab8525766f1dffbfe2f9ca7ba59584af5838cab6cbad622f8ab458",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:bdbf27dfd658820b5fc5d42f63281603290a83a7598e82e34bc539217b1938f2",
+          "checkId": "ShaderDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:5324d5f8e8f3b25673b7d116c3b223e7f09c87a738911db7b0379404ec969570",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:476bf440df0b5731b9cad0b6516452df262c331db28f94cfc72652d747dcca6b",
+          "checkId": "TextureDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:81b64e83ee8ef1cec53ef3027a5b481dc1bc43f4a7ad3019ba0a9dedfce65903",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        }
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "staticResultId": "member-static-sha256:95d7b108c718cb9ebc200ec24d10f9def73c7fb32480f6760dc6b6d28db55aa4",
+      "assetObjectId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "requiredCheckCount": 8,
+      "passedCheckCount": 7,
+      "failedCheckCount": 0,
+      "uncheckedCheckCount": 1,
+      "staticStatus": "Unchecked",
+      "uncheckedReasonCodes": [
+        "ToolUnavailable"
+      ],
+      "failureAttribution": "LF-07:AnimationClipReadability",
+      "nextAllowedAction": "Resolve named reason; never project Passed.",
+      "checkResults": [
+        {
+          "checkResultId": "static-check-sha256:bfba65bb2c9d056b8189ed21bbd52b7a6b232c0608da00c94d9f10c665f3b743",
+          "checkId": "AnimationClipReadability",
+          "outcome": "Unchecked",
+          "reasonCode": "ToolUnavailable",
+          "observedFingerprint": null,
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:e8c27da9c57856f000bed006df30812c8b5a284ff48e7630d529fd5ba1445fe8",
+          "checkId": "AvatarClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:78a30fbd8d4ee0e421b708c53cfa9e2534f40cdead9fbe4665666ee9f4d3cf60",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:6046e8cbf9519b0c9590234a8f99693c34c3c23c2fd57651e46c18d4534decd5",
+          "checkId": "ControllerReferenceClassification",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:3cea1c99587dc6e0d3dfd30d7564a5c3608655cfb054ee63913b05752baefde3",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:1bedc0f8542182036bf578e5c4dc9724eb9e4883150cf334db5e366eefcd19c6",
+          "checkId": "DependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:8d28d99cc3794034ef1214783bd17a2dcfb5fd83dd698ebe09f0c79c0f11c0a2",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:946a0f4da0e01d8dcf9849bd46344fd2d545f4fc1966990b3a0c72e7313a3b82",
+          "checkId": "MaterialDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:5ba7902245da51956b2068bf67cc6155935509f52d3bfacf9eea8009bf7627b8",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:39562f59eaf8ecb2e3b9fa8ca1f323ff863d43dedd74cdce59666a25108ed5aa",
+          "checkId": "MeshReadability",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:12ab8746808c9c20914dc9fa2c2b7c713ec83a76d7f96c0834e04d85d75a3171",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:0e11852884c7b31a713bff9325c4827f0aa5f83f7353f3441523313a68117b54",
+          "checkId": "SkeletonClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:b93c6e2fb5adec264ed53af73910b4f90a9e7adc7c28aee6ed8be1d5cb74d52d",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:56374b6f57ce06a12accf64bd1f7a6f0bdf1b8c5c734bd921aee92c37776e8fd",
+          "checkId": "TextureDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:7fc43f95cf2c202aa6d8af67c0538bd632285e39741541a412d53d90ef1a5f34",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        }
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "staticResultId": "member-static-sha256:adcb233f468083f1b97686001bb20060fbb3887f538f58d3f73a2bf2ac7ad40c",
+      "assetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "requiredCheckCount": 6,
+      "passedCheckCount": 6,
+      "failedCheckCount": 0,
+      "uncheckedCheckCount": 0,
+      "staticStatus": "StaticPassed",
+      "uncheckedReasonCodes": [],
+      "failureAttribution": "None; all required static checks passed.",
+      "nextAllowedAction": "Retain as a StaticPassed C5 candidate.",
+      "checkResults": [
+        {
+          "checkResultId": "static-check-sha256:7bba2f6421a0ba3f36f5b236b4b1504e04d74df54851d2d17ee41c99f87da960",
+          "checkId": "FontDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:12f032792d87a275538f755822410652c118fdde6ba1b740e5fb567dba4bf4bb",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:27d237e1e79bf4feb6b68b904cfebe3fa48af85b4c9a495c383d61265f876b6b",
+          "checkId": "MaterialDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:d5c3b031bac2d2ab2346a451ee91311a3b96f7ea89f51aab8bd359dbce51998f",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:fdd1b7e0b5491d01bcf12e5f33382b02817f8ecc96ac4c2887de372e1b8b29d7",
+          "checkId": "PrefabDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:7fcdb192657d60d56fc12d17c658f3d0a2b87237d195c3b3e2c65420aa567ac0",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:f36da759acfbbebd51fe9a67b73c921e4a10262eba3a65ca5fc3dfe08b9eb13a",
+          "checkId": "SpriteAtlasClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:30e063a91fed6abbf1b6d6991bafee58749071e2a10b1db10580390ec3172c23",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:b4e5236f4bfe1c808692f518d2b066e96326b1a6cbcbe78cc061ec529e977965",
+          "checkId": "TextureReadability",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:9a7798c86f9e61935d9224a1740ea03ae6da647dbda3bbd4b9ba8fb906d06c8a",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:702a359dc6ddb35e0001389048e80dc91764784ed1dee271ac366ae6bbf3793d",
+          "checkId": "UiRouteValidity",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:e3ea1bda79e5d34fcf4cfa54fc6461a5837580d1ab9efdf7b32099ae28281860",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        }
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "staticResultId": "member-static-sha256:e86460eaa5fd49aac8e183892811fb442201ec1d28df03ebda11bf8881a4b51e",
+      "assetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "requiredCheckCount": 7,
+      "passedCheckCount": 7,
+      "failedCheckCount": 0,
+      "uncheckedCheckCount": 0,
+      "staticStatus": "StaticPassed",
+      "uncheckedReasonCodes": [],
+      "failureAttribution": "None; all required static checks passed.",
+      "nextAllowedAction": "Retain as a StaticPassed C5 candidate.",
+      "checkResults": [
+        {
+          "checkResultId": "static-check-sha256:d6d5b70194fa6ab6189d4591cf29d262ce875409faeceb55d487e010321e7145",
+          "checkId": "AudioDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:2ae89146ee516543bc0ba8be9dd88f10559e0eae33327b2b0c762d6e0021bb02",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:33cb3265cb82f6ee4e4108248211afb69465485756e92f79b450837e120a1a15",
+          "checkId": "EffectSystemReadability",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:9ed2eed4034666a02009950d8f90e8d3a40167bff91fb5784f08ebc8a7fa0302",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:2a46f6181d553d6a076b3edad744e2bd2f1e872742d11d542c186537600503a2",
+          "checkId": "MaterialDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:5bc6d52eb9636ba0a80b32318cf0a971fad20dfdc62bffbfaf70e6b4f936a292",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:b0f8da4a99cd3ebe41fd22b861ba140c7d4ce28521962f129b56094d048b1983",
+          "checkId": "MeshDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:4bdfb4b00f4cb22981edbfb2dee42c152f8201d2842a10d7eb77935dca46e3e2",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:395f3b5aaab483e79e98ddfe6a7a1de9f57696cc7fa5bef4430b24709f84509f",
+          "checkId": "PrefabDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:1cd39589546c7e39b4b33cf18fa559425015b314d6f262ee27b6e687002d2b5f",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:4ef77f9feb7ccebc5826f53f5990fdec776e0ad86863837b3408ba1c391d8257",
+          "checkId": "ShaderDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:3244da745993fc029185f8b366bfdb7a3d4feb545b5fca3f2de33bbb383e9906",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        },
+        {
+          "checkResultId": "static-check-sha256:20cb4a184e5d7e3aa8113e69a6d7608a646ebb40c30057cf4951866d236ae65b",
+          "checkId": "TextureDependencyClosure",
+          "outcome": "Passed",
+          "reasonCode": "None",
+          "observedFingerprint": "sha256:a5e52e3dab8fe40e2a2e35029e64a3ac452021f89f69ca9a447cc266fcdf6778",
+          "evidence": [
+            "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+          ]
+        }
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}

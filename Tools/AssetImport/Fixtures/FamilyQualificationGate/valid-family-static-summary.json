@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T04:00:00Z",
+  "snapshotId": "snapshot-pc-install-001",
+  "inputFingerprint": "5d6d3f8eb7ea495a4a148dbfe7811c2518d4577f91e9c60c63019a6187914ccc",
+  "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
+  "families": [
+    {
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "memberCount": 1,
+      "memberBytes": 500,
+      "staticPassedCount": 1,
+      "staticPassedBytes": 500,
+      "staticFailedCount": 0,
+      "staticFailedBytes": 0,
+      "uncheckedCount": 0,
+      "uncheckedBytes": 0,
+      "staticOutcome": "StaticQualified",
+      "failureAttribution": "None; every family member is StaticPassed.",
+      "nextAllowedAction": "Provide family static qualification to C5.",
+      "memberStaticResultIds": [
+        "member-static-sha256:e86460eaa5fd49aac8e183892811fb442201ec1d28df03ebda11bf8881a4b51e"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
+      "lane": "Environment",
+      "memberCount": 1,
+      "memberBytes": 200,
+      "staticPassedCount": 0,
+      "staticPassedBytes": 0,
+      "staticFailedCount": 1,
+      "staticFailedBytes": 200,
+      "uncheckedCount": 0,
+      "uncheckedBytes": 0,
+      "staticOutcome": "StaticRejected",
+      "failureAttribution": "LF-08:ColliderValidity",
+      "nextAllowedAction": "Apply C6 decision rules later.",
+      "memberStaticResultIds": [
+        "member-static-sha256:67b84992f00e09e63b984a8454531205ae6571b4e3db9bdaf5bde6a79f381022"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "memberCount": 1,
+      "memberBytes": 100,
+      "staticPassedCount": 1,
+      "staticPassedBytes": 100,
+      "staticFailedCount": 0,
+      "staticFailedBytes": 0,
+      "uncheckedCount": 0,
+      "uncheckedBytes": 0,
+      "staticOutcome": "StaticQualified",
+      "failureAttribution": "None; every family member is StaticPassed.",
+      "nextAllowedAction": "Provide family static qualification to C5.",
+      "memberStaticResultIds": [
+        "member-static-sha256:7affb541e42b9fcd9bd2b272b0d2fde14740605b8017be9b1ce34509a399193e"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
+      "lane": "Actor",
+      "memberCount": 1,
+      "memberBytes": 300,
+      "staticPassedCount": 0,
+      "staticPassedBytes": 0,
+      "staticFailedCount": 0,
+      "staticFailedBytes": 0,
+      "uncheckedCount": 1,
+      "uncheckedBytes": 300,
+      "staticOutcome": "NeedsDiagnosis",
+      "failureAttribution": "LF-07:AnimationClipReadability",
+      "nextAllowedAction": "Resolve unchecked member reasons before original-asset reuse.",
+      "memberStaticResultIds": [
+        "member-static-sha256:95d7b108c718cb9ebc200ec24d10f9def73c7fb32480f6760dc6b6d28db55aa4"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    },
+    {
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "memberCount": 1,
+      "memberBytes": 400,
+      "staticPassedCount": 1,
+      "staticPassedBytes": 400,
+      "staticFailedCount": 0,
+      "staticFailedBytes": 0,
+      "uncheckedCount": 0,
+      "uncheckedBytes": 0,
+      "staticOutcome": "StaticQualified",
+      "failureAttribution": "None; every family member is StaticPassed.",
+      "nextAllowedAction": "Provide family static qualification to C5.",
+      "memberStaticResultIds": [
+        "member-static-sha256:adcb233f468083f1b97686001bb20060fbb3887f538f58d3f73a2bf2ac7ad40c"
+      ],
+      "evidence": [
+        "Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json"
+      ]
+    }
+  ]
+}
