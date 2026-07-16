@@ -1,9 +1,9 @@
 # StellaSora Asset Corpus C3-C6 Lifecycle Qualification Design
 
 **Date:** 2026-07-15
-**Status:** Approved responsibility and input/output contract design; documentation only; implementation unauthorized
-**Baseline:** `codex/asset-corpus-integration` at `d2b5247f07d776bb94214ec6c6ecde1b01f570a5`
-**Scope:** C3 family construction, C4 static qualification, C5 representative/evidence assessment, C6 authoring decisions and ledger projection. No implementation, schema edit, C2 edit, C7/G4 execution, G5 implementation, Unity, extraction, import, real assets, or Phase B.
+**Status:** Approved responsibility and input/output contract design; C3-C5 fixture-only implementation complete; C6 prerequisite contract closure complete; C6 lifecycle implementation unauthorized
+**Baseline:** `codex/asset-corpus-integration` at `f81b18f8312030621d43b00171dc3ec41cdef24c`
+**Scope:** C3 family construction, C4 static qualification, C5 representative/evidence assessment, and C6 authoring decisions/ledger projection contracts. No C6 lifecycle implementation, C2 edit, C7/G4 execution, G5 implementation, Unity, extraction, import, real assets, or Phase B.
 
 ## Purpose And Architecture Decision
 
@@ -63,7 +63,7 @@ Phase A fixture paths use the fixed root `Tools/AssetImport/Fixtures/FamilyQuali
 | LC-I09 | C7/G4 evidence manifest | `Tools/AssetImport/Fixtures/FamilyQualificationGate/c7-evidence-manifest.json` | Reviewed fixture authority or future Phase B approval | C5 | Optional; absence means no evidence packages, never evidence acceptance |
 | LC-I10 | C7/G4 evidence packages | paths listed exactly by LC-I09 | C7/G4 | C5 | Each package must match manifest path/SHA and requirement identity |
 | LC-I11 | Decision/capability registry | `docs/asset-migration/schemas/c3-c6-decision-policy-registry.json` | C0 contract Task | C5/C6 | Runtime registry, strict JSON Schema, byte-identical positive fixture, focused negative fixtures, and executable contract validation are implemented; consumers compute its exact-byte fingerprint externally |
-| LC-I12 | Repair-attempt history | `Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json` | Reviewed repair workflow | C6 | Required exact artifact; an empty attempts array means no attempt, absence never means zero |
+| LC-I12 | Repair-attempt history | `Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json` | `docs/asset-migration/schemas/c3-c6-repair-attempt-history.schema.json` plus reviewed repair workflow | C6 | Required exact artifact; an empty attempts array means no attempt, absence never means zero |
 | LC-I13 | Typed lane-fact schema | `docs/asset-migration/schemas/c2-lane-fact-package.schema.json` | C0/C2 contract Task | LC-I06/C3 | Contract frozen with valid and negative fixture coverage; `factContractFingerprint` is its exact-byte SHA-256; the fixture-only LC-I06 producer now consumes its exact bytes |
 | C3-O01 | Family registry | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json` | C3 | C4-C6 | Passed only; suppressed on C3 contract failure |
 | C3-O02 | Family-member ledger | `Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json` | C3 | C4-C6 | Passed only; contains every LC-I04 subject exactly once |
@@ -624,6 +624,8 @@ failedCheckCount
 uncheckedCheckCount
 staticStatus
 uncheckedReasonCodes
+actionableFailureClasses
+availableInputKinds
 failureAttribution
 nextAllowedAction
 checkResults
@@ -638,10 +640,16 @@ checkId
 outcome
 reasonCode
 observedFingerprint
+failureClasses
+availableInputKinds
 evidence
 ```
 
-`outcome` is `Passed`, `Failed`, or `Unchecked`. `observedFingerprint` is non-null only when evidence bytes were actually read. `uncheckedReasonCodes` values are `MissingInputFact`, `PrerequisiteFailed`, `ToolUnavailable`, `UnsupportedFormat`, or `EvidenceUnavailable`. Unchecked is never Passed.
+The accepted C4 static-observation input row is exactly `assetObjectId`, `familyId`, `checkId`, `outcome`, `reasonCode`, `observedFingerprint`, `failureClasses`, `evidenceKinds`, `evidence`. `failureClasses` is an Ordinal set using the frozen common failure-class vocabulary. It is nonempty exactly for Failed and empty for Passed or Unchecked. C4 validates and copies this typed attribution; C6 never parses a failure class from `reasonCode`, `failureAttribution`, a check ID, or free text.
+
+`availableInputKinds` is computed by C4, not supplied by the caller. It is the Ordinal union of the check's LC-I07 requiredFactKinds whose LC-I06 rows are Known and the observation's exact evidenceKinds. A member or family `availableInputKinds` is the union of its child checks. `actionableFailureClasses` is the union of Failed child `failureClasses`; Passed and Unchecked children add none. These fields are conserved through C4-O01/O02 so C6 can evaluate LC-I07 `requiredFailureClasses` and `requiredInputKinds` without rereading LC-I06, guessing from filenames, or re-running a static check.
+
+`outcome` is `Passed`, `Failed`, or `Unchecked`. `observedFingerprint` is non-null only when evidence bytes were actually read. `uncheckedReasonCodes` values are `MissingInputFact`, `PrerequisiteFailed`, `ToolUnavailable`, or `UnsupportedFormat`. Unchecked is never Passed.
 
 `staticStatus` is `StaticPassed` only when every required check Passed, `StaticFailed` when at least one required check Failed, and `Unchecked` otherwise. These member-level terms are deliberately distinct from the existing family-level `familyStaticOutcome` vocabulary.
 
@@ -659,6 +667,8 @@ staticFailedBytes
 uncheckedCount
 uncheckedBytes
 staticOutcome
+actionableFailureClasses
+availableInputKinds
 failureAttribution
 nextAllowedAction
 memberStaticResultIds
@@ -973,7 +983,7 @@ isolatedBytes
 
 Each capability row is exactly `capabilityId`, `status`, `satisfyingFamilyIds`, `routeKinds`, `suitabilityAssessmentIds`, `failureAttribution`, `evidence`. The capability identity resolves to exactly one LC-I11 row. Every suitabilityAssessmentId resolves to a SuitabilityAccepted C5-O02 row for the same capability, one projected routeKind, and one satisfying family. Status is `Satisfied`, `Unsatisfied`, or `Blocked`.
 
-**C6-O02 family decision package** uses the C6 support-package prefix followed by `decisions`, `issues`. Each decision row is exactly `decisionId`, `familyId`, `decision`, `repairClass`, `replacementRouteKind`, `ruleId`, `inputStaticFingerprint`, `inputEvidenceFingerprint`, `repairHistoryFingerprint`, `failureAttribution`, `nextAllowedAction`, `evidence`.
+**C6-O02 family decision package** uses the C6 support-package prefix followed by `decisions`, `issues`. Each decision row is exactly `decisionId`, `familyId`, `decision`, `repairClass`, `replacementRouteKind`, `ruleId`, `inputStaticFingerprint`, `inputEvidenceFingerprint`, `repairHistoryFingerprint`, `acceptedEvidenceAssessmentIds`, `failureAttribution`, `nextAllowedAction`, `evidence`.
 
 `ruleId` is exactly one of `DiagnosticOnlyRule`, `HardStopRule`, `NeedsDiagnosisRule`, `RepairOnceRule`, `PrototypeReplacementRule`, `UseOriginalAssetRule`, `RetainForLaterRule`, or `TerminalStopRule`, matching the first applicable C6 Decision Precedence row. `acceptedEvidenceAssessmentIds` contains every and only the family's C5-O02 EvidenceAccepted assessment IDs. It never contains missing, stale, unavailable, rejected, or merely required assessment IDs.
 
@@ -1009,6 +1019,8 @@ The exact `familyConstructionCoverage` shape is `dispatchEligibleObjectCount`, `
 
 ### 1.9 Repair-attempt history: LC-I12
 
+The JSON Schema authority is `docs/asset-migration/schemas/c3-c6-repair-attempt-history.schema.json`. The positive contract fixture is `Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-c3-c6-repair-attempt-history.json` and is byte-identical to the initial empty lifecycle artifact. C6 accepts LC-I12 only as a parsed object paired with the exact accepted UTF-8 bytes. It rejects object/bytes mismatch, BOM, CRLF, missing final LF, more than one final LF, or noncanonical two-space serialization. `repairHistoryFingerprint` is computed from those exact bytes.
+
 Top level is exactly:
 
 ```text
@@ -1036,6 +1048,8 @@ evidence
 `attemptNumber` is exactly `1`; `outcome` is `Improved`, `NoImprovement`, or `Failed`. `outputFingerprint` is non-null only when an output was produced. One family/repairClass pair has at most one row. C6 may emit RepairOnce only when no matching row exists. A matching attempt with any outcome makes RepairOnce ineligible; the family is reevaluated for UseOriginalAsset, PrototypeReplacement, NeedsDiagnosis, RetainForLater, DiagnosticOnly, or Stop using current evidence.
 
 `expectedChangeMeasure` uses the frozen measure vocabulary. `observedChange` is a nullable nonnegative integer measuring reduction in the selected issue count: Improved requires a value greater than zero, NoImprovement requires zero, and Failed requires null. The row inputFingerprint binds the exact pre-repair family decision inputs; a row for another fingerprint is retained as history but does not masquerade as the current attempt result. The one-attempt limit is by familyId/repairClass across history, not reset by a fingerprint change.
+
+The top-level `inputFingerprint` is LX-HI-14 over the exact current C6 direct-input set with LC-I12 excluded, preventing a circular self-hash. Each attempt familyId resolves exactly once in C3-O01, repairClass resolves exactly once in that family's LC-I07 repair rules, and expectedChangeMeasure equals that rule. Evidence is a nonempty Ordinal set. C6 recomputes every LX-HI-16 attemptId and rejects a duplicate attemptId or familyId/repairClass pair. Improved requires non-null outputFingerprint and observedChange greater than zero; NoImprovement requires non-null outputFingerprint and zero; Failed requires null outputFingerprint and null observedChange. A history row inputFingerprint may differ from the current top-level inputFingerprint only as retained prior-generation history; it still consumes the one allowed familyId/repairClass attempt.
 
 ### 1.10 Diagnostic summary and report contract
 
@@ -1144,8 +1158,8 @@ All derived IDs use the exact C2 HI-01 framed UTF-8 byte encoding, including dom
 | LX-HI-03 family | `family-sha256:` / `C3FamilyV1` | policySetFingerprint, familyKeyFingerprint |
 | LX-HI-04 member record | `family-member-sha256:` / `C3FamilyMemberV1` | assetObjectId, parentStatus, nullable familyId, nullable configurationCandidateId |
 | LX-HI-05 cross-lane reference | `cross-lane-reference-sha256:` / `C3CrossLaneReferenceV1` | fromAssetObjectId, toAssetObjectId, fromLane, toLane, referenceKind |
-| LX-HI-06 static check result | `static-check-sha256:` / `C4StaticCheckV1` | assetObjectId, familyId, checkId, outcome, reasonCode, nullable observedFingerprint, evidence set |
-| LX-HI-07 member static result | `member-static-sha256:` / `C4MemberStaticV1` | assetObjectId, familyId, staticStatus, checkResultIds set |
+| LX-HI-06 static check result | `static-check-sha256:` / `C4StaticCheckV1` | assetObjectId, familyId, checkId, outcome, reasonCode, nullable observedFingerprint, failureClasses set, availableInputKinds set, evidence set |
+| LX-HI-07 member static result | `member-static-sha256:` / `C4MemberStaticV1` | assetObjectId, familyId, staticStatus, actionableFailureClasses set, availableInputKinds set, checkResultIds set |
 | LX-HI-08 risk variant | no prefix / `C5RiskVariantV1` | familyId, riskAxisId, source fact rows |
 | LX-HI-09 representative requirement | `representative-requirement-sha256:` / `C5RepresentativeRequirementV1` | familyId, riskAxisId, riskVariantId, candidateMemberIds set, requiredEvidenceKinds set |
 | LX-HI-10 evidence package | `evidence-package-sha256:` / `C5EvidencePackageV1` | requirementId, requirementKind, representativeAssetObjectId, executorKind, executionStatus, inputFingerprint, observation digests set, evidencePaths set |
@@ -1350,6 +1364,8 @@ C6 applies one deterministic rule in this exact order after all inputs are fresh
 8. `TerminalStopRule`: any remaining valid terminal asset outcome -> Stop.
 
 Two matching repair/replacement/decision rules are a contract conflict, not a tie to be broken by order. RepairOnce can be emitted only before the one allowed attempt. The same failure after that attempt evaluates again without RepairOnce eligibility.
+
+For rules 2 through 5, the current actionable failure-class set is exactly C4-O02 `actionableFailureClasses`; C6 verifies it equals the Ordinal union of the family's C4-O01 member/check rows. Required input presence is evaluated only against C4-O02 `availableInputKinds`, exact C5 EvidenceAccepted `acceptedEvidenceKinds`, and registered direct artifact IDs. Text attribution, filenames, merely Required/Missing evidence, and unchecked checks never satisfy a required input.
 
 SP-51 capability-suitability outcomes never change the family decision selected above. They affect only SP-61: a reusable or replacement family may remain valid while one capability/route is Blocked or Unsatisfied. This prevents a CombatSfx suitability rejection from turning an otherwise reusable BGM family into an asset-level rejection.
 

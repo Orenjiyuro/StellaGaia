@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stellagaia.dev/schemas/c3-c6-repair-attempt-history.schema.json",
+  "title": "StellaSora C6 Repair Attempt History",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "inputFingerprint",
+    "attempts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "inputFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/attempt"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptId",
+        "familyId",
+        "repairClass",
+        "attemptNumber",
+        "inputFingerprint",
+        "outputFingerprint",
+        "expectedChangeMeasure",
+        "observedChange",
+        "outcome",
+        "evidence"
+      ],
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "pattern": "^repair-attempt-sha256:[0-9a-f]{64}$"
+        },
+        "familyId": {
+          "type": "string",
+          "pattern": "^family-sha256:[0-9a-f]{64}$"
+        },
+        "repairClass": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "attemptNumber": {
+          "type": "integer",
+          "const": 1
+        },
+        "inputFingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "outputFingerprint": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectedChangeMeasure": {
+          "type": "string",
+          "enum": [
+            "MissingDependencyCount",
+            "FailedCheckCount",
+            "ShaderMismatchCount",
+            "MaterialMismatchCount",
+            "DecodeFailureCount",
+            "SemanticUnknownCount",
+            "VisibleIssueCount"
+          ]
+        },
+        "observedChange": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "Improved",
+            "NoImprovement",
+            "Failed"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

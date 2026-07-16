@@ -165,7 +165,18 @@ function Test-SchemaPropertyConstraints {
                     }
 
                     if ($property.Name -cmatch '(?:Fingerprint|sha256)$') {
-                        if ((Get-PropertyByPath -Value $definition -Path 'type') -cne 'string' -or (Get-PropertyByPath -Value $definition -Path 'pattern') -cne '^[0-9a-f]{64}$') {
+                        $directSha = (Get-PropertyByPath -Value $definition -Path 'type') -ceq 'string' -and (Get-PropertyByPath -Value $definition -Path 'pattern') -ceq '^[0-9a-f]{64}$'
+                        $nullableSha = $false
+                        $branches = @(Get-PropertyByPath -Value $definition -Path 'oneOf')
+                        if ($branches.Count -eq 2) {
+                            $hasSha = @($branches | Where-Object {
+                                (Get-PropertyByPath -Value $_ -Path 'type') -ceq 'string' -and
+                                (Get-PropertyByPath -Value $_ -Path 'pattern') -ceq '^[0-9a-f]{64}$'
+                            }).Count -eq 1
+                            $hasNull = @($branches | Where-Object { (Get-PropertyByPath -Value $_ -Path 'type') -ceq 'null' }).Count -eq 1
+                            $nullableSha = $hasSha -and $hasNull
+                        }
+                        if (-not $directSha -and -not $nullableSha) {
                             $issues.Add("Schema '$SchemaName' property '$($property.Name)' must be a lowercase SHA-256 string.")
                         }
                     }
@@ -916,6 +927,165 @@ function Get-DecisionPolicyRegistrySemanticIssues {
     return $result.ToArray()
 }
 
+function Get-C6FixtureInputFingerprint {
+    param([Parameter(Mandatory)][string] $RepositoryRoot)
+
+    $paths = @(
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-summary.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-summary.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json',
+        'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json',
+        'docs/asset-migration/schemas/c3-c6-decision-policy-registry.json',
+        'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json',
+        'docs/asset-migration/schemas/status-vocabulary.json'
+    )
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    $entries = [System.Collections.Generic.List[object]]::new()
+    foreach ($path in $paths) {
+        $absolutePath = [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $path))
+        if (-not [System.IO.File]::Exists($absolutePath)) {
+            throw "Missing C6 fixture direct input: $path"
+        }
+        $sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([System.IO.File]::ReadAllBytes($absolutePath))).ToLowerInvariant()
+        $entries.Add([pscustomobject]@{ path = $path; sha256 = $sha256 })
+    }
+    $ordered = $entries.ToArray()
+    [Array]::Sort($ordered, [System.Collections.Generic.Comparer[object]]::Create(
+        [System.Comparison[object]]{ param($left, $right) [StringComparer]::Ordinal.Compare([string]$left.path, [string]$right.path) }
+    ))
+    $count = [string]$ordered.Count
+    $text = "LifecycleStageInputV1`nentries.count:$($utf8.GetByteCount($count)):$count`n"
+    for ($index = 0; $index -lt $ordered.Count; $index++) {
+        $path = [string]$ordered[$index].path
+        $sha256 = [string]$ordered[$index].sha256
+        $nested = "C2ArtifactEntryV1`npath:$($utf8.GetByteCount($path)):$path`nsha256:$($utf8.GetByteCount($sha256)):$sha256`n"
+        $text += "entries[$index]:$($utf8.GetByteCount($nested)):$nested`n"
+    }
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($utf8.GetBytes($text))).ToLowerInvariant()
+}
+
+function Get-RepairAttemptId {
+    param([Parameter(Mandatory)][object] $Attempt)
+
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    function ConvertTo-InvariantText([AllowNull()][object] $Value) {
+        if ($Value -is [System.IFormattable]) {
+            return $Value.ToString($null, [System.Globalization.CultureInfo]::InvariantCulture)
+        }
+        return [string]$Value
+    }
+    function Add-Scalar([string] $Name, [string] $Value) {
+        return "$Name`:$($utf8.GetByteCount($Value))`:$Value`n"
+    }
+    function Add-Nullable([string] $Name, [AllowNull()][object] $Value) {
+        if ($null -eq $Value) { return "$Name`:null`n" }
+        return Add-Scalar $Name (ConvertTo-InvariantText $Value)
+    }
+    function Add-Set([string] $Name, [object[]] $Values) {
+        $ordered = [string[]]@($Values)
+        [Array]::Sort($ordered, [StringComparer]::Ordinal)
+        $count = [string]$ordered.Count
+        $result = "$Name.count:$($utf8.GetByteCount($count)):$count`n"
+        for ($index = 0; $index -lt $ordered.Count; $index++) {
+            $result += "$Name[$index]:$($utf8.GetByteCount($ordered[$index])):$($ordered[$index])`n"
+        }
+        return $result
+    }
+
+    $text = "C6RepairAttemptV1`n"
+    $text += Add-Scalar familyId ([string]$Attempt.familyId)
+    $text += Add-Scalar repairClass ([string]$Attempt.repairClass)
+    $text += Add-Scalar attemptNumber (ConvertTo-InvariantText $Attempt.attemptNumber)
+    $text += Add-Scalar inputFingerprint ([string]$Attempt.inputFingerprint)
+    $text += Add-Nullable outputFingerprint $Attempt.outputFingerprint
+    $text += Add-Scalar expectedChangeMeasure ([string]$Attempt.expectedChangeMeasure)
+    $text += Add-Nullable observedChange $Attempt.observedChange
+    $text += Add-Scalar outcome ([string]$Attempt.outcome)
+    $text += Add-Set evidence @($Attempt.evidence)
+    return "repair-attempt-sha256:$([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($utf8.GetBytes($text))).ToLowerInvariant())"
+}
+
+function Get-RepairHistorySemanticIssues {
+    param(
+        [Parameter(Mandatory)][object] $History,
+        [Parameter(Mandatory)][object] $LanePolicyRegistry,
+        [Parameter(Mandatory)][string] $ExpectedInputFingerprint
+    )
+
+    $result = [System.Collections.Generic.List[string]]::new()
+    try {
+        if ((@($History.PSObject.Properties.Name) -join ',') -cne 'schemaVersion,generatedAt,inputFingerprint,attempts') {
+            $result.Add('Repair-attempt history top-level shape is not exact.')
+        }
+        if ($History.schemaVersion -cne '1.0.0' -or $History.generatedAt -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') {
+            $result.Add('Repair-attempt history immutable envelope is invalid.')
+        }
+        if ($History.inputFingerprint -cne $ExpectedInputFingerprint) {
+            $result.Add('Repair-attempt history inputFingerprint does not bind the exact C6 fixture input set excluding LC-I12.')
+        }
+
+        $repairMeasures = @{}
+        foreach ($policy in @($LanePolicyRegistry.policies)) {
+            foreach ($repair in @($policy.repairRules)) {
+                $repairClass = [string]$repair.repairClass
+                $measure = [string]$repair.expectedChangeMeasure
+                if ($repairMeasures.ContainsKey($repairClass) -and $repairMeasures[$repairClass] -cne $measure) {
+                    $result.Add("Repair class '$repairClass' has conflicting expectedChangeMeasure values.")
+                }
+                else { $repairMeasures[$repairClass] = $measure }
+            }
+        }
+
+        $attemptIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        $familyRepairPairs = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($attempt in @($History.attempts)) {
+            if ((@($attempt.PSObject.Properties.Name) -join ',') -cne 'attemptId,familyId,repairClass,attemptNumber,inputFingerprint,outputFingerprint,expectedChangeMeasure,observedChange,outcome,evidence') {
+                $result.Add('Repair-attempt row shape is not exact.')
+                continue
+            }
+            if (-not $attemptIds.Add([string]$attempt.attemptId)) {
+                $result.Add("Duplicate repair attemptId '$($attempt.attemptId)'.")
+            }
+            $pair = "$($attempt.familyId)|$($attempt.repairClass)"
+            if (-not $familyRepairPairs.Add($pair)) {
+                $result.Add("Duplicate familyId/repairClass repair attempt '$pair'.")
+            }
+            if (-not $repairMeasures.ContainsKey([string]$attempt.repairClass)) {
+                $result.Add("Repair attempt repairClass is unresolved: '$($attempt.repairClass)'.")
+            }
+            elseif ($repairMeasures[[string]$attempt.repairClass] -cne [string]$attempt.expectedChangeMeasure) {
+                $result.Add("Repair attempt expectedChangeMeasure does not match LC-I07 for '$($attempt.repairClass)'.")
+            }
+            if ($attempt.attemptNumber -ne 1 -or [string]$attempt.attemptId -cne (Get-RepairAttemptId $attempt)) {
+                $result.Add("Repair attempt identity is invalid for '$($attempt.attemptId)'.")
+            }
+            if (-not (Test-LanePolicyOrdinalSet @($attempt.evidence)) -or @($attempt.evidence).Count -eq 0) {
+                $result.Add("Repair attempt evidence is not a nonempty Ordinal set for '$($attempt.attemptId)'.")
+            }
+            if (
+                ($attempt.outcome -ceq 'Improved' -and ($null -eq $attempt.outputFingerprint -or $null -eq $attempt.observedChange -or [int64]$attempt.observedChange -le 0)) -or
+                ($attempt.outcome -ceq 'NoImprovement' -and ($null -eq $attempt.outputFingerprint -or [int64]$attempt.observedChange -ne 0)) -or
+                ($attempt.outcome -ceq 'Failed' -and ($null -ne $attempt.outputFingerprint -or $null -ne $attempt.observedChange))
+            ) {
+                $result.Add("Repair attempt outcome relation is invalid for '$($attempt.attemptId)'.")
+            }
+        }
+    }
+    catch {
+        $result.Add("Repair-attempt history semantic validation threw: $($_.Exception.Message)")
+    }
+    return $result.ToArray()
+}
+
 function Get-NegativeFixtureSemanticIssues {
     param(
         [Parameter(Mandatory)]
@@ -1371,6 +1541,11 @@ $schemaContracts = @(
         Name = 'c3-c6-decision-policy-registry.schema.json'
         Id = 'https://stellagaia.dev/schemas/c3-c6-decision-policy-registry.schema.json'
         Required = @('schemaVersion', 'generatedAt', 'decisionPolicyId', 'decisionPolicyVersion', 'hardStopFailureClasses', 'diagnosticOnlyFamilyKinds', 'replacementRules', 'capabilities')
+    },
+    [pscustomobject]@{
+        Name = 'c3-c6-repair-attempt-history.schema.json'
+        Id = 'https://stellagaia.dev/schemas/c3-c6-repair-attempt-history.schema.json'
+        Required = @('schemaVersion', 'generatedAt', 'inputFingerprint', 'attempts')
     }
 )
 
@@ -1398,6 +1573,10 @@ $fixtureContracts = @(
     [pscustomobject]@{
         Name = 'valid-c3-c6-decision-policy-registry.json'
         SchemaName = 'c3-c6-decision-policy-registry.schema.json'
+    },
+    [pscustomobject]@{
+        Name = 'valid-c3-c6-repair-attempt-history.json'
+        SchemaName = 'c3-c6-repair-attempt-history.schema.json'
     }
 )
 
@@ -1627,6 +1806,16 @@ if ($schemas.ContainsKey('c3-c6-decision-policy-registry.schema.json')) {
     }
 }
 
+if ($schemas.ContainsKey('c3-c6-repair-attempt-history.schema.json')) {
+    $schema = $schemas['c3-c6-repair-attempt-history.schema.json']
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-repair-attempt-history.schema.json' -Path '$defs.attempt.required' -Expected @('attemptId', 'familyId', 'repairClass', 'attemptNumber', 'inputFingerprint', 'outputFingerprint', 'expectedChangeMeasure', 'observedChange', 'outcome', 'evidence')
+    if ((Get-PropertyByPath -Value $schema -Path '$defs.attempt.properties.attemptNumber.const') -ne 1) {
+        $issues.Add("Schema 'c3-c6-repair-attempt-history.schema.json' must freeze attemptNumber to 1.")
+    }
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-repair-attempt-history.schema.json' -Path '$defs.attempt.properties.expectedChangeMeasure.enum' -Expected @('MissingDependencyCount', 'FailedCheckCount', 'ShaderMismatchCount', 'MaterialMismatchCount', 'DecodeFailureCount', 'SemanticUnknownCount', 'VisibleIssueCount')
+    Test-SchemaRequiredSet -Schema $schema -SchemaName 'c3-c6-repair-attempt-history.schema.json' -Path '$defs.attempt.properties.outcome.enum' -Expected @('Improved', 'NoImprovement', 'Failed')
+}
+
 $fixtures = @{}
 foreach ($contract in $fixtureContracts) {
     $fixturePath = [System.IO.Path]::GetFullPath((Join-Path $FixtureRoot $contract.Name))
@@ -1763,6 +1952,45 @@ if ($null -ne $decisionPolicyFixture) {
     else {
         foreach ($decisionPolicyIssue in @(Get-DecisionPolicyRegistrySemanticIssues -Registry $decisionPolicyFixture -LanePolicyRegistry $lanePolicyFixture)) {
             $issues.Add("Fixture 'valid-c3-c6-decision-policy-registry.json' semantic contract failed: $decisionPolicyIssue")
+        }
+    }
+}
+
+$repairHistoryFixture = $fixtures['valid-c3-c6-repair-attempt-history.json']
+if ($null -ne $repairHistoryFixture) {
+    $repairHistoryPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json'))
+    if (-not [System.IO.File]::Exists($repairHistoryPath)) {
+        $issues.Add("Repair-attempt history '$repairHistoryPath' does not exist.")
+    }
+    else {
+        $historyBytes = [System.IO.File]::ReadAllBytes($repairHistoryPath)
+        $fixtureBytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath((Join-Path $FixtureRoot 'valid-c3-c6-repair-attempt-history.json')))
+        if (-not [System.Linq.Enumerable]::SequenceEqual[byte]($historyBytes, $fixtureBytes)) {
+            $issues.Add('Repair-attempt history and its positive fixture are not byte-identical.')
+        }
+        $actualFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($historyBytes)).ToLowerInvariant()
+        if ($actualFingerprint -cne '294462818ed846bd31b239cf5ee5f1c51b6b7e3986b2fd329d7274469c38d95c') {
+            $issues.Add("Repair-attempt history exact-byte fingerprint is unexpected: '$actualFingerprint'.")
+        }
+        $historyText = [Text.Encoding]::UTF8.GetString($historyBytes)
+        if ($historyBytes.Length -ge 3 -and $historyBytes[0] -eq 0xEF -and $historyBytes[1] -eq 0xBB -and $historyBytes[2] -eq 0xBF) {
+            $issues.Add('Repair-attempt history must be UTF-8 without BOM.')
+        }
+        if ($historyText.Contains("`r") -or -not $historyText.EndsWith("`n") -or $historyText.EndsWith("`n`n")) {
+            $issues.Add('Repair-attempt history must use LF line endings and exactly one final LF.')
+        }
+        $canonicalText = (($repairHistoryFixture | ConvertTo-Json -Depth 100) -replace "`r`n", "`n") + "`n"
+        if ($historyText -cne $canonicalText) {
+            $issues.Add('Repair-attempt history is not canonical two-space PowerShell JSON serialization.')
+        }
+    }
+    if ($null -eq $lanePolicyFixture) {
+        $issues.Add('Repair-attempt history semantic validation requires the LC-I07 lane policy fixture.')
+    }
+    else {
+        $expectedC6InputFingerprint = Get-C6FixtureInputFingerprint -RepositoryRoot $repositoryRoot
+        foreach ($repairHistoryIssue in @(Get-RepairHistorySemanticIssues -History $repairHistoryFixture -LanePolicyRegistry $lanePolicyFixture -ExpectedInputFingerprint $expectedC6InputFingerprint)) {
+            $issues.Add("Fixture 'valid-c3-c6-repair-attempt-history.json' semantic contract failed: $repairHistoryIssue")
         }
     }
 }
