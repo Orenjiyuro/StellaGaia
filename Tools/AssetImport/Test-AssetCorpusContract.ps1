@@ -1296,6 +1296,7 @@ if ($null -ne $vocabulary) {
         unity                    = @('NotTested', 'StaticQualified', 'RepresentativeValidated', 'Rejected', 'UnityExecutionUnavailable')
         disposition              = @('NeedsDiagnosis', 'UseOriginalAsset', 'RepairOnce', 'PrototypeReplacement', 'RetainForLater', 'DiagnosticOnly', 'Stop')
         familyStaticOutcome      = @('StaticQualified', 'StaticRejected', 'NeedsDiagnosis')
+        familyParentStatus       = @('AssignedFamilyMember', 'RetainedForDiagnosis', 'ConfigurationOnly')
         sourceKind               = @('PcInstall', 'PcPatchOrCache', 'AndroidApk', 'AndroidDataOrCache')
     }
 

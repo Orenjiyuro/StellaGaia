@@ -47,6 +47,11 @@
     "StaticRejected",
     "NeedsDiagnosis"
   ],
+  "familyParentStatus": [
+    "AssignedFamilyMember",
+    "RetainedForDiagnosis",
+    "ConfigurationOnly"
+  ],
   "sourceKind": [
     "PcInstall",
     "PcPatchOrCache",

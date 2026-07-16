@@ -294,7 +294,7 @@ The route-kind vocabulary is exactly `OriginalAsset`, `PrototypeController`, `Te
 
 The repair expected-change-measure vocabulary is exactly `MissingDependencyCount`, `FailedCheckCount`, `ShaderMismatchCount`, `MaterialMismatchCount`, `DecodeFailureCount`, `SemanticUnknownCount`, or `VisibleIssueCount`. A repair rule selects exactly one measure. `requiredInputKinds` values resolve to registered factKind, evidenceKind, or artifact IDs; arbitrary text is invalid.
 
-LC-I08 must add these exact lifecycle dimensions before C3 implementation:
+LC-I08 introduces these exact lifecycle dimensions at the first stage that directly consumes each one; `familyParentStatus` begins with C3, while later-stage dimensions remain deferred until C4, C5, or C6:
 
 ```text
 familyParentStatus: AssignedFamilyMember, RetainedForDiagnosis, ConfigurationOnly
@@ -1119,7 +1119,7 @@ LC-I07's logical and physical registry contract is complete: its non-self-refere
 
 LC-I11's logical and physical registry contract is complete: it stores no decisionPolicyFingerprint; C5/C6 compute the fingerprint over exact accepted LC-I11 bytes. Its immutable identity, singleton hard-stop set, empty diagnostic-only set, four replacement rules, seven capability rows, exact 13-tuple LC-I07 union, and C5 capability-suitability boundary are frozen in the registry and strict JSON Schema. The positive fixture is byte-identical, focused negative fixtures prove key fail-closed rules, and the executable validator verifies canonical bytes, SHA-256 `82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a`, reference closure, route/capability matching, and tuple conservation. This fixture-only completion does not start C3/C5 or authorize publication integration, Phase B, real assets, extraction, import, or Unity.
 
-The current status vocabulary lacks the exact `familyParentStatus`, `memberStaticStatus`, `representativeAssessment`, `capabilitySuitabilityStatus`, `authoringPoolStatus`, and `capabilityStatus` dimensions frozen above. C0 must add all six before implementation; component-local aliases are forbidden.
+The status vocabulary now contains the exact `familyParentStatus` dimension consumed by C3. The exact `memberStaticStatus`, `representativeAssessment`, `capabilitySuitabilityStatus`, `authoringPoolStatus`, and `capabilityStatus` dimensions remain deferred until their direct C4, C5, or C6 consumer begins; component-local aliases are forbidden.
 
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
@@ -1484,12 +1484,12 @@ No refresh may launch Unity, extraction, import, or another stage unless its exa
 
 ## Phase A Implementation Preconditions And Sequence
 
-This design grants no C3-C6 implementation. LC-I13, the pure LC-I06 fixture-only projection, the LC-I07 strong lane-policy registry/schema/fixtures, and the LC-I11 decision/capability registry/schema/fixtures are complete. Before C3 begins, separate reviewed Tasks must still implement the LC-I12 empty repair-history fixture, new vocabulary dimensions, and authoring reuse ledger v2 contract.
+The C3-0 walking skeleton is the first authorized implementation increment: it consumes LC-I06/LC-I07 and the minimal `familyParentStatus` vocabulary to prove executable family-membership conservation without publication. LC-I12 is required only before C6 RepairOnce evaluation, authoring reuse ledger v2 only before C6 output implementation, and every remaining vocabulary dimension only when its direct stage consumer begins.
 
 The later implementation sequence is:
 
-1. Remaining fixture-only artifact Tasks for LC-I12, vocabulary, and ledger v2; LC-I06 against frozen LC-I13, LC-I07, and LC-I11 are complete, while LC-I06 remains outside SP-09 publication.
-2. C3 family registry Task; prove SP-30/SP-31 and C3 output vector.
+1. C3-0 pure family-membership walking skeleton; prove the executable SP-30 core and cross-lane-reference independence without publication.
+2. C3-1 family registry Task; complete SP-30/SP-31 and the C3 output vector.
 3. C4 static qualification Task; prove every lane check matrix and SP-40.
 4. C5 requirement/evidence Task; prove all six risk statuses, all six suitability statuses, SP-50, and SP-51 without C7/G4 execution.
 5. C6 decision/ledger Task; prove precedence, coverage/readiness independence, SP-60/SP-61, and G5-only handoff.
