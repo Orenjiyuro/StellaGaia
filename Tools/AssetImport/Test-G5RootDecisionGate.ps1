@@ -106,7 +106,7 @@ if ($rootText -cne $expectedText) {
 if ($passed.rootSummary.snapshotId -cne 'snapshot-pc-install-001' -or -not $passed.rootSummary.corpusSnapshotComplete.value) {
     throw 'G5 snapshot/corpus conclusion invalid.'
 }
-if ($passed.rootSummary.inputFingerprint -cne 'dee42f44b0a4d840e25a240b719fac8ed03f250f1e25d0be626b3c0bb290803b') {
+if ($passed.rootSummary.inputFingerprint -cne '56d04afc4a702e86a4e35e98e4242c3ea45f21dbdda66cbb7115ecf799cd06a3') {
     throw "G5 input fingerprint framing mismatch: $($passed.rootSummary.inputFingerprint)"
 }
 if (($passed.rootSummary.directGateSummaries.path -join ',') -cne 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json,Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json,Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json') {

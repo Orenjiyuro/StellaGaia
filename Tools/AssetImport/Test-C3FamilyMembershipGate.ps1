@@ -10,10 +10,35 @@ $moduleAst=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScri
 if(@($moduleAst.FindAll({param($node)$node-is[Management.Automation.Language.CommandAst]-and$node.GetCommandName()-ceq'Sort-Object'},$true)).Count){throw 'C3 module reintroduced culture-sensitive Sort-Object.'}
 $policyBytes = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'),[Text.UTF8Encoding]::new($false))
 $policy = $policyBytes | ConvertFrom-Json -Depth 100 -DateKind String
-$vocabulary = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset-migration/schemas/status-vocabulary.json') | ConvertFrom-Json -Depth 100 -DateKind String
+$vocabularyBytes = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'docs/asset-migration/schemas/status-vocabulary.json'),[Text.UTF8Encoding]::new($false))
+$vocabulary = $vocabularyBytes | ConvertFrom-Json -Depth 100 -DateKind String
+$factSchemaBytes = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'docs/asset-migration/schemas/c2-lane-fact-package.schema.json'),[Text.UTF8Encoding]::new($false))
 
 function Clone-Value($Value) { $Value | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100 -DateKind String }
 function New-ObjectId([char]$Value) { "sha256:$([string]$Value * 64)" }
+function Get-TestSha256([string]$Text) { [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.UTF8Encoding]::new($false).GetBytes($Text))).ToLowerInvariant() }
+function ConvertTo-TestJson($Value) { $Value | ConvertTo-Json -Depth 100 -Compress }
+function Get-TestOrdinalRows([object[]]$Rows,[string]$Property) {
+    $list=[Collections.Generic.List[object]]::new()
+    foreach($row in $Rows){$list.Add($row)}
+    $list.Sort([Comparison[object]]{param($left,$right)[StringComparer]::Ordinal.Compare([string]$left.$Property,[string]$right.$Property)})
+    [object[]]$list.ToArray()
+}
+function ConvertTo-TestScalar([string]$Name,[string]$Value) {
+    "${Name}:$([Text.UTF8Encoding]::new($false).GetByteCount($Value)):${Value}`n"
+}
+function Get-TestStageInputFingerprint([object[]]$Entries) {
+    $ordered=@(Get-TestOrdinalRows $Entries path)
+    $text="LifecycleStageInputV1`nentries.count:$($ordered.Count)`n"
+    for($index=0;$index-lt$ordered.Count;$index++){
+        $nested="C2ArtifactEntryV1`n"
+        $nested+=ConvertTo-TestScalar artifactId ([string]$ordered[$index].artifactId)
+        $nested+=ConvertTo-TestScalar path ([string]$ordered[$index].path)
+        $nested+=ConvertTo-TestScalar sha256 ([string]$ordered[$index].sha256)
+        $text+="entries[$index]:$([Text.UTF8Encoding]::new($false).GetByteCount($nested)):$nested`n"
+    }
+    Get-TestSha256 $text
+}
 function New-Fact([string]$ObjectId,[string]$Lane,[string]$Kind,[string]$Value,[string[]]$IdValues=@()) {
     $seed = [Text.Encoding]::UTF8.GetBytes("$ObjectId|$Lane|$Kind")
     $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($seed)).ToLowerInvariant()
@@ -81,6 +106,65 @@ $ledgerObjects = @($dispatchRows | ForEach-Object -Begin {$n=0} -Process {
     [pscustomobject][ordered]@{assetObjectId=$objectId;serializedSizeBytes=100*$n;dependencyObjectIds=@($facts | Where-Object { $_.assetObjectId -ceq $objectId -and $_.factKind -ceq 'DependencyObjectIds' } | ForEach-Object idValues | ForEach-Object {$_});evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/object-observations.json')}
 })
 $configurationCandidates=@([pscustomobject][ordered]@{configurationCandidateId="config-sha256:$('9' * 64)";assetObjectId=$configurationId;evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json')})
+
+$directInputPaths=[ordered]@{
+    'LC-I01'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json'
+    'LC-I02'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json'
+    'LC-I03'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json'
+    'LC-I04'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-object-dispatch.json'
+    'LC-I05'='Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json'
+    'LC-I06'='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json'
+    'LC-I07'='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
+    'LC-I08'='docs/asset-migration/schemas/status-vocabulary.json'
+    'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
+}
+function New-C3ExecutionArtifacts(
+    $Rows=$dispatchRows,
+    $Facts=$facts,
+    $LedgerRows=$ledgerObjects,
+    $ConfigurationRows=$configurationCandidates,
+    $LanePolicy=$policy,
+    [string]$LaneBytes=$policyBytes,
+    $Vocabulary=$vocabulary,
+    [string]$VocabularyText=$vocabularyBytes
+) {
+    $artifacts=@(
+        [pscustomobject][ordered]@{artifactId='LC-I01';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';snapshotId='snapshot-pc-install-001';generatedAt='2026-07-16T02:00:00Z';inputFingerprint=('1'*64);toolVersions=@('fixture');sources=@();files=@();objects=@($LedgerRows)})}
+        [pscustomobject][ordered]@{artifactId='LC-I02';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);configurationCandidates=@($ConfigurationRows);configurationConflicts=@()})}
+        [pscustomobject][ordered]@{artifactId='LC-I03';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);canonicalGroups=@();canonicalConflicts=@()})}
+        [pscustomobject][ordered]@{artifactId='LC-I04';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';inputFingerprint=('1'*64);discoveryInputFingerprint=('2'*64);sourceLedgerPath=$directInputPaths['LC-I01'];rows=@($Rows)})}
+        [pscustomobject][ordered]@{artifactId='LC-I05';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='2.0.0';stageId='C2';snapshotId='snapshot-pc-install-001';gateStatus='Passed';inputFingerprint=('1'*64);directOutputs=@()})}
+        [pscustomobject][ordered]@{artifactId='LC-I06';bytes=ConvertTo-TestJson ([pscustomobject][ordered]@{schemaVersion='1.0.0';generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';c2GenerationFingerprint=('3'*64);factContractFingerprint=Get-TestSha256 $factSchemaBytes;inputFingerprint=('4'*64);rows=@($Facts)})}
+        [pscustomobject][ordered]@{artifactId='LC-I07';bytes=$LaneBytes}
+        [pscustomobject][ordered]@{artifactId='LC-I08';bytes=$VocabularyText}
+        [pscustomobject][ordered]@{artifactId='LC-I13';bytes=$factSchemaBytes}
+    )
+    [object[]]$artifacts
+}
+function New-C3DirectInputs([object[]]$ExecutionArtifacts) {
+    $rows=[Collections.Generic.List[object]]::new()
+    foreach($artifact in $ExecutionArtifacts){
+        $rows.Add([pscustomobject][ordered]@{artifactId=[string]$artifact.artifactId;path=[string]$directInputPaths[[string]$artifact.artifactId];sha256=Get-TestSha256 ([string]$artifact.bytes)})
+    }
+    [object[]](Get-TestOrdinalRows $rows.ToArray() path)
+}
+function Invoke-TestGate(
+    $Rows=$dispatchRows,
+    $Facts=$facts,
+    $LedgerRows=$ledgerObjects,
+    $ConfigurationRows=$configurationCandidates,
+    $LanePolicy=$policy,
+    [string]$LaneBytes=$policyBytes,
+    $Vocabulary=$vocabulary,
+    [string]$VocabularyText=$vocabularyBytes,
+    $ExecutionArtifacts=$null,
+    $DirectInputs=$null
+) {
+    if($null-eq$ExecutionArtifacts){$ExecutionArtifacts=New-C3ExecutionArtifacts $Rows $Facts $LedgerRows $ConfigurationRows $LanePolicy $LaneBytes $Vocabulary $VocabularyText}
+    if($null-eq$DirectInputs){$DirectInputs=New-C3DirectInputs $ExecutionArtifacts}
+    $testStage=[pscustomobject][ordered]@{generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';toolVersions=@('C3FamilyMembershipGate:1.0.0');directInputs=$DirectInputs}
+    Invoke-C3FamilyMembershipGate -DispatchRows @($Rows) -TypedFactRows @($Facts) -LanePolicyRegistry $LanePolicy -LanePolicyBytes $LaneBytes -FamilyParentStatuses @($Vocabulary.familyParentStatus) -LedgerObjects $LedgerRows -ConfigurationCandidates $ConfigurationRows -ExecutionArtifacts $ExecutionArtifacts -Stage $testStage
+}
 
 function Run-Kernel($Rows,$Facts,$LedgerRows=$ledgerObjects,$ConfigurationRows=$configurationCandidates) {
     Invoke-C3FamilyMembershipKernel -DispatchRows $Rows -TypedFactRows $Facts -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $LedgerRows -ConfigurationCandidates $ConfigurationRows
@@ -153,25 +237,16 @@ if($unboundResult.status-cne'Failed'-or$unboundResult.issues-cnotcontains'LC-I07
 $repeat = Run-Kernel @($dispatchRows) @($facts)
 if (($result | ConvertTo-Json -Depth 100) -cne ($repeat | ConvertTo-Json -Depth 100)) { throw 'C3-0 determinism failed.' }
 
-$directInputs = @(
-    [pscustomobject][ordered]@{artifactId='LC-I01';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-c2-source-corpus-ledger.json';sha256=('1'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I02';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json';sha256=('2'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I03';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-canonical-group-package.json';sha256=('3'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I04';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-object-dispatch.json';sha256=('4'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I05';path='Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json';sha256=('5'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I06';path='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c2-lane-fact-package.json';sha256=('6'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I07';path='docs/asset-migration/schemas/c3-c6-lane-policy-registry.json';sha256=('7'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I08';path='docs/asset-migration/schemas/status-vocabulary.json';sha256=('8'*64)},
-    [pscustomobject][ordered]@{artifactId='LC-I13';path='docs/asset-migration/schemas/c2-lane-fact-package.schema.json';sha256=('9'*64)}
-)
+$executionArtifacts=New-C3ExecutionArtifacts
+$directInputs=New-C3DirectInputs $executionArtifacts
 $stage = [pscustomobject][ordered]@{generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';toolVersions=@('C3FamilyMembershipGate:1.0.0');directInputs=$directInputs}
-try{$gate = Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage}catch{throw "$($_.Exception.Message) $($_.ScriptStackTrace)"}
+try{$gate = Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -ExecutionArtifacts $executionArtifacts -Stage $stage}catch{throw "$($_.Exception.Message) $($_.ScriptStackTrace)"}
 if ($gate.gateStatus -cne 'Passed' -or (@($gate.PSObject.Properties.Name)-join',') -cne 'gateStatus,familyRegistry,familyMemberLedger,crossLaneReferencePackage,summary,report,texts') { throw 'C3-1 Passed result vector shape failed.' }
 if ($gate.summary.failureAccounting.outputCandidateCount -ne 4 -or $gate.summary.failureAccounting.projectedOutputCount -ne 4 -or $gate.summary.failureAccounting.outputFailureCount -ne 0 -or $gate.summary.directOutputs.Count -ne 4) { throw 'C3-1 Passed output conservation failed.' }
 if ((@($gate.familyRegistry.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,families' -or (@($gate.familyMemberLedger.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,rows' -or (@($gate.crossLaneReferencePackage.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,rows') { throw 'C3-1 success artifact top-level shape failed.' }
 if ((@($gate.summary.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,stageId,snapshotId,inputFingerprint,policySetFingerprint,toolVersions,directInputs,directOutputs,coverage,failureAccounting,decision') { throw 'C3-1 summary top-level shape failed.' }
 if ($gate.familyRegistry.families.Count -ne 5 -or $gate.familyMemberLedger.rows.Count -ne 7 -or $gate.crossLaneReferencePackage.rows.Count -ne 2) { throw 'C3-1 success artifact counts failed.' }
-if($gate.summary.inputFingerprint-cnotmatch'^[0-9a-f]{64}$'-or$gate.summary.inputFingerprint-ceq('a'*64)-or$gate.summary.coverage.dispatchEligibleObjectBytes-ne2800-or$gate.summary.coverage.assignedFamilyMemberBytes-ne1500-or$gate.summary.coverage.referenceCount-ne2-or$gate.summary.coverage.resolvedReferenceCount-ne2){throw'C3-1 computed fingerprint/byte/reference coverage failed.'}
+if($gate.summary.inputFingerprint-cne(Get-TestStageInputFingerprint $directInputs)-or$gate.summary.coverage.dispatchEligibleObjectBytes-ne2800-or$gate.summary.coverage.assignedFamilyMemberBytes-ne1500-or$gate.summary.coverage.referenceCount-ne2-or$gate.summary.coverage.resolvedReferenceCount-ne2){throw'C3-1 artifactId-bound fingerprint/byte/reference coverage failed.'}
 $familyShape='familyId,lane,familyKindId,policyId,policyVersion,familyKeyFingerprint,familyKey,memberCount,memberBytes,memberObjectIds,crossLaneReferenceIds,riskDimensionIds,evidence';$keyShape='dimensionId,factStatus,valueKind,stringValue,integerValue,booleanValue,idValues';foreach($family in $gate.familyRegistry.families){if((@($family.PSObject.Properties.Name)-join',')-cne$familyShape){throw'C3-O01 family row shape failed.'};foreach($key in $family.familyKey){if((@($key.PSObject.Properties.Name)-join',')-cne$keyShape){throw'C3-O01 family key shape failed.'}}}
 $memberShape='memberRecordId,assetObjectId,canonicalAssetId,lane,parentStatus,familyId,familyKindId,serializedSizeBytes,configurationCandidateId,dependencyObjectIds,crossLaneReferenceIds,policyId,policyVersion,evidence';foreach($member in $gate.familyMemberLedger.rows){if((@($member.PSObject.Properties.Name)-join',')-cne$memberShape){throw'C3-O02 member row shape failed.'}}
 $referenceShape='referenceId,fromAssetObjectId,toAssetObjectId,fromLane,toLane,referenceKind,resolutionStatus,evidence';foreach($reference in $gate.crossLaneReferencePackage.rows){if((@($reference.PSObject.Properties.Name)-join',')-cne$referenceShape){throw'C3-O03 reference row shape failed.'}}
@@ -191,11 +266,17 @@ foreach ($entry in @(
     if ([IO.File]::ReadAllText($path,[Text.UTF8Encoding]::new($false)) -cne $actual) { throw "C3-1 fixture bytes mismatch: $($entry[0])" }
 }
 
-$failedGate = Invoke-C3FamilyMembershipGate -DispatchRows $duplicateRows -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage
+$failedGate = Invoke-TestGate -Rows $duplicateRows
 if ($failedGate.gateStatus -cne 'Failed' -or $null-ne$failedGate.familyRegistry -or $null-ne$failedGate.familyMemberLedger -or $null-ne$failedGate.crossLaneReferencePackage -or $failedGate.summary.failureAccounting.projectedOutputCount-ne1 -or $failedGate.summary.failureAccounting.outputFailureCount-ne3 -or $failedGate.summary.directOutputs.Count-ne1 -or $failedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-05:C3:MembershipConservation') { throw 'C3-1 Failed diagnostic-only vector failed.' }
-$duplicateFacts=@(Clone-Value $facts)+@((Clone-Value $facts[0]));$typedFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows $duplicateFacts -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($typedFailure.gateStatus-cne'Failed'-or$typedFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-02:LC-I06'-or$typedFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-02 diagnostic-only vector failed.'}
-$badPolicy=Clone-Value $policy;$badPolicy.policySetVersion='1.0.1';$policyFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $badPolicy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($policyFailure.gateStatus-cne'Failed'-or$policyFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-03:LC-I07'-or$policyFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-03 diagnostic-only vector failed.'}
-$missingLedger=Clone-Value $ledgerObjects;$actorLedger=@($missingLedger|Where-Object assetObjectId -CEQ $objects.Actor)[0];$actorLedger.dependencyObjectIds=@($actorLedger.dependencyObjectIds,"sha256:$('9'*64)")|Sort-Object -CaseSensitive;$missingGate=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $missingLedger -ConfigurationCandidates $configurationCandidates -Stage $stage;if($missingGate.gateStatus-cne'Passed'-or$missingGate.crossLaneReferencePackage.rows.Count-ne3-or$missingGate.summary.coverage.missingReferenceCount-ne1-or@($missingGate.familyMemberLedger.rows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count-ne5){throw'SP-31 Missing reference partition failed.'}
+$duplicateFacts=@(Clone-Value $facts)+@((Clone-Value $facts[0]));$typedFailure=Invoke-TestGate -Facts $duplicateFacts;if($typedFailure.gateStatus-cne'Failed'-or$typedFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-02:LC-I06'-or$typedFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-02 diagnostic-only vector failed.'}
+$badPolicy=Clone-Value $policy;$badPolicy.policySetVersion='1.0.1';$badPolicyBytes=ConvertTo-TestJson $badPolicy;$policyFailure=Invoke-TestGate -LanePolicy $badPolicy -LaneBytes $badPolicyBytes;if($policyFailure.gateStatus-cne'Failed'-or$policyFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-03:LC-I07'-or$policyFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-03 diagnostic-only vector failed.'}
+$missingLedger=Clone-Value $ledgerObjects;$actorLedger=@($missingLedger|Where-Object assetObjectId -CEQ $objects.Actor)[0];$actorLedger.dependencyObjectIds=@($actorLedger.dependencyObjectIds,"sha256:$('9'*64)")|Sort-Object -CaseSensitive;$missingGate=Invoke-TestGate -LedgerRows $missingLedger;if($missingGate.gateStatus-cne'Passed'-or$missingGate.crossLaneReferencePackage.rows.Count-ne3-or$missingGate.summary.coverage.missingReferenceCount-ne1-or@($missingGate.familyMemberLedger.rows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count-ne5){throw'SP-31 Missing reference partition failed.'}
+$wrongShaInputs=Clone-Value $directInputs;@($wrongShaInputs|Where-Object artifactId -CEQ 'LC-I01')[0].sha256=('0'*64)
+$wrongShaGate=Invoke-TestGate -ExecutionArtifacts $executionArtifacts -DirectInputs $wrongShaInputs
+if($wrongShaGate.gateStatus-cne'Failed'-or$wrongShaGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C3:DirectInputs'){throw'C3 exact-byte direct input SHA mismatch did not fail closed.'}
+$unboundLedger=Clone-Value $ledgerObjects;@($unboundLedger|Where-Object assetObjectId -CEQ $objects.Audio)[0].serializedSizeBytes++
+$unboundLedgerGate=Invoke-TestGate -LedgerRows $unboundLedger -ExecutionArtifacts $executionArtifacts -DirectInputs $directInputs
+if($unboundLedgerGate.gateStatus-cne'Failed'-or$unboundLedgerGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-01:C3:DirectInputs'){throw'C3 execution object/bytes mismatch did not fail closed.'}
 if (Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublication')) { throw 'C3-0 touched C2 publication state.' }
 
 'status=Passed'

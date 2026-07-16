@@ -2,7 +2,7 @@
   "schemaVersion": "2.0.0",
   "generatedAt": "2026-07-16T10:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da",
+  "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "toolVersions": [
@@ -15,17 +15,17 @@
     {
       "artifactId": "LC-I12",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/repair-attempt-history.json",
-      "sha256": "28fe41a6d7824c90246225647fc825f8d267e32665eac2332a1276d29ad762ff"
+      "sha256": "603b5a9cd5e69c5ce2112e526560bb499d2ae14165d6df5ac5512ef5730d0280"
     },
     {
       "artifactId": "C3-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md",
-      "sha256": "9967b3b74ca3c0522b3a30056962c9a38c19b34928bd60b77854ddd7e9f4fc4b"
+      "sha256": "b8d65fe7c33a69a5de6c2921289cd1ad07659a1468c2fd1f624f86cf6eb6c443"
     },
     {
       "artifactId": "C3-O04-Summary",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-summary.json",
-      "sha256": "de9dfb9de5238307b8fea1deab96d7d134dc7ff71db5246852da73416a302f35"
+      "sha256": "afd67086da282f2902b18f6cc17eb74db195d012232b0c4c99848e25a7e858b3"
     },
     {
       "artifactId": "C4-O03-Report",
@@ -40,32 +40,32 @@
     {
       "artifactId": "C5-O04-Report",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md",
-      "sha256": "fc1b48b00e8509cc82b7d76ac1320c9031778e76ce95378d98d88fac23413a3d"
+      "sha256": "8bd6bb9cc95eb35d5b9b3a47e52a1d9210160518448e307b094562b0fc248191"
     },
     {
       "artifactId": "C5-O04-Summary",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-summary.json",
-      "sha256": "c4bdd33ba62d6fb1eae731838dcc53ccd7727fedde6d4b3b77b5f703fbfe02bc"
+      "sha256": "9caa3a3500fd706da651dc273f76dbe58d52af817cb8a2cd7275b8b6542fe183"
     },
     {
       "artifactId": "C3-O03",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json",
-      "sha256": "57ded64880ec930ce7c794c79978339d818ac1742e850b81d1c008ce40c5a437"
+      "sha256": "82e4d099eef442d3118fa2de20a8cac4f1834cea31fd3e7bf540892cfd06af4e"
     },
     {
       "artifactId": "C5-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-evidence-assessment.json",
-      "sha256": "86e6ce2073f3ca9a1bb25936a3bb10fc2b0111ef86b070546aa97a99b700c9e3"
+      "sha256": "5604a3df603876d0f4057853500e77eff5c9d5f3442781c2bd1058ae376d4811"
     },
     {
       "artifactId": "C3-O02",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json",
-      "sha256": "5213fae019c6b4c831f83320f5ee5bf5983d9083a9058c769556651f0eda6e21"
+      "sha256": "bddd276591ee6c503fad17455583782df5c4f78eb65567738f15d2bfcc2e2a6a"
     },
     {
       "artifactId": "C3-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json",
-      "sha256": "5460b2ef3e8af4cd6d60f2cc34e11740f63b711298ec540079510c38a14375b2"
+      "sha256": "16d99362852991105c7c4fe4db59ba97899f4910a2c32f9e17148d42eee09ba4"
     },
     {
       "artifactId": "C4-O02",
@@ -80,7 +80,7 @@
     {
       "artifactId": "C5-O01",
       "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-representative-requirements.json",
-      "sha256": "97665ce6017f9d9eaa38b56bfa100f527d3cea8b3cba2142040490487768abad"
+      "sha256": "65468da6f12cad309b9f8d51b8c10824037f230de0b1a42a1d8b9251deda3d29"
     },
     {
       "artifactId": "LC-I11",
@@ -195,7 +195,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da"
+      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
     },
     {
       "familyId": "family-sha256:3d1cd3161f530d82c9781efb62652102efaf99d8808268f2d1c30662c49b6d20",
@@ -329,7 +329,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da"
+      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
     },
     {
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
@@ -436,7 +436,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da"
+      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
     },
     {
       "familyId": "family-sha256:9d64bb4fdc826ff6e36d128c86974a25915469aded454f6bd435c837eaeb21e0",
@@ -552,7 +552,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da"
+      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
     },
     {
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
@@ -659,7 +659,7 @@
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md",
         "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c5-report.md"
       ],
-      "inputFingerprint": "d68d0231356701a53f30d0a0f1eeb18b8c964d8802623ae958de641aa5e127da"
+      "inputFingerprint": "fafe136202b48b4c303cb69e0c8963e220c4042bbb47e0b8e7d654d859a5ef4b"
     }
   ],
   "members": [
