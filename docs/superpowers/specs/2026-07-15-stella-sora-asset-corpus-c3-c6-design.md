@@ -1,7 +1,7 @@
 # StellaSora Asset Corpus C3-C6 Lifecycle Qualification Design
 
 **Date:** 2026-07-15
-**Status:** Approved responsibility and input/output contract design; C3-C6 fixture-only implementation complete through C6-1 outputs; publication and completion audit unauthorized
+**Status:** Approved responsibility and input/output contract design; C3-C6 fixture-only implementation and independent completion audit complete; publication unauthorized
 **Baseline:** `codex/asset-corpus-integration` at `f81b18f8312030621d43b00171dc3ec41cdef24c`
 **Scope:** C3 family construction, C4 static qualification, C5 representative/evidence assessment, and fixture-only C6 authoring decisions, ledger v2, capability projection, and G5 handoff. No lifecycle publication, C2 edit, C7/G4 execution, G5 implementation, Unity, extraction, import, real assets, or Phase B.
 
@@ -1149,6 +1149,8 @@ The C6-0 pure decision checkpoint is complete. It consumes the conserved child u
 
 The C6-1 fixture-only output checkpoint is complete. It serializes byte-frozen C6-O01 authoring reuse ledger v2, C6-O02 family decisions/residual issues, C6-O03 capability projection, C6-O04 G5-only handoff, and the C6-O05 summary/report bundle without publication. The base generation proves Passed `5/5/0`, LF-16/LF-17/LF-18 diagnostic-only `5/1/4`, SP-60 pool conservation `5 = 0 + 0 + 5` and `1500 = 0 + 0 + 1500`, SP-61 `7 = 0 + 1 + 6`, exact-byte handoff hashes, and independence between OriginalAssetBatchCoverage and StellaSora2AuthoringReady. C6-O04 is only a fixture handoff; G5 implementation, root-schema integration, publication, real assets, Unity, extraction, import, and Phase B remain unauthorized.
 
+The independent C3-C6 fixture-only completion audit is complete against the corrected C2 AR-I05 authority. It reruns the C0 contract and C1/C2 compatibility paths, the complete seventeen-case C2 fixture matrix, and the natural C3, C4, C5, C6 child-conservation, decision, and output entry points. The executable assertions cover every currently applicable fixed counterexample, all SP-30/SP-31/SP-40/SP-50/SP-51/SP-60/SP-61 conservation equations, exact-byte policy/evidence binding, Ordinal and positional identity rules, failure ownership, diagnostic-only output vectors, and zero executor/heavy/publication activity. Fixture trees and registered-output absence are unchanged after the run. The G5 direct-read policy and lifecycle stale-publication consumer cases remain R5/publication responsibilities because those consumers are not implemented or authorized; this audit does not claim them, Phase B, Unity, extraction, import, real assets, or full Phase A completion.
+
 The C5 LC-I09/LC-I10 authority correction is complete for the fixture-only gate. The manifest binds the exact no-evidence requirement generation, every manifest row closes over one exact-byte package and one direct-input path/SHA row, and an object/bytes mismatch, absent authority, missing/extra package, or identity/SHA mismatch is LF-15 with diagnostic-only output. LC-I09 and every listed LC-I10 are included in the current C5 LX-HI-14; a package generation byte change therefore refreshes C5 even when evidence semantics and LX-HI-10 remain unchanged. This checkpoint does not create or execute C7/G4, publish C5, or authorize C6.
 
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
@@ -1553,4 +1555,4 @@ The design is closed only when all of the following remain true under review:
 - every contract failure has one owner, deterministic suppression, and zero downstream-valid output;
 - no arbitrary metadata, payload, callback, expression, or default success path exists.
 
-The fixture-only C3-C6 lifecycle path and the C0 authoring reuse ledger v2 contract are implemented through C6-O05. Lifecycle publication, the remaining root/G5 contract integration, C2 Phase B execution, real assets, extraction, import, and C7/G4 Unity evidence remain separately blocked or unauthorized.
+The fixture-only C3-C6 lifecycle path and the C0 authoring reuse ledger v2 contract are implemented through C6-O05 and have passed their independent completion audit. Lifecycle publication, the remaining root/G5 contract integration, C2 Phase B execution, real assets, extraction, import, and C7/G4 Unity evidence remain separately blocked or unauthorized.
