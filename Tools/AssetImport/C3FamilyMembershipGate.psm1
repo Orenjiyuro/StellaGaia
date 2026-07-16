@@ -8,8 +8,25 @@ function Get-C3Sha256([string]$Text) {
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($script:C3Utf8.GetBytes($Text))).ToLowerInvariant()
 }
 
+function Get-C3OrdinalValues([object[]]$Values,[switch]$Unique) {
+    $list=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
+    foreach($value in $Values){$text=[string]$value;if(-not$Unique-or$seen.Add($text)){$list.Add($text)}}
+    $list.Sort($script:C3Ordinal);[string[]]$list.ToArray()
+}
+
+function Get-C3OrdinalRows([object[]]$Rows,[string[]]$Properties) {
+    $list=[Collections.Generic.List[object]]::new();foreach($row in $Rows){$list.Add($row)}
+    $list.Sort([Comparison[object]]{param($a,$b)foreach($property in $Properties){$comparison=$script:C3Ordinal.Compare([string]$a.$property,[string]$b.$property);if($comparison){return $comparison}};0})
+    [object[]]$list.ToArray()
+}
+
+function Test-C3JsonObjectBytesBinding([object]$Value,[string]$Bytes) {
+    try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false}
+    ($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)
+}
+
 function Get-C3StageInputFingerprint([object[]]$Entries) {
-    $ordered=@($Entries|Sort-Object path -CaseSensitive);$seen=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
+    $ordered=@(Get-C3OrdinalRows $Entries @('path'));$seen=[Collections.Generic.HashSet[string]]::new($script:C3Ordinal)
     $text='LifecycleStageInputV1' + "`n" + "entries.count:$($ordered.Count)`n"
     for($index=0;$index-lt$ordered.Count;$index++){
         $entry=$ordered[$index];if((@($entry.PSObject.Properties.Name)-join',')-cne'artifactId,path,sha256'-or-not$seen.Add([string]$entry.path)-or$entry.sha256-cnotmatch'^[0-9a-f]{64}$'){throw 'C3 direct input contract is invalid.'}
@@ -85,6 +102,7 @@ function Invoke-C3FamilyMembershipKernel {
         [Parameter(Mandatory)][object[]]$DispatchRows,
         [Parameter(Mandatory)][object[]]$TypedFactRows,
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
+        [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$FamilyParentStatuses,
         [Parameter(Mandatory)][object[]]$LedgerObjects,
         [Parameter(Mandatory)][object[]]$ConfigurationCandidates
@@ -92,9 +110,9 @@ function Invoke-C3FamilyMembershipKernel {
 
     $issues = [Collections.Generic.List[string]]::new()
     if (($FamilyParentStatuses -join ',') -cne 'AssignedFamilyMember,RetainedForDiagnosis,ConfigurationOnly') { $issues.Add('C3 family-parent vocabulary is invalid.') }
+    if(-not(Test-C3JsonObjectBytesBinding $LanePolicyRegistry $LanePolicyBytes)){$issues.Add('LC-I07 execution object does not match accepted bytes.')}
     if ((@($LanePolicyRegistry.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,policySetId,policySetVersion,policies' -or $LanePolicyRegistry.schemaVersion -cne '1.0.0' -or $LanePolicyRegistry.generatedAt-cne'2026-07-15T00:00:00Z' -or $LanePolicyRegistry.policySetId-cne'StellaSoraLifecycleLanePolicySet' -or $LanePolicyRegistry.policySetVersion-cne'1.0.0') { $issues.Add('LC-I07 registry shape is invalid.') }
-    $policyBytes = $script:C3Utf8.GetBytes((($LanePolicyRegistry | ConvertTo-Json -Depth 100) -replace "`r`n","`n") + "`n")
-    $policySetFingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($policyBytes)).ToLowerInvariant()
+    $policySetFingerprint = Get-C3Sha256 $LanePolicyBytes
     if($policySetFingerprint-cne'7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862'){$issues.Add('LC-I07 registry fingerprint is invalid.')}
 
     $dispatchById = @{}
@@ -116,7 +134,7 @@ function Invoke-C3FamilyMembershipKernel {
 
     $familyMap = @{}
     $memberRows = [Collections.Generic.List[object]]::new()
-    foreach ($dispatch in @($DispatchRows | Sort-Object assetObjectId -CaseSensitive)) {
+    foreach ($dispatch in @(Get-C3OrdinalRows $DispatchRows @('assetObjectId'))) {
         $objectId = [string]$dispatch.assetObjectId
         $parentStatus = $null; $familyId = $null; $familyKindId = $null
         if ($dispatch.dispatchStatus -ceq 'ConfigurationOnly' -and $dispatch.familyLane -ceq 'Unassigned' -and $null -ne $dispatch.configurationCandidateId) {
@@ -160,7 +178,7 @@ function Invoke-C3FamilyMembershipKernel {
     if ($issues.Count -or $memberRows.Count -ne $DispatchRows.Count) { return [pscustomobject][ordered]@{status='Failed';issues=$issues.ToArray();families=@();memberRows=$memberRows.ToArray();crossLaneReferences=@();dispatchEligibleObjectCount=$DispatchRows.Count;assignedFamilyMemberCount=0;retainedForDiagnosisObjectCount=0;configurationOnlyObjectCount=0} }
 
     $families = [Collections.Generic.List[object]]::new()
-    foreach ($family in @($familyMap.Values | Sort-Object familyId -CaseSensitive)) {
+    foreach ($family in @(Get-C3OrdinalRows @($familyMap.Values) @('familyId'))) {
         $ids=@($family.memberObjectIds);if($ids.Count-gt1){[Array]::Sort($ids,$script:C3Ordinal)}
         $families.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;familyKindId=$family.familyKindId;familyKeyFingerprint=$family.familyKeyFingerprint;memberCount=$ids.Count;memberObjectIds=$ids})
     }
@@ -193,7 +211,7 @@ function Invoke-C3FamilyMembershipKernel {
         if($null-eq$from.configurationCandidateId){continue};$candidateId=[string]$from.configurationCandidateId;$targets=@(if($configurationById.ContainsKey($candidateId)){$configurationById[$candidateId]})
         if($targets.Count-eq0){$toId=[string]$from.assetObjectId;$status='Missing'}
         else{
-            $targetIds=@($targets|ForEach-Object assetObjectId|Where-Object{$null-ne$_}|Sort-Object -Unique -CaseSensitive)
+            $targetIds=@(Get-C3OrdinalValues @($targets|ForEach-Object assetObjectId|Where-Object{$null-ne$_}) -Unique)
             if($targetIds.Count-ne1){$issues.Add("Non-unique configuration coupling target: '$candidateId'.");continue}
             $toId=[string]$targetIds[0];$status=if($targets.Count-eq1){'Resolved'}else{'Conflict'}
         }
@@ -272,14 +290,15 @@ function Invoke-C3FamilyMembershipGate {
         [Parameter(Mandatory)][object[]]$DispatchRows,
         [Parameter(Mandatory)][object[]]$TypedFactRows,
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
+        [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$FamilyParentStatuses,
         [Parameter(Mandatory)][object[]]$LedgerObjects,
         [Parameter(Mandatory)][object[]]$ConfigurationCandidates,
         [Parameter(Mandatory)][object]$Stage
     )
-    $kernel=Invoke-C3FamilyMembershipKernel $DispatchRows $TypedFactRows $LanePolicyRegistry $FamilyParentStatuses $LedgerObjects $ConfigurationCandidates
-    $policyText=ConvertTo-C3CanonicalJson $LanePolicyRegistry;$policySetFingerprint=Get-C3Sha256 $policyText
-    $directInputs=@($Stage.directInputs|Sort-Object path -CaseSensitive);$inputFingerprint=Get-C3StageInputFingerprint $directInputs
+    $kernel=Invoke-C3FamilyMembershipKernel $DispatchRows $TypedFactRows $LanePolicyRegistry $LanePolicyBytes $FamilyParentStatuses $LedgerObjects $ConfigurationCandidates
+    $policySetFingerprint=Get-C3Sha256 $LanePolicyBytes
+    $directInputs=@(Get-C3OrdinalRows $Stage.directInputs @('path'));$inputFingerprint=Get-C3StageInputFingerprint $directInputs
     $paths=[ordered]@{familyRegistry='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json';familyMemberLedger='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-member-ledger.json';crossLaneReferencePackage='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-cross-lane-reference-package.json';report='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-report.md'}
     $ledgerById=@{};foreach($row in $LedgerObjects){$ledgerById[[string]$row.assetObjectId]=$row}
     $prefix=[ordered]@{schemaVersion='1.0.0';generatedAt=[string]$Stage.generatedAt;snapshotId=[string]$Stage.snapshotId;inputFingerprint=$inputFingerprint;policySetFingerprint=$policySetFingerprint}
@@ -320,7 +339,7 @@ function Invoke-C3FamilyMembershipGate {
     foreach($family in @($kernel.families)){
         $policy=@($LanePolicyRegistry.policies|Where-Object lane -CEQ $family.lane)[0];$members=@($memberRows|Where-Object familyId -CEQ $family.familyId);$first=$members[0];$keyRows=[Collections.Generic.List[object]]::new()
         foreach($dimension in @($policy.familyKinds[0].keyDimensionIds)){$fact=@($TypedFactRows|Where-Object{$_.assetObjectId-ceq$first.assetObjectId-and$_.factKind-ceq$dimension})[0];$keyRows.Add([pscustomobject][ordered]@{dimensionId=$dimension;factStatus=$fact.factStatus;valueKind=$fact.valueKind;stringValue=$fact.stringValue;integerValue=$fact.integerValue;booleanValue=$fact.booleanValue;idValues=@($fact.idValues)})}
-        $refs=[string[]]@($members|ForEach-Object crossLaneReferenceIds|ForEach-Object{$_}|Sort-Object -Unique -CaseSensitive);$evidence=[string[]]@($members|ForEach-Object evidence|ForEach-Object{$_}|Sort-Object -Unique -CaseSensitive)
+        $refs=[string[]]@(Get-C3OrdinalValues @($members|ForEach-Object crossLaneReferenceIds|ForEach-Object{$_}) -Unique);$evidence=[string[]]@(Get-C3OrdinalValues @($members|ForEach-Object evidence|ForEach-Object{$_}) -Unique)
         $familyRows.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;familyKindId=$family.familyKindId;policyId=$policy.policyId;policyVersion=$policy.policyVersion;familyKeyFingerprint=$family.familyKeyFingerprint;familyKey=$keyRows.ToArray();memberCount=$members.Count;memberBytes=($members.serializedSizeBytes|Measure-Object -Sum).Sum;memberObjectIds=@($members.assetObjectId);crossLaneReferenceIds=$refs;riskDimensionIds=@($policy.riskAxisDefinitions.riskAxisId);evidence=$evidence})
     }
     $familyRows.Sort([Comparison[object]]{param($a,$b)$script:C3Ordinal.Compare([string]$a.familyId,[string]$b.familyId)})
@@ -333,7 +352,7 @@ function Invoke-C3FamilyMembershipGate {
     $accounting=[pscustomobject][ordered]@{inputSubjectCount=$directInputs.Count+$DispatchRows.Count+$referenceRows.Count+4;acceptedInputSubjectCount=$directInputs.Count+$DispatchRows.Count+$referenceRows.Count+4;inputFailureCount=0;notEvaluatedInputSubjectCount=0;outputCandidateCount=4;projectedOutputCount=4;outputFailureCount=0;issueCount=0;gateStatus='Passed';inputFailures=@();inputSuppressions=@();outputFailures=@()}
     $decision=[pscustomobject][ordered]@{failureAttribution='None; C3 lifecycle contract passed.';nextAllowedAction='Provide the current family generation to C4.'}
     $report=New-C3Report $Stage $inputFingerprint $policySetFingerprint $accounting $decision
-    $directOutputs=@([pscustomobject][ordered]@{artifactId='C3-O01';path=$paths.familyRegistry;sha256=Get-C3Sha256 $texts.familyRegistry},[pscustomobject][ordered]@{artifactId='C3-O02';path=$paths.familyMemberLedger;sha256=Get-C3Sha256 $texts.familyMemberLedger},[pscustomobject][ordered]@{artifactId='C3-O03';path=$paths.crossLaneReferencePackage;sha256=Get-C3Sha256 $texts.crossLaneReferencePackage},[pscustomobject][ordered]@{artifactId='C3-O04-Report';path=$paths.report;sha256=Get-C3Sha256 $report}|Sort-Object path -CaseSensitive)
+    $directOutputs=@(Get-C3OrdinalRows @([pscustomobject][ordered]@{artifactId='C3-O01';path=$paths.familyRegistry;sha256=Get-C3Sha256 $texts.familyRegistry},[pscustomobject][ordered]@{artifactId='C3-O02';path=$paths.familyMemberLedger;sha256=Get-C3Sha256 $texts.familyMemberLedger},[pscustomobject][ordered]@{artifactId='C3-O03';path=$paths.crossLaneReferencePackage;sha256=Get-C3Sha256 $texts.crossLaneReferencePackage},[pscustomobject][ordered]@{artifactId='C3-O04-Report';path=$paths.report;sha256=Get-C3Sha256 $report}) @('path'))
     $summary=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;stageId='C3';snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;toolVersions=@($Stage.toolVersions);directInputs=$directInputs;directOutputs=$directOutputs;coverage=[pscustomobject]$coverage;failureAccounting=$accounting;decision=$decision};$texts.summary=ConvertTo-C3CanonicalJson $summary
     [pscustomobject][ordered]@{gateStatus='Passed';familyRegistry=$familyRegistry;familyMemberLedger=$familyMemberLedger;crossLaneReferencePackage=$crossLaneReferencePackage;summary=$summary;report=$report;texts=[pscustomobject]$texts}
 }

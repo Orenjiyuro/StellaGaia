@@ -6,7 +6,10 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $module = Import-Module (Join-Path $PSScriptRoot 'C3FamilyMembershipGate.psm1') -Force -PassThru
-$policy = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json') | ConvertFrom-Json -Depth 100 -DateKind String
+$moduleAst=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'C3FamilyMembershipGate.psm1'),[ref]$null,[ref]$null)
+if(@($moduleAst.FindAll({param($node)$node-is[Management.Automation.Language.CommandAst]-and$node.GetCommandName()-ceq'Sort-Object'},$true)).Count){throw 'C3 module reintroduced culture-sensitive Sort-Object.'}
+$policyBytes = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'),[Text.UTF8Encoding]::new($false))
+$policy = $policyBytes | ConvertFrom-Json -Depth 100 -DateKind String
 $vocabulary = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'docs/asset-migration/schemas/status-vocabulary.json') | ConvertFrom-Json -Depth 100 -DateKind String
 
 function Clone-Value($Value) { $Value | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100 -DateKind String }
@@ -80,7 +83,7 @@ $ledgerObjects = @($dispatchRows | ForEach-Object -Begin {$n=0} -Process {
 $configurationCandidates=@([pscustomobject][ordered]@{configurationCandidateId="config-sha256:$('9' * 64)";assetObjectId=$configurationId;evidence=@('Tools/AssetImport/Fixtures/DiscoveryGate/valid-resolved-configuration-package.json')})
 
 function Run-Kernel($Rows,$Facts,$LedgerRows=$ledgerObjects,$ConfigurationRows=$configurationCandidates) {
-    Invoke-C3FamilyMembershipKernel -DispatchRows $Rows -TypedFactRows $Facts -LanePolicyRegistry $policy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $LedgerRows -ConfigurationCandidates $ConfigurationRows
+    Invoke-C3FamilyMembershipKernel -DispatchRows $Rows -TypedFactRows $Facts -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $LedgerRows -ConfigurationCandidates $ConfigurationRows
 }
 
 $result = Run-Kernel @($dispatchRows) @($facts)
@@ -143,6 +146,10 @@ $duplicateRows = @(Clone-Value $dispatchRows) + @((Clone-Value $dispatchRows[0])
 $duplicateResult = Run-Kernel $duplicateRows @($facts)
 if ($duplicateResult.status -cne 'Failed' -or $duplicateResult.issues -cnotcontains 'Duplicate dispatch assetObjectId.') { throw 'LF-05 duplicate dispatch fail-closed behavior failed.' }
 
+$unboundPolicy=Clone-Value $policy;$unboundPolicy.policySetVersion='9.9.9'
+$unboundResult=Invoke-C3FamilyMembershipKernel -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $unboundPolicy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates
+if($unboundResult.status-cne'Failed'-or$unboundResult.issues-cnotcontains'LC-I07 execution object does not match accepted bytes.'){throw 'C3 LC-I07 object/bytes binding RED failed.'}
+
 $repeat = Run-Kernel @($dispatchRows) @($facts)
 if (($result | ConvertTo-Json -Depth 100) -cne ($repeat | ConvertTo-Json -Depth 100)) { throw 'C3-0 determinism failed.' }
 
@@ -158,7 +165,7 @@ $directInputs = @(
     [pscustomobject][ordered]@{artifactId='LC-I13';path='docs/asset-migration/schemas/c2-lane-fact-package.schema.json';sha256=('9'*64)}
 )
 $stage = [pscustomobject][ordered]@{generatedAt='2026-07-16T02:00:00Z';snapshotId='snapshot-pc-install-001';toolVersions=@('C3FamilyMembershipGate:1.0.0');directInputs=$directInputs}
-try{$gate = Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage}catch{throw "$($_.Exception.Message) $($_.ScriptStackTrace)"}
+try{$gate = Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage}catch{throw "$($_.Exception.Message) $($_.ScriptStackTrace)"}
 if ($gate.gateStatus -cne 'Passed' -or (@($gate.PSObject.Properties.Name)-join',') -cne 'gateStatus,familyRegistry,familyMemberLedger,crossLaneReferencePackage,summary,report,texts') { throw 'C3-1 Passed result vector shape failed.' }
 if ($gate.summary.failureAccounting.outputCandidateCount -ne 4 -or $gate.summary.failureAccounting.projectedOutputCount -ne 4 -or $gate.summary.failureAccounting.outputFailureCount -ne 0 -or $gate.summary.directOutputs.Count -ne 4) { throw 'C3-1 Passed output conservation failed.' }
 if ((@($gate.familyRegistry.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,families' -or (@($gate.familyMemberLedger.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,rows' -or (@($gate.crossLaneReferencePackage.PSObject.Properties.Name)-join',') -cne 'schemaVersion,generatedAt,snapshotId,inputFingerprint,policySetFingerprint,rows') { throw 'C3-1 success artifact top-level shape failed.' }
@@ -184,11 +191,11 @@ foreach ($entry in @(
     if ([IO.File]::ReadAllText($path,[Text.UTF8Encoding]::new($false)) -cne $actual) { throw "C3-1 fixture bytes mismatch: $($entry[0])" }
 }
 
-$failedGate = Invoke-C3FamilyMembershipGate -DispatchRows $duplicateRows -TypedFactRows @($facts) -LanePolicyRegistry $policy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage
+$failedGate = Invoke-C3FamilyMembershipGate -DispatchRows $duplicateRows -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage
 if ($failedGate.gateStatus -cne 'Failed' -or $null-ne$failedGate.familyRegistry -or $null-ne$failedGate.familyMemberLedger -or $null-ne$failedGate.crossLaneReferencePackage -or $failedGate.summary.failureAccounting.projectedOutputCount-ne1 -or $failedGate.summary.failureAccounting.outputFailureCount-ne3 -or $failedGate.summary.directOutputs.Count-ne1 -or $failedGate.summary.failureAccounting.inputFailures[0].attribution-cne'LF-05:C3:MembershipConservation') { throw 'C3-1 Failed diagnostic-only vector failed.' }
-$duplicateFacts=@(Clone-Value $facts)+@((Clone-Value $facts[0]));$typedFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows $duplicateFacts -LanePolicyRegistry $policy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($typedFailure.gateStatus-cne'Failed'-or$typedFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-02:LC-I06'-or$typedFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-02 diagnostic-only vector failed.'}
-$badPolicy=Clone-Value $policy;$badPolicy.policySetVersion='1.0.1';$policyFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $badPolicy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($policyFailure.gateStatus-cne'Failed'-or$policyFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-03:LC-I07'-or$policyFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-03 diagnostic-only vector failed.'}
-$missingLedger=Clone-Value $ledgerObjects;$actorLedger=@($missingLedger|Where-Object assetObjectId -CEQ $objects.Actor)[0];$actorLedger.dependencyObjectIds=@($actorLedger.dependencyObjectIds,"sha256:$('9'*64)")|Sort-Object -CaseSensitive;$missingGate=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $missingLedger -ConfigurationCandidates $configurationCandidates -Stage $stage;if($missingGate.gateStatus-cne'Passed'-or$missingGate.crossLaneReferencePackage.rows.Count-ne3-or$missingGate.summary.coverage.missingReferenceCount-ne1-or@($missingGate.familyMemberLedger.rows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count-ne5){throw'SP-31 Missing reference partition failed.'}
+$duplicateFacts=@(Clone-Value $facts)+@((Clone-Value $facts[0]));$typedFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows $duplicateFacts -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($typedFailure.gateStatus-cne'Failed'-or$typedFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-02:LC-I06'-or$typedFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-02 diagnostic-only vector failed.'}
+$badPolicy=Clone-Value $policy;$badPolicy.policySetVersion='1.0.1';$policyFailure=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $badPolicy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $ledgerObjects -ConfigurationCandidates $configurationCandidates -Stage $stage;if($policyFailure.gateStatus-cne'Failed'-or$policyFailure.summary.failureAccounting.inputFailures[0].attribution-cne'LF-03:LC-I07'-or$policyFailure.summary.failureAccounting.projectedOutputCount-ne1){throw'C3-1 LF-03 diagnostic-only vector failed.'}
+$missingLedger=Clone-Value $ledgerObjects;$actorLedger=@($missingLedger|Where-Object assetObjectId -CEQ $objects.Actor)[0];$actorLedger.dependencyObjectIds=@($actorLedger.dependencyObjectIds,"sha256:$('9'*64)")|Sort-Object -CaseSensitive;$missingGate=Invoke-C3FamilyMembershipGate -DispatchRows @($dispatchRows) -TypedFactRows @($facts) -LanePolicyRegistry $policy -LanePolicyBytes $policyBytes -FamilyParentStatuses @($vocabulary.familyParentStatus) -LedgerObjects $missingLedger -ConfigurationCandidates $configurationCandidates -Stage $stage;if($missingGate.gateStatus-cne'Passed'-or$missingGate.crossLaneReferencePackage.rows.Count-ne3-or$missingGate.summary.coverage.missingReferenceCount-ne1-or@($missingGate.familyMemberLedger.rows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count-ne5){throw'SP-31 Missing reference partition failed.'}
 if (Test-Path -LiteralPath (Join-Path $repositoryRoot 'Temp/C2DiscoveryPublication')) { throw 'C3-0 touched C2 publication state.' }
 
 'status=Passed'

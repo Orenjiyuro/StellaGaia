@@ -7,10 +7,12 @@ $script:C5Ordinal=[StringComparer]::Ordinal
 function Get-C5Sha256([string]$Text){[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($script:C5Utf8.GetBytes($Text))).ToLowerInvariant()}
 function ConvertTo-C5ScalarLine([string]$Name,[string]$Value){if($null-eq$Value-or$Value.IndexOfAny([char[]]@([char]0,"`r","`n"))-ge0){throw"Invalid framed scalar: $Name"};"${Name}:$($script:C5Utf8.GetByteCount($Value)):${Value}`n"}
 function ConvertTo-C5NullableLine([string]$Name,[AllowNull()][object]$Value){if($null-eq$Value){return "${Name}.null:1:1`n"};"${Name}.null:1:0`n$(ConvertTo-C5ScalarLine $Name ([string]$Value))"}
-function Add-C5SetFrame([string]$Name,[string[]]$Values){$ordered=@($Values|Sort-Object -CaseSensitive -Unique);$count=[string]$ordered.Count;$text="${Name}.count:$($script:C5Utf8.GetByteCount($count)):$count`n";for($i=0;$i-lt$ordered.Count;$i++){$text+=ConvertTo-C5ScalarLine "${Name}[$i]" $ordered[$i]};$text}
+function Get-C5OrdinalValues([object[]]$Values,[switch]$Unique){$list=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new($script:C5Ordinal);foreach($value in $Values){$text=[string]$value;if(-not$Unique-or$seen.Add($text)){$list.Add($text)}};$list.Sort($script:C5Ordinal);[string[]]$list.ToArray()}
+function Add-C5SetFrame([string]$Name,[string[]]$Values){$ordered=@(Get-C5OrdinalValues $Values -Unique);$count=[string]$ordered.Count;$text="${Name}.count:$($script:C5Utf8.GetByteCount($count)):$count`n";for($i=0;$i-lt$ordered.Count;$i++){$text+=ConvertTo-C5ScalarLine "${Name}[$i]" $ordered[$i]};$text}
 function Add-C5Issue([Collections.Generic.List[string]]$Issues,[string]$Issue){if(-not$Issues.Contains($Issue)){$Issues.Add($Issue)}}
 function Test-C5ExactArray([object[]]$Actual,[string[]]$Expected){if($Actual.Count-ne$Expected.Count){return $false};for($i=0;$i-lt$Expected.Count;$i++){if([string]$Actual[$i]-cne$Expected[$i]){return $false}};$true}
 function Get-C5OrdinalRows([object[]]$Rows,[string]$Property){$list=[Collections.Generic.List[object]]::new();foreach($row in $Rows){$list.Add($row)};$list.Sort([Comparison[object]]{param($a,$b)$script:C5Ordinal.Compare([string]$a.$Property,[string]$b.$Property)});@($list.ToArray())}
+function Test-C5JsonObjectBytesBinding([object]$Value,[string]$Bytes){try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false};($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)}
 
 function ConvertTo-C5FactFrame([object]$Fact){
     $text="C5RiskVariantFactV1`n"
@@ -21,9 +23,9 @@ function ConvertTo-C5FactFrame([object]$Fact){
 }
 
 function Get-C5RiskVariantId([string]$FamilyId,[string]$RiskAxisId,[object[]]$Facts){
-    $ordered=@($Facts|Sort-Object factKind -CaseSensitive);$text="C5RiskVariantV1`n"+(ConvertTo-C5ScalarLine familyId $FamilyId)+(ConvertTo-C5ScalarLine riskAxisId $RiskAxisId)
-    $count=[string]$ordered.Count;$text+="sourceFacts.count:$($script:C5Utf8.GetByteCount($count)):$count`n"
-    for($i=0;$i-lt$ordered.Count;$i++){$nested=ConvertTo-C5FactFrame $ordered[$i];$text+="sourceFacts[$i]:$($script:C5Utf8.GetByteCount($nested)):$nested`n"}
+    $text="C5RiskVariantV1`n"+(ConvertTo-C5ScalarLine familyId $FamilyId)+(ConvertTo-C5ScalarLine riskAxisId $RiskAxisId)
+    $count=[string]$Facts.Count;$text+="sourceFacts.count:$($script:C5Utf8.GetByteCount($count)):$count`n"
+    for($i=0;$i-lt$Facts.Count;$i++){$nested=ConvertTo-C5FactFrame $Facts[$i];$text+="sourceFacts[$i]:$($script:C5Utf8.GetByteCount($nested)):$nested`n"}
     Get-C5Sha256 $text
 }
 
@@ -82,8 +84,8 @@ function Get-C5PackageAssessment([string]$RequirementId,[string]$RequirementKind
     }
     if($RequirementKind-ceq'CapabilitySuitability'-and(@($package.observations).Count-ne1-or$package.observations[0].evidenceKind-cne'CapabilitySuitability')){Add-C5Issue $Issues 'Capability suitability package identity mismatch.';return $missingResult}
     if($package.inputFingerprint-cne$Expected){return [pscustomobject]@{status=$StaleStatus;package=$package;acceptedEvidenceKinds=@();missingEvidenceKinds=@($RequiredEvidenceKinds)}}
-    $passedKinds=@($package.observations|Where-Object outcome -CEQ Passed|ForEach-Object evidenceKind|Where-Object{$_-cin$RequiredEvidenceKinds}|Sort-Object -CaseSensitive -Unique)
-    $missingKinds=@($RequiredEvidenceKinds|Where-Object{$_-cnotin$passedKinds}|Sort-Object -CaseSensitive -Unique)
+    $passedKinds=@(Get-C5OrdinalValues @($package.observations|Where-Object outcome -CEQ Passed|ForEach-Object evidenceKind|Where-Object{$_-cin$RequiredEvidenceKinds}) -Unique)
+    $missingKinds=@(Get-C5OrdinalValues @($RequiredEvidenceKinds|Where-Object{$_-cnotin$passedKinds}) -Unique)
     if(@($package.observations|Where-Object outcome -CEQ Rejected).Count){return [pscustomobject]@{status=$RejectedStatus;package=$package;acceptedEvidenceKinds=$passedKinds;missingEvidenceKinds=$missingKinds}}
     if($package.executionStatus-ceq'Completed'-and$missingKinds.Count-eq0){return [pscustomobject]@{status=$AcceptedStatus;package=$package;acceptedEvidenceKinds=$passedKinds;missingEvidenceKinds=@()}}
     [pscustomobject]@{status=$MissingStatus;package=$package;acceptedEvidenceKinds=$passedKinds;missingEvidenceKinds=$missingKinds}
@@ -109,6 +111,8 @@ function Invoke-C5RequirementEvidenceKernel {
     if(-not(Test-C5ExactArray $SuitabilityStatuses @('SuitabilityRequired','SuitabilityAccepted','SuitabilityMissing','SuitabilityStale','SuitabilityExecutionUnavailable','SuitabilityRejected'))){Add-C5Issue $issues 'LC-I08 capabilitySuitabilityStatus vocabulary is invalid.'}
     if($InputStaticFingerprint-cnotmatch'^[0-9a-f]{64}$'){Add-C5Issue $issues 'C4 inputStaticFingerprint is invalid.'}
     $policySetFingerprint=Get-C5Sha256 $LanePolicyBytes;$decisionPolicyFingerprint=Get-C5Sha256 $DecisionPolicyBytes
+    if(-not(Test-C5JsonObjectBytesBinding $LanePolicyRegistry $LanePolicyBytes)){Add-C5Issue $issues 'LC-I07 execution object does not match accepted bytes.'}
+    if(-not(Test-C5JsonObjectBytesBinding $DecisionPolicyRegistry $DecisionPolicyBytes)){Add-C5Issue $issues 'LC-I11 execution object does not match accepted bytes.'}
     if($null-ne$LanePolicyRegistry.PSObject.Properties['policySetFingerprint']){Add-C5Issue $issues 'LC-I07 must not store policySetFingerprint.'}
     if($null-ne$DecisionPolicyRegistry.PSObject.Properties['decisionPolicyFingerprint']){Add-C5Issue $issues 'LC-I11 must not store decisionPolicyFingerprint.'}
 
@@ -118,7 +122,7 @@ function Invoke-C5RequirementEvidenceKernel {
     $laneById=@{};foreach($policy in $LanePolicyRegistry.policies){$laneById[[string]$policy.lane]=$policy}
 
     $requirements=[Collections.Generic.List[object]]::new();$assessments=[Collections.Generic.List[object]]::new()
-    foreach($family in @($FamilyRegistry.families|Sort-Object familyId -CaseSensitive)){
+    foreach($family in @(Get-C5OrdinalRows @($FamilyRegistry.families) familyId)){
         if(-not$laneById.ContainsKey([string]$family.lane)){Add-C5Issue $issues 'Family lane policy is missing.';continue}
         $policy=$laneById[[string]$family.lane];$members=@($MemberStaticQualification.memberResults|Where-Object familyId -CEQ $family.familyId)
         foreach($axis in $policy.riskAxisDefinitions){
@@ -132,8 +136,8 @@ function Invoke-C5RequirementEvidenceKernel {
             }
             $evidenceDefinition=$policy.evidenceRequirementDefinitions|Where-Object{$_.applicableRiskAxisIds-ccontains$axis.riskAxisId}|Select-Object -First 1
             if($null-eq$evidenceDefinition){Add-C5Issue $issues 'Risk axis evidence requirement is missing.';continue}
-            foreach($variantId in @($variants.Keys|Sort-Object -CaseSensitive)){
-                $variantMembers=@($variants[$variantId].ToArray());$candidates=@($variantMembers|Where-Object staticStatus -CEQ StaticPassed|ForEach-Object assetObjectId|Sort-Object -CaseSensitive);$selected=if($candidates.Count){$candidates[0]}else{$null};$evidenceKinds=@($evidenceDefinition.requiredEvidenceKinds)
+            foreach($variantId in @(Get-C5OrdinalValues @($variants.Keys))){
+                $variantMembers=@($variants[$variantId].ToArray());$candidates=@(Get-C5OrdinalValues @($variantMembers|Where-Object staticStatus -CEQ StaticPassed|ForEach-Object assetObjectId));$selected=if($candidates.Count){$candidates[0]}else{$null};$evidenceKinds=@($evidenceDefinition.requiredEvidenceKinds)
                 $requirementId=Get-C5RequirementId $family.familyId $axis.riskAxisId $variantId $candidates $evidenceKinds;$expected=Get-C5ExpectedInputFingerprint $policySetFingerprint $decisionPolicyFingerprint $requirementId RiskVariant $selected $InputStaticFingerprint $evidenceKinds
                 $state=Get-C5PackageAssessment $requirementId RiskVariant $selected $expected $evidenceKinds $EvidencePackages RepresentativeRequired EvidenceMissing EvidenceStale UnityExecutionUnavailable EvidenceAccepted RepresentativeRejected $issues;$package=$state.package
                 $requirements.Add([pscustomobject][ordered]@{requirementId=$requirementId;familyId=$family.familyId;lane=$family.lane;riskAxisId=$axis.riskAxisId;riskVariantId=$variantId;candidateMemberIds=$candidates;selectedRepresentativeAssetObjectId=$selected;selectionRule='OrdinalFirstStaticPassed';requiredEvidenceKinds=$evidenceKinds;expectedInputFingerprint=$expected;assessmentStatus=$state.status;evidence=@('Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json')})
@@ -147,15 +151,15 @@ function Invoke-C5RequirementEvidenceKernel {
     }
 
     $suitabilityRequirements=[Collections.Generic.List[object]]::new();$suitabilityAssessments=[Collections.Generic.List[object]]::new()
-    foreach($family in @($FamilyRegistry.families|Sort-Object familyId -CaseSensitive)){
-        $policy=$laneById[[string]$family.lane];$members=@($MemberStaticQualification.memberResults|Where-Object familyId -CEQ $family.familyId);$actorRoles=@($members|ForEach-Object{$key="$($_.assetObjectId)|ActorRole";if($factByKey.ContainsKey($key)){$factByKey[$key].stringValue}}|Sort-Object -CaseSensitive -Unique)
+    foreach($family in @(Get-C5OrdinalRows @($FamilyRegistry.families) familyId)){
+        $policy=$laneById[[string]$family.lane];$members=@($MemberStaticQualification.memberResults|Where-Object familyId -CEQ $family.familyId);$actorRoles=@(Get-C5OrdinalValues @($members|ForEach-Object{$key="$($_.assetObjectId)|ActorRole";if($factByKey.ContainsKey($key)){$factByKey[$key].stringValue}}) -Unique)
         foreach($capability in $DecisionPolicyRegistry.capabilities){
             if($capability.eligibleLanes-cnotcontains$family.lane-or$capability.eligibleFamilyKindIds-cnotcontains$family.familyKindId){continue}
             if(@($capability.eligibleActorRoles).Count-and-not@($actorRoles|Where-Object{$_-cin@($capability.eligibleActorRoles)}).Count){continue}
             $laneCapability=$policy.capabilityProjectionRules|Where-Object capabilityId -CEQ $capability.capabilityId|Select-Object -First 1;if($null-eq$laneCapability){Add-C5Issue $issues 'LC-I07/LC-I11 capability union mismatch.';continue}
-            $routes=@($capability.eligibleRouteKinds|Where-Object{$_-cin@($laneCapability.requiredRouteKinds)}|Sort-Object -CaseSensitive -Unique)
+            $routes=@(Get-C5OrdinalValues @($capability.eligibleRouteKinds|Where-Object{$_-cin@($laneCapability.requiredRouteKinds)}) -Unique)
             foreach($route in $routes){
-                $candidates=@($members|Where-Object staticStatus -CEQ StaticPassed|ForEach-Object assetObjectId|Sort-Object -CaseSensitive);$selected=if($candidates.Count){$candidates[0]}else{$null};$evidenceKinds=@('CapabilitySuitability')
+                $candidates=@(Get-C5OrdinalValues @($members|Where-Object staticStatus -CEQ StaticPassed|ForEach-Object assetObjectId));$selected=if($candidates.Count){$candidates[0]}else{$null};$evidenceKinds=@('CapabilitySuitability')
                 $requirementId=Get-C5SuitabilityRequirementId $decisionPolicyFingerprint $family.familyId $capability.capabilityId $route $candidates $selected $evidenceKinds;$expected=Get-C5ExpectedInputFingerprint $policySetFingerprint $decisionPolicyFingerprint $requirementId CapabilitySuitability $selected $InputStaticFingerprint $evidenceKinds
                 $state=Get-C5PackageAssessment $requirementId CapabilitySuitability $selected $expected $evidenceKinds $EvidencePackages SuitabilityRequired SuitabilityMissing SuitabilityStale SuitabilityExecutionUnavailable SuitabilityAccepted SuitabilityRejected $issues;$package=$state.package
                 $suitabilityRequirements.Add([pscustomobject][ordered]@{suitabilityRequirementId=$requirementId;familyId=$family.familyId;capabilityId=$capability.capabilityId;routeKind=$route;candidateMemberIds=$candidates;selectedRepresentativeAssetObjectId=$selected;selectionRule='OrdinalFirstStaticPassed';requiredEvidenceKinds=$evidenceKinds;expectedInputFingerprint=$expected;assessmentStatus=$state.status;evidence=@('docs/asset-migration/schemas/c3-c6-decision-policy-registry.json')})
@@ -167,11 +171,11 @@ function Invoke-C5RequirementEvidenceKernel {
         }
     }
 
-    $orderedRequirements=@($requirements|Sort-Object requirementId -CaseSensitive);$orderedAssessments=@($assessments|Sort-Object assessmentId -CaseSensitive);$orderedSuitability=@($suitabilityRequirements|Sort-Object suitabilityRequirementId -CaseSensitive);$orderedSuitabilityAssessments=@($suitabilityAssessments|Sort-Object suitabilityAssessmentId -CaseSensitive)
+    $orderedRequirements=@(Get-C5OrdinalRows @($requirements) requirementId);$orderedAssessments=@(Get-C5OrdinalRows @($assessments) assessmentId);$orderedSuitability=@(Get-C5OrdinalRows @($suitabilityRequirements) suitabilityRequirementId);$orderedSuitabilityAssessments=@(Get-C5OrdinalRows @($suitabilityAssessments) suitabilityAssessmentId)
     $knownRequirementIds=@($orderedRequirements.requirementId)+@($orderedSuitability.suitabilityRequirementId)
     foreach($package in $EvidencePackages){if($package.requirementId-cnotin$knownRequirementIds){Add-C5Issue $issues 'Evidence package does not resolve to a C5 requirement.'}}
     [pscustomobject][ordered]@{
-        status=if($issues.Count){'Failed'}else{'Passed'};issues=@($issues|Sort-Object -CaseSensitive);policySetFingerprint=$policySetFingerprint;decisionPolicyFingerprint=$decisionPolicyFingerprint;inputStaticFingerprint=$InputStaticFingerprint
+        status=if($issues.Count){'Failed'}else{'Passed'};issues=@(Get-C5OrdinalValues @($issues) -Unique);policySetFingerprint=$policySetFingerprint;decisionPolicyFingerprint=$decisionPolicyFingerprint;inputStaticFingerprint=$InputStaticFingerprint
         riskVariantCount=$orderedRequirements.Count;representativeRequirementCount=$orderedRequirements.Count;representativeRequiredCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ RepresentativeRequired).Count;evidenceAcceptedCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ EvidenceAccepted).Count;evidenceMissingCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ EvidenceMissing).Count;evidenceStaleCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ EvidenceStale).Count;unityExecutionUnavailableCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ UnityExecutionUnavailable).Count;representativeRejectedCount=@($orderedRequirements|Where-Object assessmentStatus -CEQ RepresentativeRejected).Count
         capabilitySuitabilityRequirementCount=$orderedSuitability.Count;suitabilityRequiredCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityRequired).Count;suitabilityAcceptedCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityAccepted).Count;suitabilityMissingCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityMissing).Count;suitabilityStaleCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityStale).Count;suitabilityExecutionUnavailableCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityExecutionUnavailable).Count;suitabilityRejectedCount=@($orderedSuitability|Where-Object assessmentStatus -CEQ SuitabilityRejected).Count
         requirements=$orderedRequirements;assessments=$orderedAssessments;capabilitySuitabilityRequirements=$orderedSuitability;capabilitySuitabilityAssessments=$orderedSuitabilityAssessments;executorLaunchCount=0;heavyOperationCount=0
@@ -204,7 +208,7 @@ function Get-C5AccountingId([string]$OwningArray,[string]$SubjectKind,[string]$S
 }
 
 function New-C5AccountingRow([string]$OwningArray,[string]$SubjectKind,[string]$SubjectId,[string]$ReasonCode,[string]$Attribution,[string[]]$Evidence){
-    $values=@($Evidence|Sort-Object -CaseSensitive -Unique)
+    $values=@(Get-C5OrdinalValues $Evidence -Unique)
     [pscustomobject][ordered]@{recordId=Get-C5AccountingId $OwningArray $SubjectKind $SubjectId $ReasonCode $Attribution $values;stageId='C5';subjectKind=$SubjectKind;subjectId=$SubjectId;reasonCode=$ReasonCode;attribution=$Attribution;evidence=$values}
 }
 
@@ -231,11 +235,11 @@ function Invoke-C5RequirementEvidenceGate {
     $requests=[Collections.Generic.List[object]]::new()
     foreach($assessment in @($kernel.assessments|Where-Object assessmentStatus -CIn @('EvidenceMissing','EvidenceStale','UnityExecutionUnavailable'))){$requirement=@($kernel.requirements|Where-Object requirementId -CEQ $assessment.requirementId)[0];$requests.Add([pscustomobject][ordered]@{requirementId=$requirement.requirementId;requirementKind='RiskVariant';familyId=$requirement.familyId;lane=$requirement.lane;capabilityId=$null;routeKind=$null;representativeAssetObjectId=$requirement.selectedRepresentativeAssetObjectId;requiredEvidenceKinds=@($requirement.requiredEvidenceKinds);reasonCode=$assessment.assessmentStatus;priority='Coverage';evidence=@($assessment.evidence)})}
     foreach($assessment in @($kernel.capabilitySuitabilityAssessments|Where-Object assessmentStatus -CIn @('SuitabilityMissing','SuitabilityStale','SuitabilityExecutionUnavailable'))){$requirement=@($kernel.capabilitySuitabilityRequirements|Where-Object suitabilityRequirementId -CEQ $assessment.suitabilityRequirementId)[0];$requests.Add([pscustomobject][ordered]@{requirementId=$requirement.suitabilityRequirementId;requirementKind='CapabilitySuitability';familyId=$requirement.familyId;lane=$familyLane[[string]$requirement.familyId];capabilityId=$requirement.capabilityId;routeKind=$requirement.routeKind;representativeAssetObjectId=$requirement.selectedRepresentativeAssetObjectId;requiredEvidenceKinds=@($requirement.requiredEvidenceKinds);reasonCode=$assessment.assessmentStatus;priority='RequiredCapability';evidence=@($assessment.evidence)})}
-    $orderedRequests=@($requests|Sort-Object requirementId -CaseSensitive)
+    $orderedRequests=@(Get-C5OrdinalRows @($requests) requirementId)
     $coverage=[pscustomobject][ordered]@{familyCount=@($FamilyRegistry.families).Count;riskVariantCount=$kernel.riskVariantCount;representativeRequirementCount=$kernel.representativeRequirementCount;representativeRequiredCount=$kernel.representativeRequiredCount;evidenceAcceptedCount=$kernel.evidenceAcceptedCount;evidenceMissingCount=$kernel.evidenceMissingCount;evidenceStaleCount=$kernel.evidenceStaleCount;unityExecutionUnavailableCount=$kernel.unityExecutionUnavailableCount;representativeRejectedCount=$kernel.representativeRejectedCount;capabilitySuitabilityRequirementCount=$kernel.capabilitySuitabilityRequirementCount;suitabilityRequiredCount=$kernel.suitabilityRequiredCount;suitabilityAcceptedCount=$kernel.suitabilityAcceptedCount;suitabilityMissingCount=$kernel.suitabilityMissingCount;suitabilityStaleCount=$kernel.suitabilityStaleCount;suitabilityExecutionUnavailableCount=$kernel.suitabilityExecutionUnavailableCount;suitabilityRejectedCount=$kernel.suitabilityRejectedCount;c7RequestCount=$orderedRequests.Count}
     $inputSubjectCount=$directInputs.Count+$coverage.familyCount+$coverage.representativeRequirementCount+$coverage.capabilitySuitabilityRequirementCount+$EvidencePackages.Count+2
     if($kernel.status-cne'Passed'){
-        $subjectId='C5:EvidenceContract';$attribution="LF-15:$subjectId";$evidence=@($EvidencePackages|ForEach-Object evidencePaths|ForEach-Object{$_}|Sort-Object -CaseSensitive -Unique);if(-not$evidence.Count){$evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
+        $subjectId='C5:EvidenceContract';$attribution="LF-15:$subjectId";$evidence=@(Get-C5OrdinalValues @($EvidencePackages|ForEach-Object evidencePaths|ForEach-Object{$_}) -Unique);if(-not$evidence.Count){$evidence=@('Tools/AssetImport/Test-C5RequirementEvidenceGate.ps1')}
         $failure=New-C5AccountingRow inputFailures ConservationCheck $subjectId EvidenceContractInvalid $attribution $evidence
         $outputFailures=@(New-C5AccountingRow outputFailures OutputArtifact 'C5-O01' SuppressedByGate 'LF-15:C5-O01' @($paths.requirements);New-C5AccountingRow outputFailures OutputArtifact 'C5-O02' SuppressedByGate 'LF-15:C5-O02' @($paths.assessments);New-C5AccountingRow outputFailures OutputArtifact 'C5-O03' SuppressedByGate 'LF-15:C5-O03' @($paths.requests))
         $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=[Math]::Max(0,$inputSubjectCount-2);inputFailureCount=1;notEvaluatedInputSubjectCount=1;outputCandidateCount=4;projectedOutputCount=1;outputFailureCount=3;issueCount=1;gateStatus='Failed';inputFailures=@($failure);inputSuppressions=@();outputFailures=$outputFailures}

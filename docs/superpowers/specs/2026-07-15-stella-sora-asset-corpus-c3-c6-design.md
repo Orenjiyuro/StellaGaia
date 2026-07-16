@@ -1123,6 +1123,8 @@ The status vocabulary now contains the exact `familyParentStatus` and `memberSta
 
 The C3-2 correction checkpoint closes the previously incomplete C3 assignment/reference behavior: every required non-key support fact must now be Known, the accepted AR-O04 selector set supplies the only legal known-empty `DependencyObjectIds` case, LC-I01 is the dependency reference authority, and all five SP-31 reference kinds participate in distinct Resolved/Missing/Conflict accounting without changing direct family membership. This correction does not resolve the separately reviewed exact-byte object/bytes binding, Ordinal ordering, C5 evidence-authority, C6 child-conservation, LC-I12, or specification-conflict findings; C6-0/C6-1 remain unapproved until their prerequisite correction Tasks pass.
 
+The exact-byte/Ordinal correction checkpoint is complete for the existing C3-C5 execution path. C3 and C4 now accept the exact LC-I07 byte stream separately from its parsed execution object; C5 does the same for LC-I07 and LC-I11. Each gate rejects an object that is not the parsed content of the bytes used for its fingerprint. Identity, set, subject, and output ordering in the C3-C5 modules uses `StringComparer.Ordinal`, enforced by module-AST regression assertions, and C5 risk-variant framing preserves the positional `sourceFactKinds` Tuple order instead of sorting it. No C6 implementation exists after the blocked C6-0 rollback, so the same binding/Ordinal rule remains a mandatory C6 implementation precondition rather than a completed C6 claim.
+
 These gaps are explicit contract-change requests. They do not authorize edits to C0/C2 in this design Task.
 
 ---
@@ -1501,7 +1503,7 @@ The later implementation sequence is:
 9. C6-1 authoring-ledger output Task; complete ledger v2, SP-60/SP-61, coverage/readiness independence, and the G5-only handoff.
 10. Independent C3-C6 completion audit across all fixed counterexamples.
 
-After independent review, C3-2 is an inserted correction checkpoint between C5-2 and any renewed C6-0 attempt. It completes required support-fact gating and SP-31 reference-universe conservation only. The next separate correction checkpoint must address exact-byte execution-object binding and Ordinal ordering; this sequence does not authorize that work automatically.
+After independent review, C3-2 and the exact-byte/Ordinal correction are inserted checkpoints between C5-2 and any renewed C6-0 attempt. They complete required support-fact/SP-31 behavior, bind parsed policy objects to the accepted bytes used for fingerprints, and preserve positional Tuple identity. The next separate correction checkpoint must complete C5 LC-I09/LC-I10 manifest/package authority and evidence-generation freshness; this sequence does not authorize that work automatically.
 
 Each Task remains 20-30 minutes with 2-5 minute Steps, exact files, RED/GREEN evidence, protected-input checks, forbidden-path checks, precise staging, one commit, and a stop checkpoint. No plan authorizes the next Task automatically.
 

@@ -7,6 +7,8 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $module=Import-Module (Join-Path $PSScriptRoot 'C5RequirementEvidenceGate.psm1') -Force -PassThru
 if($module.ExportedFunctions.Keys-cnotcontains'Invoke-C5RequirementEvidenceGate'){throw 'C5-2 output-vector gate entry point is missing.'}
+$moduleAst=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'C5RequirementEvidenceGate.psm1'),[ref]$null,[ref]$null)
+if(@($moduleAst.FindAll({param($node)$node-is[Management.Automation.Language.CommandAst]-and$node.GetCommandName()-ceq'Sort-Object'},$true)).Count){throw 'C5 module reintroduced culture-sensitive Sort-Object.'}
 $familyRegistry=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-registry.json')|ConvertFrom-Json -Depth 100 -DateKind String
 $memberStatic=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json')|ConvertFrom-Json -Depth 100 -DateKind String
 $lanePolicyPath=Join-Path $repositoryRoot 'docs/asset-migration/schemas/c3-c6-lane-policy-registry.json'
@@ -52,6 +54,18 @@ function Run-Kernel($Facts,$Packages){
 
 $base=Run-Kernel @($riskFacts) @()
 if($base.status-cne'Passed'){throw "C5-0 base failed: $($base.issues -join '; ')"}
+$unboundLanePolicy=Clone-Value $lanePolicy;$unboundLanePolicy.policySetVersion='9.9.9'
+$unboundLane=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $unboundLanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+if($unboundLane.status-cne'Failed'-or$unboundLane.issues-cnotcontains'LC-I07 execution object does not match accepted bytes.'){throw 'C5 LC-I07 object/bytes binding RED failed.'}
+$unboundDecisionPolicy=Clone-Value $decisionPolicy;$unboundDecisionPolicy.decisionPolicyVersion='9.9.9'
+$unboundDecision=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $lanePolicy -LanePolicyBytes $lanePolicyBytes -DecisionPolicyRegistry $unboundDecisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+if($unboundDecision.status-cne'Failed'-or$unboundDecision.issues-cnotcontains'LC-I11 execution object does not match accepted bytes.'){throw 'C5 LC-I11 object/bytes binding RED failed.'}
+$tuplePolicy=Clone-Value $lanePolicy;$tupleAxis=@($tuplePolicy.policies|Where-Object lane -CEQ Audio)[0].riskAxisDefinitions[0];[Array]::Reverse($tupleAxis.sourceFactKinds)
+$tupleBytes=(($tuplePolicy|ConvertTo-Json -Depth 100)-replace"`r`n","`n")+"`n"
+$tupleResult=Invoke-C5RequirementEvidenceKernel -FamilyRegistry $familyRegistry -MemberStaticQualification $memberStatic -RiskFactRows @($riskFacts) -LanePolicyRegistry $tuplePolicy -LanePolicyBytes $tupleBytes -DecisionPolicyRegistry $decisionPolicy -DecisionPolicyBytes $decisionPolicyBytes -RepresentativeStatuses @($vocabulary.representativeAssessment) -SuitabilityStatuses @($vocabulary.capabilitySuitabilityStatus) -InputStaticFingerprint $inputStaticFingerprint -EvidencePackages @()
+$baseAudioVariants=@($base.requirements|Where-Object{$_.familyId-ceq(@($familyRegistry.families|Where-Object lane -CEQ Audio)[0].familyId)}|ForEach-Object riskVariantId)
+$tupleAudioVariants=@($tupleResult.requirements|Where-Object{$_.familyId-ceq(@($familyRegistry.families|Where-Object lane -CEQ Audio)[0].familyId)}|ForEach-Object riskVariantId)
+if((@($baseAudioVariants|Sort-Object)-join',')-ceq(@($tupleAudioVariants|Sort-Object)-join',')){throw 'C5 Tuple positional identity RED failed.'}
 if($base.policySetFingerprint-cne'7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862'){throw 'LC-I07 external exact-byte fingerprint failed.'}
 if($base.decisionPolicyFingerprint-cne'82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a'){throw 'LC-I11 external exact-byte fingerprint failed.'}
 if($base.riskVariantCount-ne21-or$base.representativeRequirementCount-ne21-or$base.representativeRequiredCount-ne9-or$base.evidenceMissingCount-ne12-or$base.evidenceAcceptedCount-ne0-or$base.unityExecutionUnavailableCount-ne0){throw "SP-50 no-package partition failed: risk=$($base.riskVariantCount) required=$($base.representativeRequiredCount) missing=$($base.evidenceMissingCount)."}

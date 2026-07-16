@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "generatedAt": "2026-07-16T06:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "3a70aa4e72c3e3de3a499dc1525f37c204cafa6ead5986b58349f05b8a8e2fb5",
+  "inputFingerprint": "f52cfe882ffd0d540922a96e4532c67858cf34a3a04bb6fb7bcd28a906de0598",
   "policySetFingerprint": "7fdde7cb9d709be5e11fb3391053b8f0cb3e26348d481bc8d6cc26d904b69862",
   "decisionPolicyFingerprint": "82831d240952746c3207d47e8cd6f8ee22edfcbf2044def0cdb0a2767e3fef4a",
   "requests": [
@@ -162,6 +162,25 @@
       ]
     },
     {
+      "requirementId": "representative-requirement-sha256:21d8ee13efb3e78d627e3c4754303a17323808904947821418e5037a7a6a2f21",
+      "requirementKind": "RiskVariant",
+      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
+      "lane": "Audio",
+      "capabilityId": null,
+      "routeKind": null,
+      "representativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "HumanListening",
+        "LoopBehavior"
+      ],
+      "reasonCode": "EvidenceMissing",
+      "priority": "Coverage",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
       "requirementId": "representative-requirement-sha256:3859e5340f549ff28d9f24138aebfa4593f07dc9bf16def5d90bb1125ca56ce4",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
@@ -181,46 +200,7 @@
       ]
     },
     {
-      "requirementId": "representative-requirement-sha256:394a2b4f3f143c92427a0c4b2953b5236e3860f5eb1ed40160ab8dd0130d3768",
-      "requirementKind": "RiskVariant",
-      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
-      "lane": "UI",
-      "capabilityId": null,
-      "routeKind": null,
-      "representativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-      "requiredEvidenceKinds": [
-        "MaterialFidelity",
-        "UiConstruction",
-        "UnityImport",
-        "VisibleRender"
-      ],
-      "reasonCode": "EvidenceMissing",
-      "priority": "Coverage",
-      "evidence": [
-        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
-      ]
-    },
-    {
       "requirementId": "representative-requirement-sha256:3e7c266a54d275627c2c1e82d4c70fcd10d2d9e1df7bbb5a55e3dd45f9cf7d1e",
-      "requirementKind": "RiskVariant",
-      "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
-      "lane": "Audio",
-      "capabilityId": null,
-      "routeKind": null,
-      "representativeAssetObjectId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "requiredEvidenceKinds": [
-        "AudioPlayback",
-        "HumanListening",
-        "LoopBehavior"
-      ],
-      "reasonCode": "EvidenceMissing",
-      "priority": "Coverage",
-      "evidence": [
-        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
-      ]
-    },
-    {
-      "requirementId": "representative-requirement-sha256:4f19632e766bdcc1a9d5bc516bc60f515c5833450d64775d9fc3aee6c9cdbb9f",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:8302c5466c2c1b5c705fba997525c86c893c9e813b07c2642abc56ac38acc588",
       "lane": "Audio",
@@ -260,28 +240,7 @@
       ]
     },
     {
-      "requirementId": "representative-requirement-sha256:7a303136a578c8ae26e3de5d0a028aaba6070d71a641340097684d02f5279543",
-      "requirementKind": "RiskVariant",
-      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
-      "lane": "Effects",
-      "capabilityId": null,
-      "routeKind": null,
-      "representativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      "requiredEvidenceKinds": [
-        "AudioPlayback",
-        "EffectBehavior",
-        "MaterialFidelity",
-        "UnityImport",
-        "VisibleRender"
-      ],
-      "reasonCode": "EvidenceMissing",
-      "priority": "Coverage",
-      "evidence": [
-        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
-      ]
-    },
-    {
-      "requirementId": "representative-requirement-sha256:8614f4329f02153d10456a331d04b13990a9ae58869216ce83954bed6087d127",
+      "requirementId": "representative-requirement-sha256:9dcb9a260c38e90e1c5e64f70159f463cd6d062c4b8290083f653cc03e19ad42",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "lane": "UI",
@@ -301,7 +260,7 @@
       ]
     },
     {
-      "requirementId": "representative-requirement-sha256:9a8f102bf40bb544c59f8515b1fa33d3248023155180877de47c176b79cac08f",
+      "requirementId": "representative-requirement-sha256:bdc0a481355178ea0c5141c3327eaa507f3167ca6cf18f41591c3693aaa1f90f",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
       "lane": "UI",
@@ -321,7 +280,7 @@
       ]
     },
     {
-      "requirementId": "representative-requirement-sha256:a686eb8b58f5a434e96d5e5f79914123d9c8285194d3b2a707af2ea7fec998d3",
+      "requirementId": "representative-requirement-sha256:bfa6c9379096bb5a773f5b1c15a1205e7f43fe0e9cbe3e28492a80b0c5fde855",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
       "lane": "Effects",
@@ -363,6 +322,26 @@
       ]
     },
     {
+      "requirementId": "representative-requirement-sha256:cb0ad4ec133d97e5f051cf2854afee0bb2ba84fe2aabf70468bf14243e877e06",
+      "requirementKind": "RiskVariant",
+      "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
+      "lane": "UI",
+      "capabilityId": null,
+      "routeKind": null,
+      "representativeAssetObjectId": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "requiredEvidenceKinds": [
+        "MaterialFidelity",
+        "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "reasonCode": "EvidenceMissing",
+      "priority": "Coverage",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
       "requirementId": "representative-requirement-sha256:e66c5c94da0a3101bbe4262d3e61796ded67abf93ac30113fbafdd3223147d8b",
       "requirementKind": "RiskVariant",
       "familyId": "family-sha256:9e31fa37f8442d39cecf54558689abf2ba0ed4aa65c1e17fb73a21cd28600c4f",
@@ -373,6 +352,27 @@
       "requiredEvidenceKinds": [
         "MaterialFidelity",
         "UiConstruction",
+        "UnityImport",
+        "VisibleRender"
+      ],
+      "reasonCode": "EvidenceMissing",
+      "priority": "Coverage",
+      "evidence": [
+        "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json"
+      ]
+    },
+    {
+      "requirementId": "representative-requirement-sha256:ee1e2fb4dcb623fbe1a69652054b30cb36fbf3fe6a53c3831675db36671fb551",
+      "requirementKind": "RiskVariant",
+      "familyId": "family-sha256:0b2603b9801246a1fea168d633e6af130418db7039e30d6236dbe6145a3861e5",
+      "lane": "Effects",
+      "capabilityId": null,
+      "routeKind": null,
+      "representativeAssetObjectId": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "requiredEvidenceKinds": [
+        "AudioPlayback",
+        "EffectBehavior",
+        "MaterialFidelity",
         "UnityImport",
         "VisibleRender"
       ],

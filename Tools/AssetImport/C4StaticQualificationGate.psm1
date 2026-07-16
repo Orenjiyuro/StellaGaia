@@ -8,6 +8,23 @@ function Get-C4Sha256([string]$Text) {
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($script:C4Utf8.GetBytes($Text))).ToLowerInvariant()
 }
 
+function Get-C4OrdinalValues([object[]]$Values,[switch]$Unique) {
+    $list=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new($script:C4Ordinal)
+    foreach($value in $Values){$text=[string]$value;if(-not$Unique-or$seen.Add($text)){$list.Add($text)}}
+    $list.Sort($script:C4Ordinal);[string[]]$list.ToArray()
+}
+
+function Get-C4OrdinalRows([object[]]$Rows,[string[]]$Properties) {
+    $list=[Collections.Generic.List[object]]::new();foreach($row in $Rows){$list.Add($row)}
+    $list.Sort([Comparison[object]]{param($a,$b)foreach($property in $Properties){$comparison=$script:C4Ordinal.Compare([string]$a.$property,[string]$b.$property);if($comparison){return $comparison}};0})
+    [object[]]$list.ToArray()
+}
+
+function Test-C4JsonObjectBytesBinding([object]$Value,[string]$Bytes) {
+    try{$parsed=$Bytes|ConvertFrom-Json -Depth 100 -DateKind String}catch{return $false}
+    ($Value|ConvertTo-Json -Depth 100 -Compress)-ceq($parsed|ConvertTo-Json -Depth 100 -Compress)
+}
+
 function ConvertTo-C4ScalarLine([string]$Name, [string]$Value) {
     if ($null -eq $Value -or $Value.IndexOfAny([char[]]@([char]0,"`r","`n")) -ge 0) { throw "Invalid framed scalar: $Name" }
     "${Name}:$($script:C4Utf8.GetByteCount($Value)):${Value}`n"
@@ -19,7 +36,7 @@ function ConvertTo-C4NullableLine([string]$Name, [AllowNull()][object]$Value) {
 }
 
 function Add-C4SetFrame([string]$Name, [string[]]$Values) {
-    $ordered = @($Values | Sort-Object -CaseSensitive -Unique)
+    $ordered = @(Get-C4OrdinalValues $Values -Unique)
     $countText = [string]$ordered.Count
     $text = "$Name.count:$($script:C4Utf8.GetByteCount($countText)):$countText`n"
     for ($index=0; $index -lt $ordered.Count; $index++) { $text += ConvertTo-C4ScalarLine "$Name[$index]" $ordered[$index] }
@@ -61,7 +78,7 @@ function Get-C4StageInputFingerprint([object[]]$Entries) {
         'LC-I13'='docs/asset-migration/schemas/c2-lane-fact-package.schema.json'
     }
     if ($Entries.Count -ne $expected.Count) { throw 'C4 direct input set is invalid.' }
-    $ordered = @($Entries | Sort-Object path -CaseSensitive)
+    $ordered = @(Get-C4OrdinalRows $Entries @('path'))
     $seen = [Collections.Generic.HashSet[string]]::new($script:C4Ordinal)
     $countText = [string]$ordered.Count
     $text = "LifecycleStageInputV1`nentries.count:$($script:C4Utf8.GetByteCount($countText)):$countText`n"
@@ -93,11 +110,13 @@ function Invoke-C4StaticQualificationKernel {
         [Parameter(Mandatory)][object]$FamilyMemberLedger,
         [Parameter(Mandatory)][object[]]$TypedFactRows,
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
+        [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$MemberStaticStatuses,
         [Parameter(Mandatory)][object[]]$StaticObservationRows
     )
 
     $issues = [Collections.Generic.List[string]]::new()
+    if(-not(Test-C4JsonObjectBytesBinding $LanePolicyRegistry $LanePolicyBytes)){Add-C4Issue $issues 'LC-I07 execution object does not match accepted bytes.'}
     $expectedStatuses = @('StaticPassed', 'StaticFailed', 'Unchecked')
     if (-not (Test-C4ExactSet $MemberStaticStatuses $expectedStatuses)) {
         Add-C4Issue $issues 'LC-I08 memberStaticStatus vocabulary is invalid.'
@@ -121,7 +140,7 @@ function Invoke-C4StaticQualificationKernel {
         else { $policyByLane[$lane] = $lanePolicy }
     }
 
-    $assignedMembers = @($FamilyMemberLedger.rows | Where-Object parentStatus -CEQ 'AssignedFamilyMember' | Sort-Object assetObjectId -CaseSensitive)
+    $assignedMembers = @(Get-C4OrdinalRows @($FamilyMemberLedger.rows | Where-Object parentStatus -CEQ 'AssignedFamilyMember') @('assetObjectId'))
     $memberIds = @{}
     foreach ($member in $assignedMembers) {
         $assetObjectId = [string]$member.assetObjectId
@@ -146,8 +165,8 @@ function Invoke-C4StaticQualificationKernel {
 
     foreach ($family in @($FamilyRegistry.families)) {
         $actual = @($assignedMembers | Where-Object familyId -CEQ ([string]$family.familyId))
-        $expectedIds = @($family.memberObjectIds | Sort-Object -CaseSensitive)
-        $actualIds = @($actual.assetObjectId | Sort-Object -CaseSensitive)
+        $expectedIds = @(Get-C4OrdinalValues @($family.memberObjectIds))
+        $actualIds = @(Get-C4OrdinalValues @($actual.assetObjectId))
         if ([int]$family.memberCount -ne $actual.Count -or -not (Test-C4ExactSet $actualIds $expectedIds)) {
             Add-C4Issue $issues 'C3 family membership input is inconsistent.'
         }
@@ -235,17 +254,17 @@ function Invoke-C4StaticQualificationKernel {
         if ($null -ne $fingerprint -and [string]$fingerprint -cnotmatch '^sha256:[0-9a-f]{64}$') { Add-C4Issue $issues 'Invalid observedFingerprint.' }
         if ($outcome -ceq 'Passed' -and $null -eq $fingerprint) { Add-C4Issue $issues 'Passed static observation requires observedFingerprint.' }
         $rawEvidenceKinds = @($observation.evidenceKinds)
-        $evidenceKinds = @($rawEvidenceKinds | Sort-Object -CaseSensitive -Unique)
+        $evidenceKinds = @(Get-C4OrdinalValues $rawEvidenceKinds -Unique)
         if (-not (Test-C4ExactSet $rawEvidenceKinds $evidenceKinds)) { Add-C4Issue $issues 'Static observation evidenceKinds must be an Ordinal set.' }
         if ($outcome -ceq 'Passed') {
             $missingEvidenceKinds = @($check.requiredEvidenceKinds | Where-Object { $_ -cnotin $evidenceKinds })
             if ($missingEvidenceKinds.Count) { Add-C4Issue $issues 'Passed static observation is missing required evidence kinds.' }
         }
         $rawEvidence = @($observation.evidence)
-        $orderedEvidence = @($rawEvidence | Sort-Object -CaseSensitive -Unique)
+        $orderedEvidence = @(Get-C4OrdinalValues $rawEvidence -Unique)
         if ($rawEvidence.Count -eq 0) { Add-C4Issue $issues 'Static observation evidence is empty.' }
         elseif (-not (Test-C4ExactSet $rawEvidence $orderedEvidence)) { Add-C4Issue $issues 'Static observation evidence must be an Ordinal set.' }
-        $identityRow = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;checkId=[string]$check.checkId;outcome=$outcome;reasonCode=$reasonCode;observedFingerprint=$fingerprint;evidence=@($observation.evidence | Sort-Object -CaseSensitive)}
+        $identityRow = [pscustomobject][ordered]@{assetObjectId=[string]$member.assetObjectId;familyId=[string]$member.familyId;checkId=[string]$check.checkId;outcome=$outcome;reasonCode=$reasonCode;observedFingerprint=$fingerprint;evidence=@(Get-C4OrdinalValues @($observation.evidence))}
         $checkResults.Add([pscustomobject][ordered]@{
             staticCheckResultId = Get-C4StaticCheckResultId $identityRow
             assetObjectId = [string]$member.assetObjectId
@@ -255,13 +274,13 @@ function Invoke-C4StaticQualificationKernel {
             outcome = $outcome
             reasonCode = $reasonCode
             observedFingerprint = $fingerprint
-            evidence = @($observation.evidence | Sort-Object -CaseSensitive)
+            evidence = @(Get-C4OrdinalValues @($observation.evidence))
         })
     }
 
     if ($issues.Count) {
         return [pscustomobject][ordered]@{
-            status = 'Failed'; issues = @($issues | Sort-Object -CaseSensitive)
+            status = 'Failed'; issues = @(Get-C4OrdinalValues @($issues))
             assignedMemberCount = $assignedMembers.Count; assignedMemberBytes = [long]0
             staticPassedCount = 0; staticPassedBytes = [long]0; staticFailedCount = 0; staticFailedBytes = [long]0; uncheckedCount = 0; uncheckedBytes = [long]0
             requiredCheckCount = $requiredRows.Count; passedCheckCount = 0; failedCheckCount = 0; uncheckedCheckCount = 0
@@ -269,7 +288,7 @@ function Invoke-C4StaticQualificationKernel {
         }
     }
 
-    $orderedChecks = @($checkResults | Sort-Object assetObjectId, checkId -CaseSensitive)
+    $orderedChecks = @(Get-C4OrdinalRows @($checkResults) @('assetObjectId','checkId'))
     $memberResults = [Collections.Generic.List[object]]::new()
     foreach ($member in $assignedMembers) {
         $checks = @($orderedChecks | Where-Object assetObjectId -CEQ ([string]$member.assetObjectId))
@@ -294,7 +313,7 @@ function Invoke-C4StaticQualificationKernel {
     }
 
     $familyResults = [Collections.Generic.List[object]]::new()
-    foreach ($family in @($FamilyRegistry.families | Sort-Object familyId -CaseSensitive)) {
+    foreach ($family in @(Get-C4OrdinalRows @($FamilyRegistry.families) @('familyId'))) {
         $members = @($memberResults | Where-Object familyId -CEQ ([string]$family.familyId))
         $familyChecks = @($orderedChecks | Where-Object familyId -CEQ ([string]$family.familyId))
         $familyResults.Add([pscustomobject][ordered]@{
@@ -343,7 +362,7 @@ function Get-C4AccountingId([string]$OwningArray,[string]$SubjectKind,[string]$S
 }
 
 function New-C4AccountingRow([string]$OwningArray,[string]$SubjectKind,[string]$SubjectId,[string]$ReasonCode,[string]$Attribution,[string[]]$Evidence) {
-    $values = @($Evidence | Sort-Object -CaseSensitive -Unique)
+    $values = @(Get-C4OrdinalValues $Evidence -Unique)
     [pscustomobject][ordered]@{recordId=Get-C4AccountingId $OwningArray $SubjectKind $SubjectId $ReasonCode $Attribution $values;stageId='C4';subjectKind=$SubjectKind;subjectId=$SubjectId;reasonCode=$ReasonCode;attribution=$Attribution;evidence=$values}
 }
 
@@ -375,6 +394,7 @@ function Invoke-C4StaticQualificationGate {
         [Parameter(Mandatory)][object]$CrossLaneReferencePackage,
         [Parameter(Mandatory)][object[]]$TypedFactRows,
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
+        [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$MemberStaticStatuses,
         [Parameter(Mandatory)][object[]]$StaticObservationRows,
         [Parameter(Mandatory)][object]$Stage
@@ -382,12 +402,12 @@ function Invoke-C4StaticQualificationGate {
     foreach($c3Input in @($FamilyMemberLedger,$CrossLaneReferencePackage)){
         if($c3Input.schemaVersion-cne$FamilyRegistry.schemaVersion-or$c3Input.generatedAt-cne$FamilyRegistry.generatedAt-or$c3Input.snapshotId-cne$FamilyRegistry.snapshotId-or$c3Input.inputFingerprint-cne$FamilyRegistry.inputFingerprint-or$c3Input.policySetFingerprint-cne$FamilyRegistry.policySetFingerprint){throw'C4 C3 generation identity is invalid.'}
     }
-    $directInputs = @($Stage.directInputs | Sort-Object path -CaseSensitive)
+    $directInputs = @(Get-C4OrdinalRows $Stage.directInputs @('path'))
     $inputFingerprint = Get-C4StageInputFingerprint $directInputs
-    $policySetFingerprint = Get-C4Sha256 (ConvertTo-C4CanonicalJson $LanePolicyRegistry)
+    $policySetFingerprint = Get-C4Sha256 $LanePolicyBytes
     $prefix = [ordered]@{schemaVersion='1.0.0';generatedAt=[string]$Stage.generatedAt;snapshotId=[string]$Stage.snapshotId;inputFingerprint=$inputFingerprint;policySetFingerprint=$policySetFingerprint}
     $paths = [ordered]@{memberStaticQualification='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-member-static-qualification.json';familyStaticSummary='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-family-static-summary.json';report='Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c4-report.md'}
-    $kernel = Invoke-C4StaticQualificationKernel $FamilyRegistry $FamilyMemberLedger $TypedFactRows $LanePolicyRegistry $MemberStaticStatuses $StaticObservationRows
+    $kernel = Invoke-C4StaticQualificationKernel $FamilyRegistry $FamilyMemberLedger $TypedFactRows $LanePolicyRegistry $LanePolicyBytes $MemberStaticStatuses $StaticObservationRows
     $assignedMembers = @($FamilyMemberLedger.rows | Where-Object parentStatus -CEQ 'AssignedFamilyMember')
     $coverage = [ordered]@{
         familyCount=@($FamilyRegistry.families).Count;memberCount=$assignedMembers.Count;memberBytes=[long](($assignedMembers.serializedSizeBytes|Measure-Object -Sum).Sum)
@@ -412,25 +432,25 @@ function Invoke-C4StaticQualificationGate {
     }
 
     $memberRows=[Collections.Generic.List[object]]::new()
-    foreach($member in @($kernel.memberResults | Sort-Object assetObjectId -CaseSensitive)){
-        $checks=@($kernel.checkResults | Where-Object assetObjectId -CEQ $member.assetObjectId | Sort-Object checkId -CaseSensitive)
+    foreach($member in @(Get-C4OrdinalRows @($kernel.memberResults) @('assetObjectId'))){
+        $checks=@(Get-C4OrdinalRows @($kernel.checkResults | Where-Object assetObjectId -CEQ $member.assetObjectId) @('checkId'))
         $projectedChecks=@($checks|ForEach-Object{[pscustomobject][ordered]@{checkResultId=$_.staticCheckResultId;checkId=$_.checkId;outcome=$_.outcome;reasonCode=$_.reasonCode;observedFingerprint=$_.observedFingerprint;evidence=@($_.evidence)}})
-        $uncheckedReasons=@($checks|Where-Object outcome -CEQ Unchecked|ForEach-Object reasonCode|Sort-Object -CaseSensitive -Unique)
+        $uncheckedReasons=@(Get-C4OrdinalValues @($checks|Where-Object outcome -CEQ Unchecked|ForEach-Object reasonCode) -Unique)
         $failedCheck=$checks|Where-Object outcome -CEQ Failed|Select-Object -First 1
         $uncheckedCheck=$checks|Where-Object outcome -CEQ Unchecked|Select-Object -First 1
         $failureAttribution=if($member.staticStatus-ceq'StaticFailed'){"LF-08:$($failedCheck.checkId)"}elseif($member.staticStatus-ceq'Unchecked'){"LF-07:$($uncheckedCheck.checkId)"}else{'None; all required static checks passed.'}
         $nextAction=if($member.staticStatus-ceq'StaticFailed'){'Apply C6 decision rules later.'}elseif($member.staticStatus-ceq'Unchecked'){'Resolve named reason; never project Passed.'}else{'Retain as a StaticPassed C5 candidate.'}
-        $memberRows.Add([pscustomobject][ordered]@{staticResultId=$member.memberStaticResultId;assetObjectId=$member.assetObjectId;familyId=$member.familyId;lane=$member.lane;requiredCheckCount=$member.requiredCheckCount;passedCheckCount=$member.passedCheckCount;failedCheckCount=$member.failedCheckCount;uncheckedCheckCount=$member.uncheckedCheckCount;staticStatus=$member.staticStatus;uncheckedReasonCodes=$uncheckedReasons;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;checkResults=$projectedChecks;evidence=@($checks|ForEach-Object evidence|ForEach-Object{$_}|Sort-Object -CaseSensitive -Unique)})
+        $memberRows.Add([pscustomobject][ordered]@{staticResultId=$member.memberStaticResultId;assetObjectId=$member.assetObjectId;familyId=$member.familyId;lane=$member.lane;requiredCheckCount=$member.requiredCheckCount;passedCheckCount=$member.passedCheckCount;failedCheckCount=$member.failedCheckCount;uncheckedCheckCount=$member.uncheckedCheckCount;staticStatus=$member.staticStatus;uncheckedReasonCodes=$uncheckedReasons;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;checkResults=$projectedChecks;evidence=@(Get-C4OrdinalValues @($checks|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
     }
 
     $familyRows=[Collections.Generic.List[object]]::new()
-    foreach($family in @($kernel.familyResults | Sort-Object familyId -CaseSensitive)){
+    foreach($family in @(Get-C4OrdinalRows @($kernel.familyResults) @('familyId'))){
         $members=@($memberRows|Where-Object familyId -CEQ $family.familyId)
         $staticOutcome=if($family.staticFailedCount){'StaticRejected'}elseif($family.uncheckedCount){'NeedsDiagnosis'}else{'StaticQualified'}
         $sourceMember=if($staticOutcome-ceq'StaticRejected'){$members|Where-Object staticStatus -CEQ StaticFailed|Select-Object -First 1}elseif($staticOutcome-ceq'NeedsDiagnosis'){$members|Where-Object staticStatus -CEQ Unchecked|Select-Object -First 1}else{$null}
         $failureAttribution=if($null-ne$sourceMember){$sourceMember.failureAttribution}else{'None; every family member is StaticPassed.'}
         $nextAction=if($staticOutcome-ceq'StaticRejected'){'Apply C6 decision rules later.'}elseif($staticOutcome-ceq'NeedsDiagnosis'){'Resolve unchecked member reasons before original-asset reuse.'}else{'Provide family static qualification to C5.'}
-        $familyRows.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;memberCount=$family.memberCount;memberBytes=$family.memberBytes;staticPassedCount=$family.staticPassedCount;staticPassedBytes=$family.staticPassedBytes;staticFailedCount=$family.staticFailedCount;staticFailedBytes=$family.staticFailedBytes;uncheckedCount=$family.uncheckedCount;uncheckedBytes=$family.uncheckedBytes;staticOutcome=$staticOutcome;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;memberStaticResultIds=@($members.staticResultId|Sort-Object -CaseSensitive);evidence=@($members|ForEach-Object evidence|ForEach-Object{$_}|Sort-Object -CaseSensitive -Unique)})
+        $familyRows.Add([pscustomobject][ordered]@{familyId=$family.familyId;lane=$family.lane;memberCount=$family.memberCount;memberBytes=$family.memberBytes;staticPassedCount=$family.staticPassedCount;staticPassedBytes=$family.staticPassedBytes;staticFailedCount=$family.staticFailedCount;staticFailedBytes=$family.staticFailedBytes;uncheckedCount=$family.uncheckedCount;uncheckedBytes=$family.uncheckedBytes;staticOutcome=$staticOutcome;failureAttribution=$failureAttribution;nextAllowedAction=$nextAction;memberStaticResultIds=@(Get-C4OrdinalValues @($members.staticResultId));evidence=@(Get-C4OrdinalValues @($members|ForEach-Object evidence|ForEach-Object{$_}) -Unique)})
     }
 
     $memberStaticQualification=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;memberResults=$memberRows.ToArray()}
@@ -440,11 +460,11 @@ function Invoke-C4StaticQualificationGate {
     $accounting=[pscustomobject][ordered]@{inputSubjectCount=$inputSubjectCount;acceptedInputSubjectCount=$inputSubjectCount;inputFailureCount=0;notEvaluatedInputSubjectCount=0;outputCandidateCount=3;projectedOutputCount=3;outputFailureCount=0;issueCount=0;gateStatus='Passed';inputFailures=@();inputSuppressions=@();outputFailures=@()}
     $decision=[pscustomobject][ordered]@{failureAttribution='None; C4 lifecycle contract passed.';nextAllowedAction='Provide the current static generation to C5.'}
     $report=New-C4Report $Stage $inputFingerprint $policySetFingerprint $accounting $decision
-    $directOutputs=@(
+    $directOutputs=@(Get-C4OrdinalRows @(
         [pscustomobject][ordered]@{artifactId='C4-O01';path=$paths.memberStaticQualification;sha256=Get-C4Sha256 $texts.memberStaticQualification}
         [pscustomobject][ordered]@{artifactId='C4-O02';path=$paths.familyStaticSummary;sha256=Get-C4Sha256 $texts.familyStaticSummary}
         [pscustomobject][ordered]@{artifactId='C4-O03-Report';path=$paths.report;sha256=Get-C4Sha256 $report}
-    )|Sort-Object path -CaseSensitive
+    ) @('path'))
     $summary=[pscustomobject][ordered]@{schemaVersion=$prefix.schemaVersion;generatedAt=$prefix.generatedAt;stageId='C4';snapshotId=$prefix.snapshotId;inputFingerprint=$prefix.inputFingerprint;policySetFingerprint=$prefix.policySetFingerprint;toolVersions=@($Stage.toolVersions);directInputs=$directInputs;directOutputs=$directOutputs;coverage=[pscustomobject]$coverage;failureAccounting=$accounting;decision=$decision}
     $texts.summary=ConvertTo-C4CanonicalJson $summary
     [pscustomobject][ordered]@{gateStatus='Passed';memberStaticQualification=$memberStaticQualification;familyStaticSummary=$familyStaticSummary;summary=$summary;report=$report;texts=[pscustomobject]$texts}
