@@ -4,7 +4,7 @@
 
 This runbook uses `PersonalLocalMode`. It is for one local owner running one guarded diagnostic C1 snapshot on their own machine and data. It has no PB-A01-through-PB-A12 form and no external compliance identity record.
 
-R8.1 derives the current HEAD, tool hashes, manifest shape/source set, baseline state, output boundary, and disk budget. After a GREEN summary, the user supplies one explicit `ConfirmPersonalLocalRun`. No snapshot has been run by this document.
+R8.1 automatically locates the fixed PersonalLocalMode descriptor beneath LocalAppData and derives the current HEAD, tool hashes, locator/manifest shape, declared source-boundary equality, baseline state, output boundary, and disk budget. After a GREEN summary, the user supplies one explicit `ConfirmPersonalLocalRun`. No snapshot has been run by this document.
 
 ```text
 sourceReadOnly=true
@@ -40,6 +40,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath @(
     '.\Tools\AssetImport\Test-SourceCorpusGate.ps1',
     '.\docs\asset-migration\schemas\source-corpus-ledger.schema.json',
     '.\docs\asset-migration\schemas\status-vocabulary.json',
+    '.\docs\asset-migration\schemas\personal-local-mode-input-locator.schema.json',
     '.\Tools\AssetImport\Test-SourceCorpusPersonalLocalModePolicy.ps1'
 )
 pwsh -NoProfile -File .\Tools\AssetImport\Test-AssetCorpusContract.ps1
@@ -62,24 +63,46 @@ The accepted worktree status set is exactly:
 
 Required hashes are `397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d` and `11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b`. Missing, extra, modified, staged, tracked, conflicted, or differently hashed state is PB-FT02.
 
-### Runtime-only manifest and source set
+### Fixed machine-local locator
 
-Read the manifest locally without printing its path, contents, or `rootPath` values. Require:
+R8.1 derives exactly one path and never prompts or searches the machine:
+
+```powershell
+$inputLocatorPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'StellaGaia\PhaseB\personal-local-mode-inputs.json'
+```
+
+The locator is PB-I03. It must already exist, remain outside Git, and validate against `docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json`. R8.1 never creates, repairs, relocates, or prints it. Top level is exactly `schemaVersion`, `manifestPath`, `baseline`, `sourceBoundary`; version is `1.0.0`. `baseline` is exactly `disposition`, `path`; `sourceBoundary` is exactly `schemaVersion`, `sources`.
+
+`Absent` baseline requires null path. `Present` requires one absolute local path. Missing LocalAppData, missing/malformed locator, unknown fields, relative/network locator targets, or locator-byte drift is PB-FT03 and Stops.
+
+### Runtime-only manifest and declared source set
+
+Read the manifest only from PB-I03 `manifestPath`, without printing its path, contents, or `rootPath` values. Require:
 
 - top level exactly `schemaVersion`, `sources` and version `1.0.0`;
 - each row exactly `sourceId`, `sourceKind`, `rootPath`;
 - nonempty source set; IDs unique under `OrdinalIgnoreCase` with stable exact case;
 - kinds only from `PcInstall`, `PcPatchOrCache`, `AndroidApk`, `AndroidDataOrCache`;
 - every root absolute, local, available, read-only for the operation, and inside the intended local boundary;
-- all locally available roots in that boundary included;
+- PB-I03 `sourceBoundary.sources` has the same row shape and defines the complete intended boundary for this operation;
+- boundary and manifest sets are equal in both directions by exact ID case, exact kind, and normalized reparse-safe path (`OrdinalIgnoreCase` for identity lookup/path comparison, `Ordinal` for displayed ID case and kind);
 - no network/runtime-download source;
 - no reparse point, symlink, or junction in relevant path chains.
 
-Derive a redacted `derivedManifestSourceSet` containing portable source IDs/kinds only. Do not enumerate or read source files during preflight.
+Require both conservations:
+
+```text
+boundarySourceCount = boundaryMatchedCount + boundaryMissingOrMismatchedCount
+manifestSourceCount = manifestMatchedCount + manifestExtraOrMismatchedCount
+boundaryMissingOrMismatchedCount=0
+manifestExtraOrMismatchedCount=0
+```
+
+This validates completeness relative to the explicit PB-I03 boundary; R8.1 does not scan arbitrary machine locations for undeclared installations. Derive redacted `derivedInputLocatorState=LocatedAndValid`, `derivedSourceBoundaryState=ExactSetMatch`, and `derivedManifestSourceSet` containing portable source IDs/kinds only. Do not enumerate or read source files during preflight.
 
 ### Baseline state
 
-Derive exactly one:
+Use PB-I03 `baseline` and derive exactly one:
 
 - `FirstCaptureNoBaseline`; or
 - `ApprovedBaselinePresent` after strictly validating the immutable baseline shape: top level exactly `schemaVersion`, `inputFingerprint`, `sources`; each source exactly `sourceId`, `sourceKind`, `rootFingerprint`; no `rootPath`.
@@ -112,6 +135,8 @@ R8.1 emits:
 mode=PersonalLocalMode
 derivedHead=<current HEAD equal to upstream>
 derivedToolHashMismatchCount=0
+derivedInputLocatorState=LocatedAndValid
+derivedSourceBoundaryState=ExactSetMatch
 derivedManifestSourceSet=<redacted portable IDs/kinds>
 derivedBaselineState=<FirstCaptureNoBaseline|ApprovedBaselinePresent>
 derivedOutputBoundaryState=AbsentAndSafe
@@ -144,7 +169,7 @@ Immediately before start, recheck HEAD/upstream/status, protected hashes, output
 
 ## Trusted Local Execution Boundary
 
-The manifest path is visible in the trusted interactive console and may be visible to local process inspection. Disable or control transcription, shared logging, and history according to local policy. If that is unacceptable, Stop; do not invent a wrapper.
+PB-I03 and the manifest path are not printed, but the resolved manifest argument may be visible to local process inspection. Disable or control transcription, shared logging, and history according to local policy. If that is unacceptable, Stop; do not invent a wrapper.
 
 ## Guarded Command
 
@@ -153,7 +178,9 @@ Run only after the single confirmation and final identity recheck:
 ```powershell
 $threadId = '019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe'
 $outputRoot = "C:\SoftWork\WT\StellaGaia\$threadId\Extracted\Threads\$threadId\C1"
-$sourceRootManifestPath = Read-Host 'Absolute path to the machine-local source-root manifest'
+$inputLocatorPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'StellaGaia\PhaseB\personal-local-mode-inputs.json'
+$inputLocator = Get-Content -Raw -LiteralPath $inputLocatorPath | ConvertFrom-Json
+$sourceRootManifestPath = [string] $inputLocator.manifestPath
 pwsh -NoProfile -File .\Tools\AssetImport\New-StellaSoraSourceCorpusSnapshot.ps1 -SourceRootManifestPath $sourceRootManifestPath -OutputRoot $outputRoot -ThreadId $threadId -RefreshSnapshot
 ```
 
@@ -161,7 +188,7 @@ One foreground `pwsh` process, one attempt. The user retains foreground cancella
 
 ## Stop, Rollback, And Isolation
 
-Stop on missing/unavailable roots, changed identities, access/hash errors, mutation, collisions, reparse paths, count/byte mismatch, schema failure, pre-existing/partial output, staging residue, insufficient disk, unexpected process/network behavior, or any need to weaken validation.
+Stop on missing/malformed/changed PB-I03, boundary/manifest mismatch, invalid baseline disposition, missing/unavailable declared roots, changed identities, access/hash errors, mutation, collisions, reparse paths, count/byte mismatch, schema failure, pre-existing/partial output, staging residue, insufficient disk, unexpected process/network behavior, or any need to weaken validation.
 
 Only known attempt-owned staging and the just-published output owned by the same caught writer failure may be cleaned by the runner. Preserve source roots, pre-existing output, unknown residue, and quarantined state. One Stop ends the attempt; a new run requires a fresh R8.1 and a new single confirmation.
 

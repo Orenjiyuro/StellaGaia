@@ -1,6 +1,6 @@
 # StellaSora R8.1 PersonalLocalMode Automatic Preflight Task Plan
 
-> **Status:** GOVERNANCE ONLY; R8.1 AND LO R8.C1-1 HAVE NOT RUN. R8.1 derives all preflight state locally. It has no PB-A form and no external compliance identity fields.
+> **Status:** GOVERNANCE ONLY; R8.1 AND LO R8.C1-1 HAVE NOT RUN. R8.1 automatically locates PB-I03 beneath LocalAppData and derives all preflight state locally. It has no PB-A form, interactive path prompt, or external compliance identity fields.
 >
 > **Human boundary:** only after R8.1 emits `ReadyForSinglePersonalLocalRun` may the user state `ConfirmPersonalLocalRun`. That one confirmation applies to one immediately following attempt. This plan never treats its own creation or R8.1 GREEN as confirmation.
 
@@ -29,13 +29,13 @@ importAuthorized=false
 
 - `AGENTS.md`;
 - PersonalLocalMode package, runbook, completion roadmap, Program Roadmap, R7.4/R7.5/R8.1 plans;
-- C1 runner/module/schema/vocabulary and seven lightweight test scripts;
+- C1 runner/module/schema/vocabulary, PB-I03 locator schema, and seven lightweight test scripts;
 - Git metadata for branch/HEAD/upstream/status/index/tree;
 - protected files for existence/hash only.
 
 ### Machine-local reads
 
-- runtime-only manifest shape and portable source IDs/kinds;
+- fixed PB-I03 locator shape/bytes, runtime-only manifest shape, declared source-boundary equality, and portable source IDs/kinds;
 - baseline shape/identity state without exposing paths/fingerprints;
 - source-root path metadata only: existence, reparse safety, file count and size metadata for a bounded storage estimate; no file content read or hash;
 - output-volume free space and canonical ancestor metadata.
@@ -52,21 +52,22 @@ R8.1 writes no repository or output file and does not launch the guarded runner.
 |---|---|
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
-| PersonalLocalMode package | `afb7dd58d01b2659e6b606abd32bc32708842890a6b9b418bb045c4b0e5b35b0` |
-| PersonalLocalMode runbook | `b4831a1919ea04e627fc5530e1729ff3828f192a8b98ed66d785c0196a837b69` |
-| Completion roadmap | `2865e1d33c5fcf82727936cb03a9d1093f40ad34f44c23ee05bfc935e89b1f58` |
-| Program Roadmap | `906ac525b30a8a994d88163d1c9e00f273221e25fc18639652df569d06da6334` |
+| PersonalLocalMode package | `4fb6012d4717b073709516b37e6843f95ef814ad3895a1dbe354c06d9ec9c272` |
+| PersonalLocalMode runbook | `ab233818bef470ea0ee1ff00e6d0b2aed3bc002fa530b7ae5019932c7e677a6b` |
+| Completion roadmap | `06357b2ea581132618405096bdb0c2290a191505afecb98c02894ee1d659e5ed` |
+| Program Roadmap | `4932acb748bcd7565bdbca1f89343ba7df8d998493ea436ecb9b19a173c6d8d1` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
 | C1-I04 module | `1b53fe277c18bb9d82277033581c747d277a7666b64f8139e78dcf499fe38280` |
 | C1-I05 ledger schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
+| PB-I03 locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
 | `Test-AssetCorpusContract.ps1` | `2202dfb32738eeb1397968e7d33ce6a91c1c1ae9cb1d25b218e0d09274e73f28` |
 | `Test-SourceCorpusGate.ps1` | `0311107a5e099d9f74ebe8ec776d916c4139cbbae43fcdfe31875cf85af136c5` |
 | `Test-SourceCorpusSnapshotFunctions.ps1` | `c7109a113685aa57a6c643a8524080d7a76a58d44a8a715f434c7b849517e1bb` |
 | `Test-SourceCorpusCatalog.ps1` | `4907c69334ead448056fb99ad24a3bb9b75422ae94ed28f0c85231a9115a8c05` |
 | `Test-SourceCorpusRunnerPolicy.ps1` | `3b6e13205c6dda7e2d4488a6dbba9ff06d85c58ce0e9830a291caff126107bc4` |
 | `Test-SourceCorpusC0Compatibility.ps1` | `4deaed14c2a58aed63189e0f0c7e3e2e68e05b5aebdc8806ac5a06c149cf61fd` |
-| `Test-SourceCorpusPersonalLocalModePolicy.ps1` | `4db581ad82f3f5b3afcf1984a070295ca6be292dad1ecf2eba3871ffc085cf10` |
+| `Test-SourceCorpusPersonalLocalModePolicy.ps1` | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
 
 This plan's own identity is its path plus containing commit; it cannot predeclare its own hash. R7.4 validates the final committed tree.
 
@@ -79,11 +80,12 @@ Protected status must equal exactly two untracked rows with hashes:
 
 - **PB-I01:** in-memory/redacted PersonalLocalMode derived state; no operator identity or approval timestamp.
 - **PB-I02:** current package bytes/containing HEAD.
-- **C1-I01/C1-I02:** locally parsed manifest and baseline state.
+- **PB-I03:** exact fixed LocalAppData-relative locator plus embedded complete source-boundary registry; exact schema/bytes remain machine-local.
+- **C1-I01/C1-I02:** located only through PB-I03 and locally parsed as manifest/baseline state.
 - **C1-I03 through C1-I06:** automatically hashed tool/schema inputs.
 - **C1-T01/C1-O01/C1-O02:** must remain absent throughout R8.1.
 - **PB-SP01:** six groups; require `6 = 6 Passed + 0 Failed`.
-- **PB-SP02:** manifest source set; require all ApprovedAvailable.
+- **PB-SP02/PB-SP06:** boundary rows and manifest rows conserve independently; require exact bidirectional set equality with both mismatch counts zero.
 - **PB-SP03/PB-SP05:** not evaluated beyond metadata/baseline declaration in R8.1.
 - **PB-SP04:** require `2 = 0 ValidatedDiagnostic + 2 Suppressed + 0 Quarantined`.
 - **PB-FT01 through PB-FT12:** use the package table; a failed/stale group Stops and cannot be waived.
@@ -94,12 +96,28 @@ R8.1 derives:
 
 1. `derivedHead` and branch from Git; HEAD must equal upstream and index must be empty.
 2. `derivedToolHashMismatchCount` from current versions and registered bytes.
-3. `derivedManifestSourceSet` from strict C1-I01 parsing, portable IDs/kinds, local availability, complete boundary inclusion, and no network/runtime source.
-4. `derivedBaselineState` as `FirstCaptureNoBaseline` or validated `ApprovedBaselinePresent`.
-5. `derivedOutputBoundaryState` from fixed-root/staging absence and reparse-safe ancestors.
-6. `derivedEstimatedOutputBytes` using bounded read-only file metadata count/size, without opening or hashing source files.
-7. `derivedRequiredFreeSpaceBytes=max(1073741824,2*derivedEstimatedOutputBytes)` and current available output-volume space.
-8. all safety flags, exact command identity, allowed foreground process, and no-retry/downstream denials.
+3. `derivedInputLocatorState` by deriving the one fixed PB-I03 path, validating its schema/exact bytes, and prohibiting prompts or arbitrary search.
+4. `derivedSourceBoundaryState` and `derivedManifestSourceSet` from strict PB-I03/C1-I01 parsing, portable IDs/kinds, local availability, exact bidirectional boundary/manifest equality, and no network/runtime source.
+5. `derivedBaselineState` from PB-I03 `baseline` as `FirstCaptureNoBaseline` or validated `ApprovedBaselinePresent`.
+6. `derivedOutputBoundaryState` from fixed-root/staging absence and reparse-safe ancestors.
+7. `derivedEstimatedOutputBytes` using bounded read-only file metadata count/size, without opening or hashing source files.
+8. `derivedRequiredFreeSpaceBytes=max(1073741824,2*derivedEstimatedOutputBytes)` and current available output-volume space.
+9. all safety flags, exact command identity, allowed foreground process, and no-retry/downstream denials.
+
+The locator path is derived exactly and is never printed:
+
+```powershell
+$inputLocatorPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'StellaGaia\PhaseB\personal-local-mode-inputs.json'
+```
+
+The complete intended boundary is exactly PB-I03 `sourceBoundary.sources`; R8.1 makes no claim about undeclared machine locations. Require:
+
+```text
+boundarySourceCount = boundaryMatchedCount + boundaryMissingOrMismatchedCount
+manifestSourceCount = manifestMatchedCount + manifestExtraOrMismatchedCount
+boundaryMissingOrMismatchedCount=0
+manifestExtraOrMismatchedCount=0
+```
 
 The fixed output root is:
 
@@ -109,7 +127,7 @@ C:\SoftWork\WT\StellaGaia\019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe\Extracted\Threads
 
 ## RED And GREEN
 
-RED includes any HEAD/status/hash/version mismatch; malformed/unavailable/incomplete manifest set; unsafe path; invalid baseline; pre-existing output/staging; insufficient space; metadata sizing timeout; sensitive leak; unexpected process/write/network action; or weakened safety flag.
+RED includes any HEAD/status/hash/version mismatch; missing/malformed/changed PB-I03; interactive prompt or arbitrary locator search; malformed/unavailable manifest set; boundary/manifest omission, surplus, case/kind/path mismatch; unsafe path; invalid baseline disposition/record; pre-existing output/staging; insufficient space; metadata sizing timeout; sensitive leak; unexpected process/write/network action; legacy second-run authorization; or weakened safety flag.
 
 GREEN is exactly:
 
@@ -117,6 +135,8 @@ GREEN is exactly:
 mode=PersonalLocalMode
 derivedHead=<current HEAD equal to upstream>
 derivedToolHashMismatchCount=0
+derivedInputLocatorState=LocatedAndValid
+derivedSourceBoundaryState=ExactSetMatch
 derivedManifestSourceSet=<redacted nonempty portable IDs/kinds>
 derivedBaselineState=<FirstCaptureNoBaseline|ApprovedBaselinePresent>
 derivedOutputBoundaryState=AbsentAndSafe
@@ -151,9 +171,9 @@ Run Git/version/hash checks and require the exact frozen values and protected st
 
 Run exactly the seven commands listed in the runbook. Require Passed results and no repository output/residue.
 
-### Step 3 - Derive manifest shape and source set - 5 minutes
+### Step 3 - Derive locator, boundary, manifest shape, and source set - 5 minutes
 
-Strictly parse C1-I01 locally, validate portable ID/kind set, availability, complete local boundary, and safe path chains. Do not print paths or read source contents.
+Derive the fixed PB-I03 path, strictly validate its registered schema, locate C1-I01/C1-I02 from it, prove PB-SP02/PB-SP06 equality, portable ID/kind set, availability, and safe path chains. Do not prompt, search arbitrary locations, print paths, or read source contents.
 
 ### Step 4 - Derive baseline, output boundary, and disk state - 5 minutes
 
@@ -175,11 +195,11 @@ After GREEN, the only accepted confirmation is:
 ConfirmPersonalLocalRun
 ```
 
-It has `PersonalLocalModeConfirmationCount=1`, no form fields, and applies only to the displayed state and next attempt. Immediately recheck HEAD/status/output/disk/safety. If unchanged, start the exact guarded command from the runbook as one foreground process. The confirmation is consumed at start. No automatic retry.
+It has `PersonalLocalModeConfirmationCount=1`, no form fields, and applies only to the displayed state and next attempt. Immediately recheck HEAD/status/PB-I03 exact bytes/boundary-manifest equality/output/disk/safety. If unchanged, derive the manifest argument from PB-I03 and start the exact guarded command from the runbook as one foreground process. The confirmation is consumed at start. No automatic retry.
 
 ## Verification And Stop
 
-- focused verification: current hashes/state, seven gates, strict local shape/set checks, metadata-only budget, and safety vector;
+- focused verification: current hashes/state, seven gates, fixed locator/schema, strict boundary/manifest semantic vectors, local shape/set checks, metadata-only budget, and safety vector;
 - R8.1 staging/commit/push list: empty;
 - protected/forbidden checks: exact protected pair; `Extracted`, imported assets, Unity/cache/build/log paths absent;
 - Stop after R8.1 result; never start LO in the same ordinary Task;

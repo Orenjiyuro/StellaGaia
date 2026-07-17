@@ -15,7 +15,7 @@ Read-only:
 - PersonalLocalMode package and runbook;
 - completion roadmap and Program Roadmap;
 - this R7.4 plan, R7.5 plan, and R8.1 plan;
-- runner/module/schema/vocabulary and seven lightweight test scripts;
+- runner/module/schema/vocabulary, PB-I03 locator schema, and seven lightweight test scripts;
 - Git metadata, protected hashes, and forbidden-path existence.
 
 Writes/staging/commit/push: none. Runtime manifest, baseline, source roots/content, and output content are excluded.
@@ -26,16 +26,17 @@ Writes/staging/commit/push: none. Runtime manifest, baseline, source roots/conte
 |---|---|
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
-| PersonalLocalMode package | `afb7dd58d01b2659e6b606abd32bc32708842890a6b9b418bb045c4b0e5b35b0` |
-| PersonalLocalMode runbook | `b4831a1919ea04e627fc5530e1729ff3828f192a8b98ed66d785c0196a837b69` |
-| Completion roadmap | `2865e1d33c5fcf82727936cb03a9d1093f40ad34f44c23ee05bfc935e89b1f58` |
-| Program Roadmap | `906ac525b30a8a994d88163d1c9e00f273221e25fc18639652df569d06da6334` |
-| R8.1 plan | `7bf6a1649176cb232f800487148081ab44af696bda960ea319a9603eec272002` |
+| PersonalLocalMode package | `4fb6012d4717b073709516b37e6843f95ef814ad3895a1dbe354c06d9ec9c272` |
+| PersonalLocalMode runbook | `ab233818bef470ea0ee1ff00e6d0b2aed3bc002fa530b7ae5019932c7e677a6b` |
+| Completion roadmap | `06357b2ea581132618405096bdb0c2290a191505afecb98c02894ee1d659e5ed` |
+| Program Roadmap | `4932acb748bcd7565bdbca1f89343ba7df8d998493ea436ecb9b19a173c6d8d1` |
+| R8.1 plan | `e42ab6a6f2a5f16834cb1c46c70cb0699a4cfea32c197fd840bc1649e65ed178` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
 | C1-I04 module | `1b53fe277c18bb9d82277033581c747d277a7666b64f8139e78dcf499fe38280` |
 | C1-I05 schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
-| PersonalLocalMode policy test | `4db581ad82f3f5b3afcf1984a070295ca6be292dad1ecf2eba3871ffc085cf10` |
+| PB-I03 locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
+| PersonalLocalMode policy test | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
 
 This plan and R7.5 are bound by their paths plus the final containing commit; no self-hash is predeclared.
 
@@ -44,11 +45,12 @@ Protected status is exactly the two known untracked rows with hashes `397d256da9
 ## Registry, Partition, And Failure Checks
 
 - PB-I01 is PersonalLocalMode derived preflight state with no compliance identity fields.
-- PB-I02 and C1-I01 through C1-I06, C1-T01, C1-O01/C1-O02, C1-E01 appear exactly once.
-- PB-SP01 through PB-SP05 appear exactly once; PB-SP01 has six derived groups and remains unevaluated before R8.1.
+- PB-I02/PB-I03 and C1-I01 through C1-I06, C1-T01, C1-O01/C1-O02, C1-E01 appear exactly once.
+- PB-I03 uses `[Environment]::GetFolderPath('LocalApplicationData')` plus `StellaGaia\PhaseB\personal-local-mode-inputs.json`, validates against the registered schema, and contains the complete declared source boundary; no `Read-Host` or arbitrary machine search remains.
+- PB-SP01 through PB-SP06 appear exactly once; PB-SP01 has six derived groups and remains unevaluated before R8.1. PB-SP02/PB-SP06 prove boundary/manifest set equality in both directions.
 - PB-FT01 through PB-FT12 appear exactly once.
 - package/runbook/Roadmaps/R7.5/R8.1 contain no twelve-row human form.
-- R8.1 owns automatic HEAD/tool/manifest/baseline/output/disk derivation.
+- R8.1 owns automatic HEAD/tool/locator/boundary/manifest/baseline/output/disk derivation.
 - `ConfirmPersonalLocalRun` occurs only after R8.1 GREEN and before one LO.
 
 Safety invariants:
@@ -79,6 +81,7 @@ headEqualsUpstream=true
 frozenHashMismatchCount=0
 runtimeVersionMismatchCount=0
 registryIssueCount=0
+locatorContractIssueCount=0
 oldHumanFormReferenceCount=0
 externalComplianceIdentityFieldCount=0
 contractContradictionCount=0
@@ -101,11 +104,11 @@ Verify branch, HEAD/upstream, empty index, exact protected status, and expected 
 
 ### Step 2 - Recompute frozen bytes and versions - 5 minutes
 
-Hash package/runbook/Roadmaps/R8 plan/tool/schema/policy test and compare to the table. Do not invoke scripts.
+Hash package/runbook/Roadmaps/R8 plan/tool/schema/locator-schema/policy test and compare to the table. Do not invoke scripts.
 
 ### Step 3 - Validate Registry/Partition/Failure and migration shape - 5 minutes
 
-Count exact rows, prove PB-I01 derived semantics, prove removal of the form/external identity fields, and cross-check automatic derivation plus one-confirmation boundary.
+Count exact rows, prove PB-I01 derived semantics and PB-I03 fixed locator/source-boundary semantics, prove removal of the form/external identity fields, and cross-check automatic derivation plus one-confirmation boundary.
 
 ### Step 4 - Validate safety and forbidden state - 3 minutes
 

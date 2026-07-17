@@ -2,7 +2,7 @@
 
 > **Status:** PROGRAM ROADMAP ONLY; NOT A DIRECTLY EXECUTABLE PLAN. Every Work Package below remains blocked until a separate child Task plan satisfies the Mandatory Task Template and receives the required authorization.
 >
-> **Authority boundary:** C1 uses `PersonalLocalMode`: no PB-A form or external compliance identity. R8.1 derives all preflight state, and the user confirms once with `ConfirmPersonalLocalRun` immediately before the LO. This Roadmap itself does not read a real manifest/source root, start a heavy operation, or permit C1/C2/extraction/staging/Unity/import/G5/merge/cleanup.
+> **Authority boundary:** C1 uses `PersonalLocalMode`: no PB-A form or external compliance identity. R8.1 automatically locates PB-I03 at the fixed LocalAppData-relative path, proves its declared boundary equals the manifest source set, derives all remaining preflight state, and the user confirms once with `ConfirmPersonalLocalRun` immediately before the LO. This Roadmap itself does not read a real locator/manifest/source root, start a heavy operation, or permit C1/C2/extraction/staging/Unity/import/G5/merge/cleanup.
 >
 > **Execution cadence:** one separately written child Task per turn, 20-30 minutes maximum. Each child Task Step is one 2-5 minute action. A command that cannot safely finish inside one child Task is a Special Long-Running Operation, not an ordinary Task, and requires the separate gate defined below.
 
@@ -10,8 +10,8 @@
 
 - **Target user:** the human operator who owns the local StellaSora inputs, tool installations, storage, Unity license, evidence review, and final integration decision.
 - **Scenario:** produce a frozen local source snapshot; review and, when required, match its baseline; discover and statically qualify all approved families; stage only explicit candidates; permit one focused repair attempt per family/failure class; run representative Unity validation one subject at a time; aggregate four independent G5 conclusions; then merge and clean up only after separate approval.
-- **Entry:** branch `codex/asset-corpus-integration`, committed PersonalLocalMode package/runbook/plans, and no Phase B outputs. R8.1 derives the exact current HEAD/tool/manifest/baseline/output/disk state; the user does not transcribe it. Later stages retain their own stage-specific gates.
-- **Completion path:** R7 PersonalLocalMode contract closure -> R8.1 automatic preflight -> one `ConfirmPersonalLocalRun` -> one C1 snapshot -> human baseline review and any separately confirmed matching run -> separate R9 authorization and C2 discovery -> R10 static family qualification -> R11 controlled staging and RepairOnce -> R12 single-thread Unity -> R13 in-memory G5 and final handoff -> separately authorized integration/cleanup program.
+- **Entry:** branch `codex/asset-corpus-integration`, committed PersonalLocalMode package/runbook/plans, and no Phase B outputs. R8.1 derives the exact current HEAD/tool/locator/boundary/manifest/baseline/output/disk state from the fixed descriptor; the user does not transcribe it. Later stages retain their own stage-specific gates.
+- **Completion path:** R7 PersonalLocalMode contract closure -> R8.1 automatic preflight -> one `ConfirmPersonalLocalRun` -> one C1 snapshot -> human first-capture baseline review -> Stop; any future matching capture requires a new independent PersonalLocalMode continuation package and is outside the current authorization -> separate R9 authorization only after C1 baseline closure -> R10 static family qualification -> R11 controlled staging and RepairOnce -> R12 single-thread Unity -> R13 in-memory G5 and final handoff -> separately authorized integration/cleanup program.
 - **Success state:** the frozen input universe is conserved; every family/member has a current typed state and evidence route; the four G5 conclusions remain independent; source roots are unchanged; sensitive machine data stays local; no stage is inferred from an upstream pass; the roadmap ends with an auditable handoff to a separate integration/cleanup authorization stage.
 
 This workflow does not claim restoration of the original StellaSora Unity project and does not grant redistribution rights for source-derived assets.
@@ -30,7 +30,7 @@ Use existing Phase A registries, gates, runners, fixtures, and evidence where cu
 Authorize snapshot, discovery, extraction, staging, Unity, and import together.
 
 - Benefit: fewer operator prompts.
-- Rejected because: it defeats PB-A11, the C2 diagnostic-only first-run rule, C5/C7 separation, RepairOnce limits, and the required merge/cleanup hard gates.
+- Rejected because: it defeats the PersonalLocalMode one-confirmation/one-attempt boundary, the C2 diagnostic-only first-run rule, C5/C7 separation, RepairOnce limits, and the required merge/cleanup hard gates.
 
 ### Option C - Bulk extraction/import first
 
@@ -58,7 +58,7 @@ Read these completely at the start of the relevant child Task; do not silently r
 
 The central definitions remain authoritative:
 
-- C1 artifacts and authorization: PB-I01/PB-I02, C1-I01 through C1-I06, C1-O01/C1-O02, C1-E01; PB-SP01 through PB-SP05; PB-FT01 through PB-FT12.
+- C1 artifacts and authorization: PB-I01 through PB-I03, C1-I01 through C1-I06, C1-O01/C1-O02, C1-E01; PB-SP01 through PB-SP06; PB-FT01 through PB-FT12.
 - C2 discovery: AR-I01 through AR-I11, AR-P01, AR-O01 through AR-O05; SP-01 through SP-09; FT-01 through FT-15.
 - C3-C6 lifecycle: LC-I01 through LC-I14; C3-O01 through C3-O04, C4-O01 through C4-O03, C5-O01 through C5-O04, C6-O01 through C6-O05; SP-30/SP-31/SP-40/SP-50/SP-51/SP-60/SP-61; LF-01 through LF-21.
 - G5 consumes only a valid same-generation C6-O04 handoff and reports `CorpusSnapshotComplete`, `StructuredObjectCoverage`, `OriginalAssetBatchCoverage`, and `StellaSora2AuthoringReady` independently.
@@ -96,7 +96,7 @@ Absolute source/manifest/tool paths, user/host/account identifiers, local locks/
 
 ### 4.4 Special Long-Running Operation Gate
 
-An atomic source scan, producer run, extraction, decode, publication, or Unity invocation that may exceed 20 minutes is an `LO`, not a normal child Task. Before each LO, an external exact approval must freeze:
+An atomic source scan, producer run, extraction, decode, publication, or Unity invocation that may exceed 20 minutes is an `LO`, not a normal child Task. Before each LO, its owning stage authorization must freeze:
 
 1. one operation/subject identity and one attempt only;
 2. exact executable/script bytes, version, SHA-256, arguments, working directory, and allowed child processes;
@@ -107,7 +107,7 @@ An atomic source scan, producer run, extraction, decode, publication, or Unity i
 7. stop, partial-output, rollback, quarantine, retention, and no-retry behavior;
 8. expected portable/private/diagnostic outputs and leak policy.
 
-If the operation cannot expose bounded progress or safe cancellation, first implement a reviewed resumable/chunked runner contract in an ordinary child Task. The agent may report at 20-minute checkpoints but may not broaden the authorization or start a concurrent replacement process.
+For LO R8.C1-1, the owning authorization is the displayed current R8.1 GREEN state plus one exact `ConfirmPersonalLocalRun`; no external identity/form is created. Later stages use their separate packages. If an operation cannot expose bounded progress or safe cancellation, first implement a reviewed resumable/chunked runner contract in an ordinary child Task. The agent may report at 20-minute checkpoints but may not broaden the authorization or start a concurrent replacement process.
 
 ### 4.5 Universal stop conditions
 
@@ -237,16 +237,16 @@ Steps:
 ### Work Package R7.5 - Validate PersonalLocalMode migration
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** package/runbook/Roadmaps/R7.4/R7.5/R8.1 and PersonalLocalMode policy test read-only; no runtime record or real input.
-**Acceptance:** no human form/external compliance fields remain; PB-I01 is derived state; `PB-SP01: 6 = 0 Passed + 6 Failed` before R8.1 evaluation; all safety invariants and one-confirmation boundary are conserved.
+**Files:** package/runbook/Roadmaps/R7.4/R7.5/R8.1, PB-I03 locator schema, and PersonalLocalMode policy test read-only; no runtime record or real input.
+**Acceptance:** no human form/external compliance fields remain; PB-I01 is derived state; PB-I03 and PB-SP02/PB-SP06 close input location and boundary equality; `PB-SP01: 6 = 0 Passed + 6 Failed` before R8.1 evaluation; all safety invariants and one-confirmation boundary are conserved.
 **Evidence:** focused policy-test result, hashes/status, zero-source/process/output declaration.
 
 Steps:
 
 1. Bind current HEAD and active governance bytes - 3 minutes.
 2. Prove PB form/external identity removal - 4 minutes.
-3. Validate PB-I01 derived-state shape and PB-SP01 conservation - 5 minutes.
-4. Validate automatic HEAD/tool/manifest/baseline/output/disk responsibilities - 4 minutes.
+3. Validate PB-I01/PB-I03 derived-state and locator shapes plus PB-SP01 conservation - 5 minutes.
+4. Validate automatic HEAD/tool/locator/boundary/manifest/baseline/output/disk responsibilities - 4 minutes.
 5. Validate source-read-only, one-run, cancellation, no-retry, and downstream denials - 4 minutes.
 6. Run the focused policy test and emit `ReadyForR8.1AutomaticPreflight` or Stop - 3 minutes.
 
@@ -261,7 +261,7 @@ Steps:
 ### Work Package R8.1 - Exact preflight for one C1 operation
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** repository read-only plus local C1-I01/C1-I02 shape/identity and filesystem metadata; no source-file enumeration/content read.
+**Files:** repository read-only plus automatically located PB-I03, local C1-I01/C1-I02 shape/identity, and filesystem metadata; no prompt, arbitrary machine search, source-file content read, or hidden/background scan.
 **Acceptance:** automatically derive and pass all six PB-SP01 groups; emit `ReadyForSinglePersonalLocalRun`; exact guarded command remains unrun.
 **Evidence:** redacted derived-state summary and zero-heavy-process/output declaration.
 
@@ -269,7 +269,7 @@ Steps:
 
 1. Revalidate repository and protected state - 3 minutes.
 2. Derive HEAD, versions, tool/schema/policy hashes, and seven lightweight gates - 4 minutes.
-3. Derive manifest shape and exact source-kind/source-ID set - 5 minutes.
+3. Locate/validate PB-I03 and prove PB-SP02/PB-SP06 boundary/manifest equality - 5 minutes.
 4. Derive baseline, fixed output boundary, and disk-space state - 4 minutes.
 5. Derive source-read-only/one-attempt/cancellation/no-retry/downstream flags - 4 minutes.
 6. Produce `ReadyForSinglePersonalLocalRun` or Stop - 3 minutes.
@@ -309,23 +309,12 @@ Steps:
 4. Reject or freeze immutable candidate baseline - 4 minutes.
 5. Record next action and stop - 3 minutes.
 
-### Work Package R8.4 - Authorize a matching run when baseline proof is required
-
-**Target child Task duration:** 20-30 minutes.
-**Files:** none changed; new external approval only.
-**Acceptance:** one new exact PB-I01-like approval binds the approved baseline identity and a fresh operation identity; no reuse of the first approval.
-**Evidence:** 12/12-equivalent confirmation and new LO record.
-
-### LO R8.C1-2 - One baseline-matching C1 snapshot attempt
-
-**Conditional and separately authorized.** Repeat R8.1/R8.2 controls. A mismatch Stops. A match produces `Review`, never automatic R9 authorization.
-
-### Work Package R8.5 - Close C1 baseline review
+### Work Package R8.4 - Close first-capture review and hand off future baseline matching
 
 **Target child Task duration:** 20-25 minutes.
 **Files:** no repository change unless a separate documentation child Task is authorized.
-**Acceptance:** exact snapshot/baseline match, conservation, immutability, and no-leak result are human accepted; C1-E01 is frozen for a future adapter.
-**Evidence:** redacted C1 handoff identity and explicit statement `C2Authorized=false`.
+**Acceptance:** the first-capture decision, conservation, immutability, and no-leak result are frozen; C1-E01 remains diagnostic and `C2Authorized=false`. The current package cannot start a second attempt. If baseline matching is required, prepare a new independent PersonalLocalMode continuation package/plan in a later Task, recompute all state, and stop for its own single-confirmation boundary.
+**Evidence:** redacted first-capture handoff identity, explicit `C2Authorized=false`, and either `nextAction=Stop` or `nextAction=PrepareIndependentBaselineMatchCycle`.
 
 **R8 checkpoint:** wait for a separate R9 contract/implementation authorization. C1 success alone is insufficient.
 
@@ -724,7 +713,7 @@ The later plan may not use `git worktree prune`, `git reset --hard`, broad recur
 | Phase | Required input | Success evidence | Does not authorize | Next exact gate |
 |---|---|---|---|---|
 | R7 | committed PersonalLocalMode governance | protected-state resolution + R8 plan + post-change revalidation + mode policy GREEN | real input or R8 command | R8.1 automatic preflight |
-| R8 | GREEN derived state + one `ConfirmPersonalLocalRun` | conserved one-attempt snapshot + human baseline decision/match | C2 | R9 contract and run approvals |
+| R8 | GREEN derived state + one `ConfirmPersonalLocalRun` | conserved one-attempt snapshot + human first-capture baseline decision; any match requires an independent future cycle | C2 | baseline closure, then separate R9 contract and run approvals |
 | R9 | accepted C1 + real adapter/producers/publisher | diagnostic real C2 review with SP-01..09 conserved | static/extraction/Unity | R10 lifecycle approval |
 | R10 | accepted real C2 + implemented/audited lifecycle + exact R10 approval | LC-I06 -> C3-only -> lane fragments -> one LC-I14 -> C4-only -> C5-only -> provisional C6 | staging/repair/Unity/G5 publication | R11 whitelist approval |
 | R11 | exact whitelist and repair cause | conserved staged batch + at most one repair/class -> lane fragment -> LC-I14 -> C4-only -> C5-only -> C6-only | Unity | R12 environment/item approvals |
