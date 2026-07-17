@@ -24,7 +24,21 @@ Do not run the guarded command unless every item below is true.
   ```
 
 - Each gate must emit a one-line `Passed` result with zero issues. The compatibility gate must report `childProcessCount = 1` and `heavyChildProcessCount = 0`; the runner-policy gate must report `createdOutputCount = 0`.
-- Confirm this is the intended C1 branch and worktree. Run `git status --short --branch`; it must identify the intended branch and show no working-tree changes before Phase B.
+- Confirm this is the intended C1 branch and worktree. Run `git status --short --branch`; after the branch header, the status set must contain exactly these two Ordinal-compared rows and no others:
+
+  ```text
+  ?? AGENTS.md
+  ?? docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md
+  ```
+
+  Verify the protected bytes without reading or recording their contents:
+
+  ```powershell
+  Get-FileHash -Algorithm SHA256 -LiteralPath .\AGENTS.md
+  Get-FileHash -Algorithm SHA256 -LiteralPath .\docs\superpowers\plans\2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md
+  ```
+
+  The required hashes are respectively `397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d` and `11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b`. Require `protectedStatusEntryCount=2`, `protectedHashMismatchCount=0`, and `unexpectedStatusEntryCount=0` at preflight and final end-state validation. Missing, extra, renamed, modified, staged, tracked, conflicted, or differently hashed rows are PB-FT02 and Stop before source access. This exception does not make either file a Phase B input, output, approval, evidence artifact, staging candidate, or commit candidate; neither file may be edited, deleted, moved, copied, staged, or committed by this workflow.
 - Confirm the current repository state, PowerShell version, and tool versions are the reviewed versions intended for the run. Record the base and HEAD SHAs. Run the following read-only commands and compare every value with the reviewed approval record; stop on any mismatch:
 
   ```powershell
@@ -144,6 +158,7 @@ For a first capture with no approved baseline, the outcome after capture and con
 Record the following after a future run or stop:
 
 - branch name and intended worktree identity;
+- the exact two protected repository-relative status rows, their required/observed SHA-256 values, `protectedStatusEntryCount`, `protectedHashMismatchCount`, and `unexpectedStatusEntryCount`, never file contents;
 - base SHA and HEAD SHA;
 - source IDs and source kinds, never source root paths;
 - `snapshotId` and `inputFingerprint`;

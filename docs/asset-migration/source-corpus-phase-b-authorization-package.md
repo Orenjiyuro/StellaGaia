@@ -78,6 +78,26 @@ The operation identity is exactly `C1.SourceCorpusSnapshot.Refresh`. File finger
 
 Any version or byte change requires a new R7 package commit and renewed exact approval. The Windows build is evidence only, not a portable source identity.
 
+### Exact Protected Untracked Worktree Exception
+
+This exception is part of PB-I02's pre-execution repository invariant. At C1 preflight and at the final end-state check, `git status --short` must contain exactly these two Ordinal-compared rows and no others:
+
+```text
+?? AGENTS.md
+?? docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md
+```
+
+The accepted protected entries are:
+
+| Repository-relative path | Required SHA-256 |
+|---|---|
+| `AGENTS.md` | `397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d` |
+| `docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md` | `11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b` |
+
+The accepted invariant is `protectedStatusEntryCount=2`, `protectedHashMismatchCount=0`, and `unexpectedStatusEntryCount=0`. A missing, extra, renamed, modified, staged, tracked, conflicted, or differently hashed row is PB-FT02 and Stop before source access. Comparison of the status-row set and paths is Ordinal; hashes compare lowercase hexadecimal values after validation.
+
+This narrow exception applies only to C1 repository preflight. Neither protected file is a Phase B input, output, approval, evidence artifact, staging candidate, or commit candidate. The files must not be edited, deleted, moved, copied, staged, committed, or used to waive any other worktree change. Portable evidence may record their repository-relative paths, required/observed hashes, and the three counts above, but never their contents.
+
 ### Approved Source-Kind Vocabulary
 
 The only source kinds that may appear are:
@@ -186,6 +206,7 @@ Reuse the fresh R6 audit as Phase A completion evidence; do not rerun it merely 
 C1-E01 must record only:
 
 - worktree, branch, reviewed code baseline, authorization-package commit, start HEAD, and end HEAD;
+- the exact two protected repository-relative status rows, their required/observed SHA-256 values, `protectedStatusEntryCount=2`, `protectedHashMismatchCount=0`, and `unexpectedStatusEntryCount=0`;
 - PowerShell/Git versions and the frozen file hashes above;
 - approval identity and PB-A row statuses;
 - approved source IDs/kinds, never root paths;
