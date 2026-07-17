@@ -305,6 +305,11 @@ function New-SourceCorpusCatalog {
     Assert-NoReparsePointPathChain -Path $RootPath
     $rootItem = Get-Item -LiteralPath $RootPath -Force -ErrorAction Stop
     Assert-NoReparsePoint -Attributes $rootItem.Attributes -Label 'Source root'
+    $rootIsFile = $rootItem -is [System.IO.FileInfo] -and -not $rootItem.PSIsContainer
+    $rootIsDirectory = $rootItem -is [System.IO.DirectoryInfo] -and $rootItem.PSIsContainer
+    if (-not $rootIsFile -and -not $rootIsDirectory) {
+        throw 'Source root is not a regular file or directory.'
+    }
     try { $items = @(& $FileEnumerator $rootItem.FullName) }
     catch { throw "Source enumeration failed: $($_.Exception.Message)" }
 
@@ -318,14 +323,30 @@ function New-SourceCorpusCatalog {
             throw "Enumerator item is not a regular file: $([System.IO.Path]::GetFileName($enumeratedPath))"
         }
         Assert-NoReparsePoint -Attributes $item.Attributes -Label $item.FullName
-        $relativePath = ConvertTo-PortableRelativePath -RootPath $rootItem.FullName -FilePath $item.FullName
-        $parent = $item.Directory
-        while ($null -ne $parent) {
-            if ($parent.FullName.Equals($rootItem.FullName, [System.StringComparison]::OrdinalIgnoreCase)) { break }
-            Assert-NoReparsePoint -Attributes $parent.Attributes -Label $parent.FullName
-            $parent = $parent.Parent
+        if ($rootIsFile) {
+            if (-not $item.FullName.Equals($rootItem.FullName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "File path is outside source root: $($item.FullName)"
+            }
+            $relativePath = $rootItem.Name.Replace('\', '/')
+            if (
+                [string]::IsNullOrWhiteSpace($relativePath) -or
+                [System.IO.Path]::IsPathRooted($relativePath) -or
+                $relativePath -match '^[A-Za-z][A-Za-z0-9+.-]*:' -or
+                $relativePath -match '(^|/)\.{1,2}(/|$)'
+            ) {
+                throw "Invalid portable relative path: $relativePath"
+            }
         }
-        if ($null -eq $parent) { throw "File path is outside source root: $($item.FullName)" }
+        else {
+            $relativePath = ConvertTo-PortableRelativePath -RootPath $rootItem.FullName -FilePath $item.FullName
+            $parent = $item.Directory
+            while ($null -ne $parent) {
+                if ($parent.FullName.Equals($rootItem.FullName, [System.StringComparison]::OrdinalIgnoreCase)) { break }
+                Assert-NoReparsePoint -Attributes $parent.Attributes -Label $parent.FullName
+                $parent = $parent.Parent
+            }
+            if ($null -eq $parent) { throw "File path is outside source root: $($item.FullName)" }
+        }
         $portablePaths.Add($relativePath)
         $fileRecord = Get-StreamedFileRecord -File $item
         $rows.Add([pscustomobject][ordered]@{

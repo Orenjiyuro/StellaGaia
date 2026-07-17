@@ -73,7 +73,7 @@ All portable paths use forward slashes. SHA-256 values are lowercase hexadecimal
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
-| C1-I04 module | `1b53fe277c18bb9d82277033581c747d277a7666b64f8139e78dcf499fe38280` |
+| C1-I04 module | `04907242ad793f1e3aa07c49925f4ecc59091f241b381c0bb0917bc439d94f07` |
 | `Test-SourceCorpusGate.ps1` | `0311107a5e099d9f74ebe8ec776d916c4139cbbae43fcdfe31875cf85af136c5` |
 | C1-I05 ledger schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |

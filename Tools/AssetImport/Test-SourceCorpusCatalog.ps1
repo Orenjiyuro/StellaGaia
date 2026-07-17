@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('AllFile', 'Conservation', 'FailureModes', 'All')]
+    [ValidateSet('AllFile', 'FileRoot', 'Conservation', 'FailureModes', 'All')]
     [string]$Case = 'All'
 )
 
@@ -9,7 +9,16 @@ Import-Module $modulePath -Force
 $ErrorActionPreference = 'Stop'
 $issues = [System.Collections.Generic.List[string]]::new()
 $tempRoots = [System.Collections.Generic.List[string]]::new()
-$counts = [ordered]@{ expectedFileCount = 0; catalogedFileCount = 0; catalogedBytes = 0; unknownInputCount = 0; junctionTestOutcome = 'NotRun' }
+$counts = [ordered]@{
+    expectedFileCount = 0
+    catalogedFileCount = 0
+    catalogedBytes = 0
+    unknownInputCount = 0
+    fileRootCatalogedFileCount = 0
+    fileRootCatalogedBytes = 0
+    fileRootBoundaryOutcome = 'NotRun'
+    junctionTestOutcome = 'NotRun'
+}
 
 function Add-Issue([string]$Message) { $issues.Add($Message) }
 function Assert-Equal([string]$Name, [AllowNull()][object]$Expected, [AllowNull()][object]$Actual) {
@@ -123,6 +132,45 @@ function Invoke-AllFile {
         }
     }
     catch { Add-Issue "AllFile: $($_.Exception.Message)" }
+}
+function Invoke-FileRoot {
+    $fixtureDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("stella-c1-file-root-{0}" -f [guid]::NewGuid().ToString('N'))
+    $tempRoots.Add($fixtureDirectory)
+    [System.IO.Directory]::CreateDirectory($fixtureDirectory) | Out-Null
+    $apkPath = Join-Path $fixtureDirectory 'stella-synthetic.apk'
+    $siblingPath = Join-Path $fixtureDirectory 'sibling.apk'
+    [System.IO.File]::WriteAllText($apkPath, 'synthetic-apk-root')
+    [System.IO.File]::WriteAllText($siblingPath, 'synthetic-sibling')
+    try {
+        $catalog = New-SourceCorpusCatalog -SnapshotId 'fixture-file-root' -SourceId 'android-apk' -SourceKind 'AndroidApk' -RootPath $apkPath -CapturedAt ([datetimeoffset]'2026-07-10T00:00:00Z')
+        $expectedBytes = [long](Get-Item -LiteralPath $apkPath -Force).Length
+        $expectedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apkPath).Hash.ToLowerInvariant()
+        $row = @($catalog.files)[0]
+
+        Assert-Equal 'file root row count' 1 @($catalog.files).Count
+        Assert-Equal 'file root cataloged count' 1 $catalog.catalogedFileCount
+        Assert-Equal 'file root cataloged bytes' $expectedBytes $catalog.catalogedBytes
+        Assert-Equal 'file root excluded count' 0 $catalog.explicitlyExcludedFileCount
+        Assert-Equal 'file root relative path' 'stella-synthetic.apk' $row.relativePath
+        Assert-Equal 'file root source kind' 'AndroidApk' $row.sourceKind
+        Assert-Equal 'file root size' $expectedBytes $row.sizeBytes
+        Assert-Equal 'file root hash' $expectedHash $row.sha256
+        Assert-Equal 'file root count conservation' 1L ([long]$catalog.catalogedFileCount + [long]$catalog.explicitlyExcludedFileCount)
+        Assert-Equal 'file root byte conservation' $expectedBytes ([long]$catalog.catalogedBytes + [long]$catalog.explicitlyExcludedBytes)
+
+        Assert-Throws 'file root sibling enumerator rejected' {
+            New-SourceCorpusCatalog -SnapshotId 'fixture-file-root' -SourceId 'android-apk' -SourceKind 'AndroidApk' -RootPath $apkPath -CapturedAt ([datetimeoffset]'2026-07-10T00:00:00Z') -FileEnumerator {
+                param($path)
+                Get-Item -LiteralPath $path -Force
+                Get-Item -LiteralPath $siblingPath -Force
+            }
+        } "File path is outside source root: $siblingPath"
+
+        $counts.fileRootCatalogedFileCount = $catalog.catalogedFileCount
+        $counts.fileRootCatalogedBytes = $catalog.catalogedBytes
+        $counts.fileRootBoundaryOutcome = 'Passed'
+    }
+    catch { Add-Issue "FileRoot: $($_.Exception.Message)" }
 }
 function Invoke-Conservation {
     $root = New-FixtureRoot
@@ -279,6 +327,7 @@ function Invoke-FailureModes {
 
 try {
     if ($Case -in @('AllFile', 'All')) { Invoke-AllFile }
+    if ($Case -in @('FileRoot', 'All')) { Invoke-FileRoot }
     if ($Case -in @('Conservation', 'All')) { Invoke-Conservation }
     if ($Case -in @('FailureModes', 'All')) { Invoke-FailureModes }
 }
