@@ -10,7 +10,7 @@
 
 - **Target user:** the human operator who owns the local StellaSora inputs, tool installations, storage, Unity license, evidence review, and final integration decision.
 - **Scenario:** produce a frozen local source snapshot; review and, when required, match its baseline; discover and statically qualify all approved families; stage only explicit candidates; permit one focused repair attempt per family/failure class; run representative Unity validation one subject at a time; aggregate four independent G5 conclusions; then merge and clean up only after separate approval.
-- **Entry:** branch `codex/asset-corpus-integration`, with the R7 package originating at `ff446c0cd55ea795e2714a5871a284f4aec584ab`, PB-A01 through PB-A12 still Pending, and no Phase B outputs. PB-A02 must bind the later exact execution HEAD that contains the reviewed package/tool bytes; it may not assume the origin commit remains the execution HEAD after docs-only commits.
+- **Entry:** branch `codex/asset-corpus-integration`, with the R7 package originating at `ff446c0cd55ea795e2714a5871a284f4aec584ab`, PB-A01 through PB-A12 still Pending, and no Phase B outputs. PB-A02 binds only the exact R8 C1 execution HEAD containing the reviewed package, R8 child-plan, tool, and schema bytes. Later stages bind their own stage-specific execution HEADs and approvals.
 - **Completion path:** R7 contract resolution and child-plan commit -> post-change revalidation -> exact PB-A01-PB-A12 confirmation -> R8 C1 snapshot -> human baseline review and any separately authorized matching run -> separate R9 authorization and C2 discovery -> R10 static family qualification -> R11 controlled staging and RepairOnce -> R12 single-thread Unity -> R13 in-memory G5 and final handoff -> separately authorized integration/cleanup program.
 - **Success state:** the frozen input universe is conserved; every family/member has a current typed state and evidence route; the four G5 conclusions remain independent; source roots are unchanged; sensitive machine data stays local; no stage is inferred from an upstream pass; the roadmap ends with an auditable handoff to a separate integration/cleanup authorization stage.
 
@@ -115,7 +115,7 @@ Stop on changed HEAD/input/tool bytes, unapproved path/process/network activity,
 
 ### 4.6 Mandatory child Task plan gate
 
-Every numbered item below is a non-executable Work Package. Before any repository write, real-input read, command, LO, merge, or cleanup, create one child Task plan that satisfies `docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-completion-roadmap.md` section 7 and includes all of:
+Every numbered item below is a non-executable Work Package. Before any non-bootstrap repository write, real-input read, execution command, LO, merge, or cleanup, create one child Task plan that satisfies `docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-completion-roadmap.md` section 7 and includes all of:
 
 1. target user/consumer and the one decision enabled;
 2. exact files created, modified, and read-only;
@@ -126,7 +126,30 @@ Every numbered item below is a non-executable Work Package. Before any repositor
 7. exact stage/commit/push list when Git changes are authorized;
 8. stop checkpoint and one classified next action.
 
-The child Task plan must be reviewed and committed before the exact execution approval binds HEAD. If any approved package, runbook, child plan, tool, schema, fixture, or other frozen byte changes afterward, the old approval is automatically void and the flow returns to the owning preflight/revalidation/approval Work Packages. A Work Package description, duration, or acceptance paragraph is never execution authority by itself.
+#### P0 docs-only bootstrap exception
+
+Creating or revising the child Task plan that will govern a Work Package is the only bootstrap exception to the requirement for a pre-existing child plan. It is permitted only when the user explicitly authorizes one exact plan path and docs-only purpose, and all of these conditions hold:
+
+1. the exact file scope is one named child Task plan; a separately named Roadmap-governance correction may use the same one-file rule when the user explicitly requests that correction;
+2. repository authority docs and named implementation paths may be inspected read-only to write the plan; no package, runbook, tool, schema, fixture, code, source, manifest, machine-local evidence, or generated output is changed, and no real manifest/source/evidence content is opened;
+3. no stage operation, test with heavy side effects, real-input command, LO, Unity, extraction, import, publication, merge, or cleanup runs;
+4. the new plan itself satisfies the Mandatory Task Template before it is accepted;
+5. protected hashes, forbidden paths, `git diff --check`, exact staging list, commit/parent, and upstream equality are verified;
+6. only the named plan file is staged, committed, and pushed, then the bootstrap action stops.
+
+P0 authorizes preparation of governance, not execution of the Work Package described by the plan. Any package/runbook/code change described by that plan still requires the plan's own authorization.
+
+### 4.7 Stage-specific approval lifecycle and HEAD binding
+
+Each real or state-changing stage has its own approval record, execution HEAD, and frozen-byte set. The lifecycle is:
+
+1. **Prepared:** child plan and all relevant contract/tool/schema bytes are committed and pushed.
+2. **Approved:** the stage-specific human approval binds that exact HEAD, operation identity, and frozen-byte set.
+3. **Started:** immediately before the authorized operation, revalidate HEAD and every relevant frozen byte. Any mismatch voids the unstarted approval and returns to that stage's preparation/revalidation/approval Work Packages.
+4. **Running:** a relevant HEAD/input/tool mutation during the operation invalidates the run and Stops under the owning failure transition.
+5. **Closed:** after the operation ends and its post-run identity/evidence checks pass, the approval becomes immutable historical evidence for that completed operation.
+
+Later docs-only child plans or later-stage commits do not retroactively invalidate a Closed approval or erase a completed result. They only change the candidate HEAD for the next stage. PB-I01/PB-A02 govern one R8 C1 operation through its Closed state; R9, R10, R11, R12, and R13 each require their own stage-specific package/approval where this Roadmap says so. A Work Package description, duration, or acceptance paragraph is never execution authority by itself.
 
 ## 5. Program Checkpoints
 
@@ -242,7 +265,7 @@ Steps:
 5. Confirm PB-A11/PB-A12 stop/operator policy - 4 minutes.
 6. Prove PB-SP01 conservation and stop - 3 minutes.
 
-**Approval invalidation rule:** any change after R7.5 to the package, runbook, child plan, tool, schema, fixture, command, version, or other frozen byte automatically invalidates PB-I01. Return to R7.3, commit/push the new bytes, rerun R7.4, and obtain a new R7.5 approval. Never patch after approval and continue.
+**R8 approval invalidation rule:** after R7.5 but before the authorized C1 operation starts, any change to the R8 package, runbook, R8 child plan, runner, module, schema, vocabulary, command, version, execution HEAD, or other PB-I01/PB-A02 frozen byte voids the unstarted approval. Return to R7.3, commit/push the new bytes, rerun R7.4, and obtain a new R7.5 approval. During the C1 operation, mutation invalidates that run. After the C1 operation and R8.2 post-run checks close the approval, PB-I01 is historical evidence and later R9/R10 child-plan commits do not retroactively invalidate it.
 
 **R7 checkpoint:** wait for the exact R7.5 approval bound to the current pushed HEAD. A broad statement such as `授权 Phase B` is insufficient.
 
@@ -403,68 +426,117 @@ Run one approved producer sequence and one publication transaction. The first re
 
 **Target child Task duration:** 20-30 minutes per contract increment.
 **Files:** create `docs/asset-migration/c3-c6-real-lifecycle-contract.md`; modify only `docs/superpowers/specs/2026-07-15-stella-sora-asset-corpus-c3-c6-design.md` when reviewed central registry rows must change.
-**Acceptance:** freezes real LC-I06 publication; real C3-C6 generation roots; lane-private static fragment Artifact Registry rows and schemas; one deterministic LC-I14 aggregator; duplicate-subject/check rejection; Ordinal `(assetObjectId,checkId)` sorting; shared snapshot/generation/fingerprint conservation; suppression, rollback, and quarantine on aggregation/publication failure. Fixture paths remain fixture-only. G5 publication is explicitly excluded.
+**Acceptance:** freezes real LC-I06 publication; real C3-C6 generation roots; lane-private static fragment Artifact Registry rows and schemas; one deterministic LC-I14 aggregator; duplicate-subject/check rejection; Ordinal `(assetObjectId,checkId)` sorting; shared snapshot/generation/fingerprint conservation; transaction, locked-consumer, suppression, rollback, and quarantine semantics; and exact later R11/R12 refresh-generation/carry-forward rules. Fixture paths remain fixture-only. G5 publication is explicitly excluded.
 **Verification:** Artifact/Partition/Failure cross-reference, fixed counterexamples for missing/duplicate/misordered/mixed-generation fragments, portable/private review, schema tests, and `git diff --check`.
 
-No R10.5 lane may write an LC-I14-shaped artifact until R10.1 has registered the lane-private intermediate type. No private fragment is a C4 input. LC-I14 remains exactly one complete package with the authoritative top-level and row contract.
+No real lifecycle implementation or run is authorized by R10.1.
 
-### Work Package R10.2 - Re-index existing evidence before acquiring anything
+### Work Package R10.2 - Implement and fixture-test the LC-I06 producer/publisher
+
+**Target child Task duration:** 20-30 minutes per increment.
+**Files:** create `Tools/AssetImport/C3C6RealLifecycleAdapter.psm1`, `Tools/AssetImport/Invoke-C3C6RealLifecycle.ps1`, and `Tools/AssetImport/Test-C3C6RealLifecycleAdapter.ps1`; any fixture files require an exact child-plan list and synthetic data only.
+**Acceptance:** fixture inputs produce one schema-valid, deterministic LC-I06 generation with exact source/object identities, typed references, direct-input hashes, transaction state, and locked-consumer validation; real inputs remain blocked.
+**Verification:** producer/publisher happy path, stale/mutated/missing/duplicate input vectors, rollback/recovery, exact hashes, and complete existing C3-C6 fixture regression.
+
+### Work Package R10.3 - Implement and fixture-test lane-private fragment producers
+
+**Target child Task duration:** one 20-30 minute child Task per lane producer capability.
+**Files:** create `Tools/AssetImport/C4StaticObservationProducer.psm1` and `Tools/AssetImport/Test-C4StaticObservationProducer.ps1`; exact synthetic fixtures are enumerated per child Task.
+**Acceptance:** each registered lane producer emits only its registered private fragment type; every assigned check is terminally accounted; producer/tool/input fingerprints and shared generation identity are exact; no LC-I14 or C4 output is emitted.
+**Verification:** Actor/Audio/Effects/Environment/UI fixture vectors, duplicate-within-lane, missing prerequisite, tool-unavailable, deterministic ordering, and forbidden process/path tests.
+
+### Work Package R10.4 - Implement and fixture-test the LC-I14 aggregator, transaction, and locked consumer
+
+**Target child Task duration:** 20-30 minutes per transaction increment.
+**Files:** create `Tools/AssetImport/C4StaticObservationPublication.psm1` and `Tools/AssetImport/Test-C4StaticObservationPublication.ps1`; synthetic fault fixtures require exact enumeration.
+**Acceptance:** registered lane fragments aggregate into exactly one LC-I14 package; rows are globally unique and Ordinal sorted; shared snapshot/generation/fingerprints conserve; stage/journal/backup/quarantine/summary-last publication and locked consumption are fail-closed.
+**Verification:** missing-lane, duplicate-cross-lane, misordered, contradictory, mixed-generation, install/rollback/recovery/quarantine, partial-publication, and locked-consumer fault vectors.
+
+### Work Package R10.5 - Implement and fixture-test real C3-C6 publication transactions
+
+**Target child Task duration:** 20-30 minutes per stage publisher increment.
+**Files:** create `Tools/AssetImport/C3C6LifecyclePublication.psm1` and `Tools/AssetImport/Test-C3C6LifecyclePublication.ps1`; modify `Tools/AssetImport/Invoke-C3C6RealLifecycle.ps1` only as enumerated by the child Task.
+**Acceptance:** C3, C4, C5, and C6 each publish as separate registered stages with exact generation binding, fixed output order, locked consumers, downstream suppression, rollback/recovery, and no cross-stage atomic shortcut. A later refresh may reference or carry forward unchanged prior-stage bytes only through the exact R10.1 contract; it may never mutate an accepted generation in place or silently relabel old bytes with a new generation identity.
+**Verification:** stage-by-stage success/failure vectors, stale direct inputs, partial stage install, downstream suppression, recovery/quarantine, and same-generation C2-C6-G5 fixture harness.
+
+### Work Package R10.6 - Independent real-lifecycle completion audit
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** read-only existing summaries/reports and real C2 generation; the child plan must name one approved private coverage-inventory output or specify no output.
+**Files:** all R10.1-R10.5 contracts/code/tests/fixtures read-only; no real inputs or lifecycle outputs.
+**Acceptance:** fresh audit covers LC-I06 producer/publisher, every lane fragment producer, LC-I14 aggregation/transaction/locked consumer, separate C3-C6 publishers, registered failure vectors, no-heavy fixture boundary, output suppression, and state restoration.
+**Evidence:** audit matrix, fixture-tree digest before/after, exact implementation hashes, zero real-output declaration, and any blocking gap.
+
+### Work Package R10.7 - Prepare the exact R10 authorization package
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** create `docs/asset-migration/c3-c6-real-lifecycle-authorization-package.md`; implementation/contracts remain read-only.
+**Acceptance:** package freezes one diagnostic real lifecycle generation: exact stage-specific execution HEAD, accepted C2 generation, adapter/producer/publisher hashes, observation selectors, real roots, generation identity, counts/bytes/storage, LO rows, duration/cancellation, process limits, transaction/rollback/quarantine/retention, portable/private outputs, and explicit no-staging/no-Unity/no-G5-publication boundaries.
+**Verification:** authorization Artifact/Partition/Failure conservation, exact hash/command list, protected/forbidden checks, and all rows Pending before human action.
+
+### Work Package R10.8 - Obtain exact R10 human approval
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** none changed; approval remains external and redacted.
+**Acceptance:** every R10 authorization row is Confirmed against the current pushed stage-specific HEAD; no real evidence read or lifecycle process starts.
+**Evidence:** approval-row conservation, approval identity, frozen-byte list, and explicit one-generation/no-retry boundary.
+
+Any relevant byte or execution-HEAD change before the first authorized R10 operation starts voids the unstarted R10 approval and returns to R10.7/R10.8. After the approved lifecycle generation and its post-run checks close, that R10 approval becomes historical evidence under section 4.7.
+
+### Work Package R10.9 - Re-index existing evidence before acquiring anything
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** read-only approved existing summaries/reports and accepted real C2 generation; the child plan must name one registered/private coverage-inventory output or specify no output.
 **Acceptance:** every candidate evidence item is classified `Current`, `Stale`, `Missing`, or `Contradictory` by fingerprint; no tool is rerun merely because the lifecycle model changed.
 **Evidence:** registered/private coverage inventory and explicit reacquisition reasons; it is not LC-I14 and cannot be consumed by C4.
 
-### Work Package R10.3 - Publish real LC-I06 typed lane facts
+### Work Package R10.10 - Publish real LC-I06 typed lane facts
 
-**Target child Task duration:** 20-30 minutes per lane adapter increment.
-**Files:** exact adapter/test paths frozen by R10.1; if they are not enumerated, Stop.
-**Acceptance:** Actor, Audio, Effects, Environment, and UI facts preserve source/object identities, typed references, configuration disposition, and cross-lane provenance without reading unapproved bytes.
-**Verification:** schema/fingerprint/conservation tests plus fixture regressions.
+**Target child Task duration:** 20-30 minutes per approved adapter increment or authorized LO.
+**Files:** accepted real C2 inputs read-only; write only the approved real LC-I06 transaction/generation paths using R10.2 bytes.
+**Acceptance:** Actor, Audio, Effects, Environment, and UI facts preserve source/object identities, typed references, configuration disposition, and cross-lane provenance; locked consumer accepts one complete LC-I06 generation.
+**Verification:** schema/fingerprint/conservation, start/end identities, transaction state, no-leak, and source-immutability checks.
 
-### Work Package R10.4 - Run C3 family membership and dependency qualification
-
-**Target child Task duration:** 20-30 minutes.
-**Files:** real LC-I06 and C3 outputs under the approved lifecycle root; existing C3 module is read-only unless an independently reviewed bug fix is authorized.
-**Acceptance:** SP-30 dispatch and SP-31 dependency partitions conserve counts/bytes; C3-O01 through C3-O04 are one generation; conflicts/missing references remain visible.
-**Verification:** C3 locked consumer and generation fingerprints.
-
-### Work Package R10.5 - Produce one registered lane-private static fragment
-
-**Target child Task duration:** one 20-30 minute child Task per lane in this fixed order: Actor, Audio, Effects, Environment, UI.
-**Files:** read-only C3 generation and only the approved lane-specific current evidence; write only the exact lane-private fragment path registered by R10.1.
-**Acceptance:** every assigned check has one terminal Passed/Failed/Unchecked fragment row; lane subject/check counts conserve; the fragment binds the shared snapshot/generation and producer/input fingerprints; no LC-I14, C4 output, or Unity process is created.
-**Verification:** lane producer validator, fragment schema/hash checks, duplicate-within-lane counterexamples, and forbidden-path/process checks.
-
-Do not combine lanes to fit a schedule. A missing producer or expensive new observation becomes a separate contract/LO request.
-
-### Work Package R10.6 - Aggregate all lane fragments into exactly one LC-I14
+### Work Package R10.11 - Run and publish C3 only
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** all registered lane-private fragments read-only; write one LC-I14 candidate beneath the approved lifecycle transaction root using only the R10.1 aggregator.
-**Acceptance:** every required lane is terminal; shared snapshot/generation identities match; rows are globally unique and Ordinal sorted by `(assetObjectId,checkId)`; counts/checks/fingerprints conserve; any missing, duplicate, misordered, contradictory, or mixed-generation row suppresses LC-I14 and all downstream-valid output and enters the registered diagnostic/quarantine transition.
-**Verification:** aggregator unit/fault tests, fixed cross-lane duplicate and mixed-generation counterexamples, exact LC-I14 schema/hash, locked-consumer validation, rollback/quarantine check.
+**Files:** accepted LC-I06 and registered C3 inputs read-only; write only C3-O01 through C3-O04 using the R10.5 C3 publisher.
+**Acceptance:** SP-30 dispatch and SP-31 dependency partitions conserve counts/bytes; C3 outputs form one locked generation; conflicts/missing references remain visible; no C4 output exists.
+**Verification:** C3 gate, locked consumer, generation fingerprints, C4-output suppression, and transaction rollback tests.
 
-### Work Package R10.7 - Publish C4 only
+### Work Package R10.12 - Produce one registered real lane-private static fragment
+
+**Target child Task duration:** one 20-30 minute child Task or authorized LO per lane in this fixed order: Actor, Audio, Effects, Environment, UI.
+**Files:** accepted C3 generation and only approved current lane evidence read-only; write only the registered lane-private fragment path using R10.3 producer bytes.
+**Acceptance:** every assigned check has one terminal Passed/Failed/Unchecked row; lane counts conserve; shared identities match; no LC-I14, C4 output, or Unity process is created.
+**Verification:** lane validator, fragment schema/hash, process/output budget, start/end identities, and forbidden-path/process checks.
+
+### Work Package R10.13 - Aggregate and publish exactly one LC-I14
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** the single accepted LC-I14 plus the other twelve registered C4 inputs read-only; write only C4-O01 through C4-O03 beneath the approved lifecycle root.
-**Acceptance:** all thirteen direct inputs match exact bytes/identities; SP-40 conserves; C4 output generation is complete and locked; no C5 output is created.
-**Verification:** C4 gate, direct-input hash frame, stale/missing/extra input counterexamples, publication and rollback tests.
+**Files:** all accepted lane-private fragments read-only; write only the approved LC-I14 transaction/generation paths using R10.4 bytes.
+**Acceptance:** all lanes are terminal; rows are globally unique and Ordinal sorted; counts/checks/fingerprints conserve; any invalid fragment suppresses LC-I14 and all downstream-valid output and enters the registered diagnostic/quarantine transition.
+**Verification:** aggregator validation, exact LC-I14 schema/hash, locked consumer, start/end identities, rollback/quarantine, and downstream-output absence.
 
-### Work Package R10.8 - Derive and publish C5 only
+### Work Package R10.14 - Publish C4 only
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** accepted C3/C4 generation and registered C5 policy/evidence inputs read-only; write only C5-O01 through C5-O04 beneath the approved lifecycle root.
+**Files:** the accepted LC-I14 plus the other twelve registered C4 inputs read-only; write only C4-O01 through C4-O03 using the R10.5 C4 publisher.
+**Acceptance:** all thirteen direct inputs match; SP-40 conserves; C4 generation is complete and locked; no C5 output is created.
+**Verification:** C4 gate, direct-input hash frame, same-generation/freshness, locked consumer, and C5-output suppression.
+
+### Work Package R10.15 - Derive and publish C5 only
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** accepted C3/C4 generation and registered C5 inputs read-only; write only C5-O01 through C5-O04 using the R10.5 C5 publisher.
 **Acceptance:** SP-50/SP-51 conserve; C5-O03 is an evidence request list only; no C6 output, Unity process, or acceptance inference occurs.
-**Verification:** C5 gates, same-generation/freshness checks, missing-evidence fixed counterexamples, and publication suppression tests.
+**Verification:** C5 gates, same-generation/freshness, locked consumer, missing-evidence vectors, and C6-output suppression.
 
-### Work Package R10.9 - Produce provisional C6 decisions
+### Work Package R10.16 - Publish provisional C6 decisions only
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** read-only accepted C3-C5 generation/current repair history; write C6-O01 through C6-O05 beneath the approved lifecycle root.
-**Acceptance:** SP-60/SP-61 conserve; decision precedence is honored; missing evidence stays `NeedsDiagnosis`, `RetainForLater`, `DiagnosticOnly`, or `Stop`; no `UseOriginalAsset` without required evidence.
-**Verification:** C6 gates and same-generation C2-C6-G5 fixture regression.
+**Files:** accepted C3-C5 generation/current repair history read-only; write only C6-O01 through C6-O05 using the R10.5 C6 publisher.
+**Acceptance:** SP-60/SP-61 conserve; decision precedence is honored; missing evidence remains visible; no `UseOriginalAsset` without required evidence; locked C6-O04 is eligible only for later review.
+**Verification:** C6 gates, same-generation harness, locked consumer, start/end identities, and diagnostic-only R10 closeout.
 
 **R10 checkpoint:** human reviews family/static failures and explicitly chooses R11 candidates. Static qualification does not authorize staging.
 
@@ -508,12 +580,40 @@ Stage only the named members. No complete export, unlisted dependency, source mu
 
 Execute exactly one repair for one family/repair class. Never repeat the same class automatically. Record actual outputs and attempt outcome in LC-I12.
 
-### Work Package R11.5 - Requalify changed families and refresh C5/C6
+### Work Package R11.5 - Produce new-generation lane fragments after RepairOnce
 
-**Target child Task duration:** 20-30 minutes per changed family.
-**Files:** only changed-family static evidence and lifecycle outputs.
-**Acceptance:** measurable before/after comparison exists; no improvement or repeated failure moves to `PrototypeReplacement` or `Stop`; C5 remains an evidence-request producer and does not run Unity.
-**Verification:** lane static gate, RepairOnce history validation, C5/C6 same-generation checks.
+**Target child Task duration:** one 20-30 minute child Task per required lane/family projection.
+**Files:** repaired family inputs, prior accepted lane evidence, and prior fragment hashes read-only; write only one registered new-generation lane-private fragment per child Task and append the immutable LC-I12 result for the changed family.
+**Acceptance:** changed checks have measurable before/after results; every check is terminally accounted; every fragment used by the next LC-I14 binds the new intended generation. Unchanged facts are recomputed or carried forward only through the exact audited R10.1/R10.5 rule with prior-byte hashes; old-generation fragments are never mixed or relabeled. No LC-I14 or C4-C6 output is created.
+**Verification:** lane producer/static gate, carry-forward authority and prior-byte hash when applicable, fragment schema/fingerprint/conservation, LC-I12 max-attempt validation, and LC-I14/C4-C6 output absence.
+
+### Work Package R11.6 - Re-aggregate and publish exactly one LC-I14
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** all accepted new-generation lane fragments read-only; write only a new LC-I14 generation using the audited R10.4 aggregator/publisher bytes.
+**Acceptance:** all lanes share the same new lifecycle generation; rows are unique and Ordinal sorted; checks/fingerprints and any registered carry-forward links conserve; aggregation failure suppresses LC-I14 and every downstream output.
+**Verification:** LC-I14 aggregator/locked consumer, changed-versus-unchanged fragment identity check, duplicate/mixed-generation vectors, rollback/quarantine, and C4-C6 output absence.
+
+### Work Package R11.7 - Re-publish C4 only
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** accepted replacement LC-I14 and the other twelve C4 inputs read-only; write only C4-O01 through C4-O03 using the audited R10.5 C4 publisher.
+**Acceptance:** SP-40 conserves; changed-family before/after static outcome is explicit; C4 generation locks successfully; no C5/C6 output is created.
+**Verification:** C4 gate, direct-input hashes, same-generation/freshness, locked consumer, and C5/C6 output absence.
+
+### Work Package R11.8 - Re-publish C5 only
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** accepted refreshed C4 and registered C5 inputs read-only; write only C5-O01 through C5-O04 using the audited R10.5 C5 publisher.
+**Acceptance:** SP-50/SP-51 conserve; repair-related evidence requests and assessment states are current; no C6 output or Unity process occurs.
+**Verification:** C5 gates, same-generation/freshness, locked consumer, and C6-output suppression.
+
+### Work Package R11.9 - Re-publish C6 decisions only
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** accepted refreshed C3-C5 generation and LC-I12 history read-only; write only C6-O01 through C6-O05 using the audited R10.5 C6 publisher.
+**Acceptance:** SP-60/SP-61 conserve; failed/no-improvement RepairOnce results become `PrototypeReplacement` or `Stop` according to precedence; no further repair is authorized.
+**Verification:** C6 gates, RepairOnce history, same-generation harness, locked consumer, and final R11 decision diff.
 
 **R11 checkpoint:** wait for exact R12 Unity authorization. Staged files and C5-O03 do not authorize Unity.
 
@@ -549,16 +649,23 @@ Launch one approved Unity foreground process for one representative requirement.
 ### Work Package R12.4 - Validate one LC-I10 evidence package
 
 **Target child Task duration:** 20-30 minutes per representative.
-**Files:** the single representative's logs/screenshots/structured package read-only; lifecycle outputs updated only after evidence validation.
-**Acceptance:** evidence is current, requirement-specific, attributable, immutable, and free of sensitive paths; Unity execution failure is distinguished from asset evidence failure.
-**Evidence:** SP-50 assessment and SP-51 capability suitability for that requirement only.
+**Files:** the single representative's logs, screenshots, structured LC-I10 package, queue item, and tool/process identities are read-only; no C5/C6 lifecycle output is changed.
+**Acceptance:** LC-I10 is current, requirement-specific, attributable, immutable, and free of sensitive paths; Unity execution failure is distinguished from asset evidence failure; the package is frozen for later C5 consumption without assigning a C5 assessment or C6 decision here.
+**Evidence:** validated/frozen LC-I10 identity and one requirement-level validation result; explicit `C5Written=false`, `C6Written=false`.
 
-### Work Package R12.5 - Refresh C5/C6 after the approved queue
+### Work Package R12.5 - Assess evidence and publish C5 only after the approved queue
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** read-only validated LC-I10 packages and current C3-C5 generation; write new C5/C6 generation beneath the approved lifecycle root.
-**Acceptance:** all requested representative evidence is terminally accounted, capability suitability remains independent, and only families satisfying static plus representative rules may become `UseOriginalAsset`.
-**Verification:** C5/C6 gates, SP-50/SP-51/SP-60/SP-61 conservation, same-generation check.
+**Files:** all validated/frozen LC-I10 packages, accepted C3/C4 generation, and registered C5 policy inputs read-only; write only C5-O01 through C5-O04 using the audited R10.5 C5 publisher.
+**Acceptance:** all requested representative evidence is terminally assessed; SP-50/SP-51 conserve; capability suitability remains independent; generation binding or prior-stage carry-forward follows the exact audited R10.1/R10.5 rule with no in-place mutation or silent relabeling; no C6 output is created.
+**Verification:** C5 gates, LC-I09/LC-I10 authority/freshness, same-generation checks, locked consumer, and C6-output suppression.
+
+### Work Package R12.6 - Publish C6 decisions only
+
+**Target child Task duration:** 20-30 minutes.
+**Files:** accepted refreshed C3-C5 generation and repair history read-only; write only C6-O01 through C6-O05 using the audited R10.5 C6 publisher.
+**Acceptance:** SP-60/SP-61 conserve; only families satisfying static plus representative requirements may become `UseOriginalAsset`; Unity unavailability remains distinct from asset rejection; no G5 execution or publication occurs.
+**Verification:** C6 gates, same-generation harness, decision precedence, locked consumer, and G5-process/output absence.
 
 **R12 checkpoint:** wait for exact R13 G5 authorization. Unity evidence does not directly set a root conclusion.
 
@@ -634,9 +741,9 @@ The later plan may not use `git worktree prune`, `git reset --hard`, broad recur
 | R7 | committed package + 12 Pending rows | protected-state resolution + R8 child plan committed/pushed + post-change revalidation + 12/12 Confirmed | source read or R8 command | R8 one-operation approval |
 | R8 | exact C1 approval | conserved snapshot + human baseline decision/match | C2 | R9 contract and run approvals |
 | R9 | accepted C1 + real adapter/producers/publisher | diagnostic real C2 review with SP-01..09 conserved | static/extraction/Unity | R10 lifecycle approval |
-| R10 | accepted real C2 | registered lane fragments -> one LC-I14 -> C4-only -> C5-only -> provisional C6 | staging/repair/Unity/G5 publication | R11 whitelist approval |
-| R11 | exact whitelist and repair cause | conserved staged batch + at most one repair/class + requalification | Unity | R12 environment/item approvals |
-| R12 | C5 requests + Unity capability | immutable per-representative evidence + refreshed C5/C6 | G5 conclusion/integration | R13 G5 approval |
+| R10 | accepted real C2 + implemented/audited lifecycle + exact R10 approval | LC-I06 -> C3-only -> lane fragments -> one LC-I14 -> C4-only -> C5-only -> provisional C6 | staging/repair/Unity/G5 publication | R11 whitelist approval |
+| R11 | exact whitelist and repair cause | conserved staged batch + at most one repair/class -> lane fragment -> LC-I14 -> C4-only -> C5-only -> C6-only | Unity | R12 environment/item approvals |
+| R12 | C5 requests + Unity capability | frozen LC-I10 packages -> C5-only assessment -> C6-only decisions | G5 conclusion/integration | R13 G5 approval |
 | R13 | accepted same-generation C6-O04 | independent in-memory G5 conclusions + final audit + integration/cleanup authorization package | merge/cleanup/publication | new independent integration plan and approval |
 
 ## 14. Verification Before Any Completion Claim
@@ -678,5 +785,5 @@ PB-SP01=12 Pending
 R8ThroughR13Authorized=false
 realSourceAccessed=false
 phaseBExecuted=false
-nextAction=User reviews this Program Roadmap; then create one Mandatory-Template child Task for R7.1. Do not request PB-A01-through-PB-A12 approval until R7.2 changes, R7.3 commit/push, and R7.4 post-change revalidation are complete.
+nextAction=Wait for exact P0 docs-only authorization naming `docs/superpowers/plans/2026-07-17-stella-sora-r7-1-initial-preflight-task.md`; only then create/commit/push that one child plan and stop. Do not execute R7.1 or request PB-A01-through-PB-A12 until the later R7 gates are satisfied.
 ```
