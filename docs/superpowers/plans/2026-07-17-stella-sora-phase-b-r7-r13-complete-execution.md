@@ -2,7 +2,7 @@
 
 > **Status:** PROGRAM ROADMAP ONLY; NOT A DIRECTLY EXECUTABLE PLAN. Every Work Package below remains blocked until a separate child Task plan satisfies the Mandatory Task Template and receives the required authorization.
 >
-> **Authority boundary:** this plan does not confirm PB-A01 through PB-A12, read a real manifest or source root, authorize a heavy operation, or permit C1/C2/extraction/staging/Unity/import/G5/merge/cleanup.
+> **Authority boundary:** C1 uses `PersonalLocalMode`: no PB-A form or external compliance identity. R8.1 derives all preflight state, and the user confirms once with `ConfirmPersonalLocalRun` immediately before the LO. This Roadmap itself does not read a real manifest/source root, start a heavy operation, or permit C1/C2/extraction/staging/Unity/import/G5/merge/cleanup.
 >
 > **Execution cadence:** one separately written child Task per turn, 20-30 minutes maximum. Each child Task Step is one 2-5 minute action. A command that cannot safely finish inside one child Task is a Special Long-Running Operation, not an ordinary Task, and requires the separate gate defined below.
 
@@ -10,8 +10,8 @@
 
 - **Target user:** the human operator who owns the local StellaSora inputs, tool installations, storage, Unity license, evidence review, and final integration decision.
 - **Scenario:** produce a frozen local source snapshot; review and, when required, match its baseline; discover and statically qualify all approved families; stage only explicit candidates; permit one focused repair attempt per family/failure class; run representative Unity validation one subject at a time; aggregate four independent G5 conclusions; then merge and clean up only after separate approval.
-- **Entry:** branch `codex/asset-corpus-integration`, with the R7 package originating at `ff446c0cd55ea795e2714a5871a284f4aec584ab`, PB-A01 through PB-A12 still Pending, and no Phase B outputs. PB-A02 binds only the exact R8 C1 execution HEAD containing the reviewed package, R8 child-plan, tool, and schema bytes. Later stages bind their own stage-specific execution HEADs and approvals.
-- **Completion path:** R7 contract resolution and child-plan commit -> post-change revalidation -> exact PB-A01-PB-A12 confirmation -> R8 C1 snapshot -> human baseline review and any separately authorized matching run -> separate R9 authorization and C2 discovery -> R10 static family qualification -> R11 controlled staging and RepairOnce -> R12 single-thread Unity -> R13 in-memory G5 and final handoff -> separately authorized integration/cleanup program.
+- **Entry:** branch `codex/asset-corpus-integration`, committed PersonalLocalMode package/runbook/plans, and no Phase B outputs. R8.1 derives the exact current HEAD/tool/manifest/baseline/output/disk state; the user does not transcribe it. Later stages retain their own stage-specific gates.
+- **Completion path:** R7 PersonalLocalMode contract closure -> R8.1 automatic preflight -> one `ConfirmPersonalLocalRun` -> one C1 snapshot -> human baseline review and any separately confirmed matching run -> separate R9 authorization and C2 discovery -> R10 static family qualification -> R11 controlled staging and RepairOnce -> R12 single-thread Unity -> R13 in-memory G5 and final handoff -> separately authorized integration/cleanup program.
 - **Success state:** the frozen input universe is conserved; every family/member has a current typed state and evidence route; the four G5 conclusions remain independent; source roots are unchanged; sensitive machine data stays local; no stage is inferred from an upstream pass; the roadmap ends with an auditable handoff to a separate integration/cleanup authorization stage.
 
 This workflow does not claim restoration of the original StellaSora Unity project and does not grant redistribution rights for source-derived assets.
@@ -139,17 +139,17 @@ Creating or revising the child Task plan that will govern a Work Package is the 
 
 P0 authorizes preparation of governance, not execution of the Work Package described by the plan. Any package/runbook/code change described by that plan still requires the plan's own authorization.
 
-### 4.7 Stage-specific approval lifecycle and HEAD binding
+### 4.7 Stage-specific execution lifecycle and HEAD binding
 
-Each real or state-changing stage has its own approval record, execution HEAD, and frozen-byte set. The lifecycle is:
+Each real or state-changing stage has its own execution HEAD and frozen-byte set. R8 C1 uses PersonalLocalMode; later stages use the stage-specific approval named by their contracts. The lifecycle is:
 
 1. **Prepared:** child plan and all relevant contract/tool/schema bytes are committed and pushed.
-2. **Approved:** the stage-specific human approval binds that exact HEAD, operation identity, and frozen-byte set.
-3. **Started:** immediately before the authorized operation, revalidate HEAD and every relevant frozen byte. Any mismatch voids the unstarted approval and returns to that stage's preparation/revalidation/approval Work Packages.
+2. **Ready:** R8.1 derives a GREEN state; for other stages, the stage-specific approval binds the exact state.
+3. **Confirmed/Started:** R8 accepts one `ConfirmPersonalLocalRun` only after GREEN and revalidates immediately before the one foreground attempt. Any mismatch returns to preflight without starting.
 4. **Running:** a relevant HEAD/input/tool mutation during the operation invalidates the run and Stops under the owning failure transition.
-5. **Closed:** after the operation ends and its post-run identity/evidence checks pass, the approval becomes immutable historical evidence for that completed operation.
+5. **Closed:** after the operation ends and post-run identity/evidence checks pass, the consumed confirmation/result becomes immutable historical evidence for that completed operation.
 
-Later docs-only child plans or later-stage commits do not retroactively invalidate a Closed approval or erase a completed result. They only change the candidate HEAD for the next stage. PB-I01/PB-A02 govern one R8 C1 operation through its Closed state; R9, R10, R11, R12, and R13 each require their own stage-specific package/approval where this Roadmap says so. A Work Package description, duration, or acceptance paragraph is never execution authority by itself.
+Later docs-only child plans or later-stage commits do not retroactively invalidate a Closed result. They change the candidate state for the next operation. PB-I01 is the automatically derived R8.1 state, not an external identity record. R9 through R13 retain their named stage-specific packages/approvals. A Work Package description is never execution authority by itself.
 
 ## 5. Program Checkpoints
 
@@ -183,7 +183,7 @@ Steps:
 2. Recompute C1-I03 through C1-I06 hashes and tool versions - 4 minutes.
 3. Recheck the package's registry/partition/failure conservation - 5 minutes.
 4. Verify no output or forbidden path exists - 3 minutes.
-5. Cross-check the package/runbook byte identities and current approval status - 4 minutes.
+5. Cross-check package/runbook bytes and PersonalLocalMode state - 4 minutes.
 6. Record exact mismatches or readiness and stop - 3 minutes.
 
 ### Work Package R7.2 - Resolve the protected-untracked/clean-run conflict and LO contract
@@ -199,14 +199,14 @@ Steps:
 2. Receive exact user choice; otherwise Stop - 2 minutes.
 3. Apply only the selected docs amendment or verify user-managed evidence - 5 minutes.
 4. Validate the LO duration/budget/cancellation/retention contract - 5 minutes.
-5. Mark all earlier PB approvals void if any frozen byte changed - 3 minutes.
+5. Mark any earlier derived preflight state stale if a relevant byte changed - 3 minutes.
 6. Stop before approval or execution - 2 minutes.
 
 ### Work Package R7.3 - Create the executable R8 child Task plan and commit all pre-approval bytes
 
 **Target child Task duration:** 20-30 minutes.
 **Files:** create `docs/superpowers/plans/2026-07-17-stella-sora-r8-c1-snapshot-execution-task.md`; include only the R7.2 package/runbook changes when that disposition was selected; protected files remain unstaged.
-**Acceptance:** the R8 child plan satisfies the Mandatory Task Template, includes the exact R8 LO boundary, and the exact file set is committed and pushed before PB-A02 is requested.
+**Acceptance:** the R8 child plan satisfies the Mandatory Task Template, includes automatic derivation and the exact one-confirmation LO boundary, and the file set is committed/pushed before R7.4.
 **Verification:** child-plan template audit, `git diff --cached --check`, exact cached name list, commit/parent, upstream equality, protected hashes, and forbidden-path absence.
 
 Steps:
@@ -222,7 +222,7 @@ Steps:
 
 **Target child Task duration:** 20-25 minutes.
 **Files:** all package/runbook/child-plan/tool/schema bytes read-only; no files changed.
-**Acceptance:** reruns every R7.1 check against the new pushed HEAD, proves the R8 child plan is part of that HEAD, and finds PB-SP01 still Pending before human confirmation.
+**Acceptance:** reruns every R7.1 check against the new pushed HEAD, proves the R8 child plan is present, and validates PersonalLocalMode Registry/Partition/Failure conservation without reading real inputs.
 **Evidence:** branch/HEAD/upstream, all frozen hashes, package conservation, protected hashes, forbidden paths, and zero source/process activity.
 
 Steps:
@@ -231,43 +231,28 @@ Steps:
 2. Recompute every package/tool/schema/child-plan hash - 5 minutes.
 3. Revalidate registry/partition/failure and command identities - 5 minutes.
 4. Recheck protected and forbidden-path state - 3 minutes.
-5. Confirm no approval predates the current frozen bytes - 3 minutes.
-6. Emit `ReadyForExactApproval` or Stop - 2 minutes.
+5. Confirm no stale derived state is carried across changed bytes - 3 minutes.
+6. Emit `ReadyForPersonalLocalModeValidation` or Stop - 2 minutes.
 
-### Work Package R7.5 - Obtain exact human confirmation of PB-A01 through PB-A12
+### Work Package R7.5 - Validate PersonalLocalMode migration
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** none changed; PB-I01 remains external and redacted.
-**Acceptance:** `PB-SP01: 12 = 12 Confirmed + 0 Pending + 0 Rejected`; the approval binds the pushed R7.3/R7.4 HEAD; no source/manifest content is accessed; R8 is not started.
-**Evidence:** external approval identity plus a portable row-status summary with no machine paths.
-
-The human must confirm exactly:
-
-1. PB-A01 - one diagnostic C1 `-RefreshSnapshot` attempt and no other operation.
-2. PB-A02 - exact package/execution HEAD and branch.
-3. PB-A03 - locally reviewed runtime-manifest identity and exact selected source-kind/source-ID sets.
-4. PB-A04 - all available roots in the approved boundary are included; no network/runtime source.
-5. PB-A05 - exactly `FirstCaptureNoBaseline` or `ApprovedBaselinePresent` plus immutable baseline identity.
-6. PB-A06 - positive integer `approvedCombinedStagedArtifactEstimateBytes`.
-7. PB-A07 - free space satisfies `max(1 GiB, 2 * estimate)` and staging/output boundaries are absent and safe.
-8. PB-A08 - exact PowerShell/Git versions and every frozen SHA-256.
-9. PB-A09 - canonical C1 output root and no-reparse/no-alternate-root policy.
-10. PB-A10 - guarded command verbatim, without wrapper, extra flag/command, or retry.
-11. PB-A11 - first capture and every nonmatching result Stop; all downstream stages remain unauthorized.
-12. PB-A12 - operator identity, positive integer maximum duration, execution window, cancellation authority, sensitive-logging policy, and retention owner.
+**Files:** package/runbook/Roadmaps/R7.4/R7.5/R8.1 and PersonalLocalMode policy test read-only; no runtime record or real input.
+**Acceptance:** no human form/external compliance fields remain; PB-I01 is derived state; `PB-SP01: 6 = 0 Passed + 6 Failed` before R8.1 evaluation; all safety invariants and one-confirmation boundary are conserved.
+**Evidence:** focused policy-test result, hashes/status, zero-source/process/output declaration.
 
 Steps:
 
-1. Bind PB-I01 to package commit and PB-A01/PB-A02 - 3 minutes.
-2. Record PB-A03 through PB-A05 without paths/content - 5 minutes.
-3. Record PB-A06/PB-A07 numeric budget and boundary declarations - 4 minutes.
-4. Confirm PB-A08 through PB-A10 exact bytes/command - 4 minutes.
-5. Confirm PB-A11/PB-A12 stop/operator policy - 4 minutes.
-6. Prove PB-SP01 conservation and stop - 3 minutes.
+1. Bind current HEAD and active governance bytes - 3 minutes.
+2. Prove PB form/external identity removal - 4 minutes.
+3. Validate PB-I01 derived-state shape and PB-SP01 conservation - 5 minutes.
+4. Validate automatic HEAD/tool/manifest/baseline/output/disk responsibilities - 4 minutes.
+5. Validate source-read-only, one-run, cancellation, no-retry, and downstream denials - 4 minutes.
+6. Run the focused policy test and emit `ReadyForR8.1AutomaticPreflight` or Stop - 3 minutes.
 
-**R8 approval invalidation rule:** after R7.5 but before the authorized C1 operation starts, any change to the R8 package, runbook, R8 child plan, runner, module, schema, vocabulary, command, version, execution HEAD, or other PB-I01/PB-A02 frozen byte voids the unstarted approval. Return to R7.3, commit/push the new bytes, rerun R7.4, and obtain a new R7.5 approval. During the C1 operation, mutation invalidates that run. After the C1 operation and R8.2 post-run checks close the approval, PB-I01 is historical evidence and later R9/R10 child-plan commits do not retroactively invalidate it.
+**R8 state invalidation rule:** any relevant change before LO start makes PB-I01 and `ConfirmPersonalLocalRun` stale. Rerun R8.1; never ask the user to repair a form. Mutation during the operation invalidates the run. After R8.2 closes it, later plans do not retroactively erase the result.
 
-**R7 checkpoint:** wait for the exact R7.5 approval bound to the current pushed HEAD. A broad statement such as `授权 Phase B` is insufficient.
+**R7 checkpoint:** proceed only to R8.1 automatic preflight. No human confirmation is requested during R7.5.
 
 ---
 
@@ -276,22 +261,22 @@ Steps:
 ### Work Package R8.1 - Exact preflight for one C1 operation
 
 **Target child Task duration:** 20-30 minutes.
-**Files:** repository read-only; machine-local PB-I01/C1-I01/C1-I02 identities are reviewed without copying them into Git.
-**Acceptance:** PB-SP01 is 12/12 Confirmed; package/HEAD/tools/manifest/baseline/output/budget/LO approval all match; exact guarded command is frozen but not run.
-**Evidence:** redacted preflight checklist and zero-process declaration.
+**Files:** repository read-only plus local C1-I01/C1-I02 shape/identity and filesystem metadata; no source-file enumeration/content read.
+**Acceptance:** automatically derive and pass all six PB-SP01 groups; emit `ReadyForSinglePersonalLocalRun`; exact guarded command remains unrun.
+**Evidence:** redacted derived-state summary and zero-heavy-process/output declaration.
 
 Steps:
 
 1. Revalidate repository and protected state - 3 minutes.
-2. Validate PB-I01 identity and all twelve statuses - 4 minutes.
-3. Locally validate runtime manifest shape/identity and approved source set - 5 minutes.
-4. Validate baseline state and output/storage safety - 4 minutes.
-5. Freeze command/process/time/cancellation values - 4 minutes.
-6. Produce `ReadyForOneC1Attempt` or Stop - 3 minutes.
+2. Derive HEAD, versions, tool/schema/policy hashes, and seven lightweight gates - 4 minutes.
+3. Derive manifest shape and exact source-kind/source-ID set - 5 minutes.
+4. Derive baseline, fixed output boundary, and disk-space state - 4 minutes.
+5. Derive source-read-only/one-attempt/cancellation/no-retry/downstream flags - 4 minutes.
+6. Produce `ReadyForSinglePersonalLocalRun` or Stop - 3 minutes.
 
 ### LO R8.C1-1 - One guarded C1 snapshot attempt
 
-**Not an ordinary child Task.** Run only under the R8 LO record. Use the committed guarded runner as one foreground process. No retry, C2, extraction, Unity, or import. Preserve failure evidence without improvising cleanup.
+**Not an ordinary child Task.** After R8.1 GREEN, display the redacted state and require exactly one `ConfirmPersonalLocalRun`. Recheck current state, then use one foreground runner process for one attempt. No retry, C2, extraction, Unity, or import.
 
 ### Work Package R8.2 - Validate C1 outputs and operational state
 
@@ -738,8 +723,8 @@ The later plan may not use `git worktree prune`, `git reset --hard`, broad recur
 
 | Phase | Required input | Success evidence | Does not authorize | Next exact gate |
 |---|---|---|---|---|
-| R7 | committed package + 12 Pending rows | protected-state resolution + R8 child plan committed/pushed + post-change revalidation + 12/12 Confirmed | source read or R8 command | R8 one-operation approval |
-| R8 | exact C1 approval | conserved snapshot + human baseline decision/match | C2 | R9 contract and run approvals |
+| R7 | committed PersonalLocalMode governance | protected-state resolution + R8 plan + post-change revalidation + mode policy GREEN | real input or R8 command | R8.1 automatic preflight |
+| R8 | GREEN derived state + one `ConfirmPersonalLocalRun` | conserved one-attempt snapshot + human baseline decision/match | C2 | R9 contract and run approvals |
 | R9 | accepted C1 + real adapter/producers/publisher | diagnostic real C2 review with SP-01..09 conserved | static/extraction/Unity | R10 lifecycle approval |
 | R10 | accepted real C2 + implemented/audited lifecycle + exact R10 approval | LC-I06 -> C3-only -> lane fragments -> one LC-I14 -> C4-only -> C5-only -> provisional C6 | staging/repair/Unity/G5 publication | R11 whitelist approval |
 | R11 | exact whitelist and repair cause | conserved staged batch + at most one repair/class -> lane fragment -> LC-I14 -> C4-only -> C5-only -> C6-only | Unity | R12 environment/item approvals |
@@ -778,12 +763,12 @@ Before their authorized stage they must be absent. After creation they must be r
 ## 15. Current Stop Checkpoint
 
 ```text
-currentPhase=R7
-R7PackageOriginCommit=ff446c0cd55ea795e2714a5871a284f4aec584ab
-executionHead=Pending exact PB-A02 confirmation
-PB-SP01=12 Pending
+currentPhase=R7-PersonalLocalModeMigration
+mode=PersonalLocalMode
+humanFormFieldCount=0
+PB-SP01=6 Unevaluated until R8.1
 R8ThroughR13Authorized=false
 realSourceAccessed=false
 phaseBExecuted=false
-nextAction=Wait for exact P0 docs-only authorization naming `docs/superpowers/plans/2026-07-17-stella-sora-r7-1-initial-preflight-task.md`; only then create/commit/push that one child plan and stop. Do not execute R7.1 or request PB-A01-through-PB-A12 until the later R7 gates are satisfied.
+nextAction=Complete PersonalLocalMode governance/test migration, then run R7.4/R7.5 validation and R8.1 automatic preflight. Request `ConfirmPersonalLocalRun` only after GREEN and immediately before LO.
 ```

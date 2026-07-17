@@ -1,289 +1,187 @@
-# StellaSora R8.1 C1 Snapshot Preflight Child Task Plan
+# StellaSora R8.1 PersonalLocalMode Automatic Preflight Task Plan
 
-> **Status:** P0 PREPARATION ONLY; R8.1 IS BLOCKED UNTIL R7.4 REVALIDATION AND R7.5 EXACT PB-I01 APPROVAL. This file's historical Roadmap path contains an ordinary preflight Task only. It does not run `-RefreshSnapshot`, inspect real source contents, create C1 outputs, or authorize LO R8.C1-1.
+> **Status:** GOVERNANCE ONLY; R8.1 AND LO R8.C1-1 HAVE NOT RUN. R8.1 derives all preflight state locally. It has no PB-A form and no external compliance identity fields.
 >
-> **P0 boundary:** creation, validation, exact one-file commit, and push of this plan are authorized separately from execution. After P0, stop. Do not execute R8.1, obtain PB-A confirmations, or start the C1 operation in the same turn.
+> **Human boundary:** only after R8.1 emits `ReadyForSinglePersonalLocalRun` may the user state `ConfirmPersonalLocalRun`. That one confirmation applies to one immediately following attempt. This plan never treats its own creation or R8.1 GREEN as confirmation.
 
-## Goal, User, Scenario, And Decision
+## Goal, User, And Decision
 
-- **Target user/operator:** the human owner of the local StellaSora inputs, runtime-only manifest, optional immutable baseline, storage budget, trusted execution window, cancellation authority, and retention decision.
-- **Consumer:** the separately authorized operator of exactly one future `LO R8.C1-1` C1 snapshot attempt.
-- **Scenario:** prove that one exact pushed repository state, one external PB-I01 approval, one runtime-only manifest identity, one baseline state, one canonical output boundary, and one long-operation record are mutually consistent before any real source enumeration or output creation.
-- **Entry:** this plan is committed and pushed; R7.4 has revalidated its exact containing HEAD and all frozen bytes; R7.5 has produced one external PB-I01 record with PB-A01 through PB-A12 Confirmed against that same HEAD; the worktree contains only the two protected untracked rows.
-- **Decision enabled:** emit either `ReadyForOneC1Attempt` for one separately authorized foreground LO or a typed Stop owned by PB-FT01 through PB-FT12.
-- **R8.1 success state:** all repository, approval, manifest-identity/shape, baseline-state, storage, command, process, sensitive-path, and LO-record checks pass; no source file is enumerated or hashed; no C1 output/staging path is created; the Task stops before the guarded command.
+- **Target user:** one local owner/operator of the machine and StellaSora inputs.
+- **Decision enabled:** automatically derive whether exactly one cancellable diagnostic C1 attempt is safe to offer for confirmation.
+- **Entry:** committed/pushed PersonalLocalMode governance and GREEN R7.4/R7.5 migration validation.
+- **Success state:** all six PB-SP01 groups pass; a redacted derived summary is displayed; no runner/output is started; next action is one explicit confirmation or Stop.
 
-## Phase Boundaries
+```text
+sourceReadOnly=true
+fixedOutputRoot=true
+attemptCount=1
+foregroundCancellationAuthority=true
+retryAllowed=false
+C2Authorized=false
+UnityAuthorized=false
+extractionAuthorized=false
+importAuthorized=false
+```
 
-This plan separates three lifecycle stages:
+## Exact File And Operation Scope
 
-1. **R8.1 ordinary preflight:** the only executable Task defined here; maximum 30 minutes; no guarded runner invocation.
-2. **LO R8.C1-1:** one separately approved foreground `-RefreshSnapshot` attempt; not an ordinary Task and not authorized by creation or execution of this plan.
-3. **R8.2 post-run validation:** a later child Task that reads C1-O01/C1-O02 without reopening source content; not defined or authorized here.
+### Repository reads
 
-R8.1 GREEN is a prerequisite, not permission to start the LO. Any change after R7.5 to the execution HEAD, package, runbook, this plan, runner, module, schema, vocabulary, preflight gates, command, versions, PB-I01, manifest identity, baseline identity, budget, output boundary, or LO fields invalidates the unstarted operation and returns to the owning preparation/revalidation/approval gate.
+- `AGENTS.md`;
+- PersonalLocalMode package, runbook, completion roadmap, Program Roadmap, R7.4/R7.5/R8.1 plans;
+- C1 runner/module/schema/vocabulary and seven lightweight test scripts;
+- Git metadata for branch/HEAD/upstream/status/index/tree;
+- protected files for existence/hash only.
 
-## Authority And Frozen Repository Inputs
+### Machine-local reads
 
-Read completely before R8.1 execution:
+- runtime-only manifest shape and portable source IDs/kinds;
+- baseline shape/identity state without exposing paths/fingerprints;
+- source-root path metadata only: existence, reparse safety, file count and size metadata for a bounded storage estimate; no file content read or hash;
+- output-volume free space and canonical ancestor metadata.
 
-- `AGENTS.md`
-- `docs/superpowers/plans/2026-07-17-stella-sora-phase-b-r7-r13-complete-execution.md`
-- `docs/superpowers/plans/2026-07-17-stella-sora-r8-c1-snapshot-execution-task.md`
-- `docs/asset-migration/source-corpus-phase-b-authorization-package.md`
-- `docs/asset-migration/source-corpus-phase-b-runbook.md`
-- `Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1`
-- `Tools/AssetImport/SourceCorpusGate.psm1`
-- `docs/asset-migration/schemas/source-corpus-ledger.schema.json`
-- `docs/asset-migration/schemas/status-vocabulary.json`
-- the six preflight gate scripts listed below.
+If metadata-only sizing cannot finish within the ordinary Task boundary, emit Stop. Do not start a hidden/background scan or convert it into a source-content operation.
 
-Expected committed bytes and versions:
+### Writes/processes
+
+R8.1 writes no repository or output file and does not launch the guarded runner. It may launch only the seven named lightweight test processes. Exact R8.1 staging/commit/push lists are empty.
+
+## Frozen Repository Values
 
 | Identity | Expected version or SHA-256 |
 |---|---|
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
-| R7 package | `746f66a7948f2f1bf4612ee3781ba1b239987f291f07ef8159555d82afc80203` |
-| C1 runbook | `604571aa5a6b4bc05dcce35ebf9b0157bcd4cbbcd4dc7002930f228799efcb15` |
-| Program Roadmap | `3cd87fc89a368ff0ddb78ae4868df4cf5fd6236e8c205b520c51643cec47bb9d` |
+| PersonalLocalMode package | `afb7dd58d01b2659e6b606abd32bc32708842890a6b9b418bb045c4b0e5b35b0` |
+| PersonalLocalMode runbook | `b4831a1919ea04e627fc5530e1729ff3828f192a8b98ed66d785c0196a837b69` |
+| Completion roadmap | `2865e1d33c5fcf82727936cb03a9d1093f40ad34f44c23ee05bfc935e89b1f58` |
+| Program Roadmap | `906ac525b30a8a994d88163d1c9e00f273221e25fc18639652df569d06da6334` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
 | C1-I04 module | `1b53fe277c18bb9d82277033581c747d277a7666b64f8139e78dcf499fe38280` |
 | C1-I05 ledger schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
-| C1-I06 status vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
+| C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
 | `Test-AssetCorpusContract.ps1` | `2202dfb32738eeb1397968e7d33ce6a91c1c1ae9cb1d25b218e0d09274e73f28` |
 | `Test-SourceCorpusGate.ps1` | `0311107a5e099d9f74ebe8ec776d916c4139cbbae43fcdfe31875cf85af136c5` |
 | `Test-SourceCorpusSnapshotFunctions.ps1` | `c7109a113685aa57a6c643a8524080d7a76a58d44a8a715f434c7b849517e1bb` |
 | `Test-SourceCorpusCatalog.ps1` | `4907c69334ead448056fb99ad24a3bb9b75422ae94ed28f0c85231a9115a8c05` |
 | `Test-SourceCorpusRunnerPolicy.ps1` | `3b6e13205c6dda7e2d4488a6dbba9ff06d85c58ce0e9830a291caff126107bc4` |
 | `Test-SourceCorpusC0Compatibility.ps1` | `4deaed14c2a58aed63189e0f0c7e3e2e68e05b5aebdc8806ac5a06c149cf61fd` |
+| `Test-SourceCorpusPersonalLocalModePolicy.ps1` | `4db581ad82f3f5b3afcf1984a070295ca6be292dad1ecf2eba3871ffc085cf10` |
 
-This plan's identity is its repository-relative path plus the exact future containing commit. R7.4 and PB-I01 must bind that pushed commit; this file cannot predeclare its own containing commit.
+This plan's own identity is its path plus containing commit; it cannot predeclare its own hash. R7.4 validates the final committed tree.
 
-Protected repository invariant:
+Protected status must equal exactly two untracked rows with hashes:
 
-| Path | Required SHA-256 |
-|---|---|
-| `AGENTS.md` | `397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d` |
-| `docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md` | `11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b` |
+- `AGENTS.md`: `397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d`;
+- `docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md`: `11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b`.
 
-At R8.1 start and end, `git status --short` must equal exactly:
+## Registry, Partition, And Failure References
 
-```text
-?? AGENTS.md
-?? docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md
-```
+- **PB-I01:** in-memory/redacted PersonalLocalMode derived state; no operator identity or approval timestamp.
+- **PB-I02:** current package bytes/containing HEAD.
+- **C1-I01/C1-I02:** locally parsed manifest and baseline state.
+- **C1-I03 through C1-I06:** automatically hashed tool/schema inputs.
+- **C1-T01/C1-O01/C1-O02:** must remain absent throughout R8.1.
+- **PB-SP01:** six groups; require `6 = 6 Passed + 0 Failed`.
+- **PB-SP02:** manifest source set; require all ApprovedAvailable.
+- **PB-SP03/PB-SP05:** not evaluated beyond metadata/baseline declaration in R8.1.
+- **PB-SP04:** require `2 = 0 ValidatedDiagnostic + 2 Suppressed + 0 Quarantined`.
+- **PB-FT01 through PB-FT12:** use the package table; a failed/stale group Stops and cannot be waived.
 
-Require `protectedStatusEntryCount=2`, `protectedHashMismatchCount=0`, and `unexpectedStatusEntryCount=0`. Neither protected file is an input, output, evidence artifact, staging candidate, or commit candidate.
+## Exact Automatic Derivation
 
-## Exact R8.1 File And Data Scope
+R8.1 derives:
 
-### P0 plan creation
+1. `derivedHead` and branch from Git; HEAD must equal upstream and index must be empty.
+2. `derivedToolHashMismatchCount` from current versions and registered bytes.
+3. `derivedManifestSourceSet` from strict C1-I01 parsing, portable IDs/kinds, local availability, complete boundary inclusion, and no network/runtime source.
+4. `derivedBaselineState` as `FirstCaptureNoBaseline` or validated `ApprovedBaselinePresent`.
+5. `derivedOutputBoundaryState` from fixed-root/staging absence and reparse-safe ancestors.
+6. `derivedEstimatedOutputBytes` using bounded read-only file metadata count/size, without opening or hashing source files.
+7. `derivedRequiredFreeSpaceBytes=max(1073741824,2*derivedEstimatedOutputBytes)` and current available output-volume space.
+8. all safety flags, exact command identity, allowed foreground process, and no-retry/downstream denials.
 
-Create, stage, commit, and push only:
-
-- `docs/superpowers/plans/2026-07-17-stella-sora-r8-c1-snapshot-execution-task.md`
-
-P0 commit message:
-
-```text
-docs: add R8 C1 snapshot preflight task
-```
-
-### R8.1 repository reads
-
-- the authority and frozen repository inputs listed above;
-- Git metadata needed to prove branch, HEAD, upstream, index, and status identity;
-- the two protected paths only for existence and SHA-256 checks;
-- the canonical output/staging ancestor chain only for existence, volume, ownership, and reparse-point checks.
-
-### R8.1 machine-local reads after R7.5 only
-
-- **PB-I01:** exact external approval record identity and PB-A01 through PB-A12 values;
-- **C1-I01:** runtime-only manifest identity and strict JSON shape; locally verify source IDs, selected source-kind set, absolute `rootPath` shape, availability, approved-boundary inclusion, and no network/runtime source without printing or copying paths or content;
-- **C1-I02:** either the approved immutable baseline identity and strict shape or the explicit state `FirstCaptureNoBaseline`.
-
-R8.1 may inspect path metadata needed for availability and boundary checks. It must not enumerate, read, hash, copy, transform, or record any real source file. Expanded manifest paths, `rootPath` values, source fingerprints, user/host/account/volume identifiers, and unrestricted logs remain machine-local and must not appear in Git, screenshots, shared logs, or portable evidence.
-
-### R8.1 writes, staging, commit, and push
-
-None. R8.1 emits a redacted result in the task response only. It creates no repository file, machine-local snapshot, output root, staging directory, baseline, or approval record.
-
-## Central Registry References
-
-### Artifact Registry
-
-- **PB-I01:** external exact approval record; all twelve PB-A rows must be Confirmed against the exact execution HEAD before C1-I01 is opened.
-- **PB-I02:** the committed authorization package; its containing execution HEAD must match PB-I01.
-- **C1-I01:** runtime-only manifest with top level exactly `schemaVersion`, `sources`, version `1.0.0`, and source rows exactly `sourceId`, `sourceKind`, `rootPath`.
-- **C1-I02:** optional machine-local immutable baseline with top level exactly `schemaVersion`, `inputFingerprint`, `sources`, version `1.0.0`, and source rows exactly `sourceId`, `sourceKind`, `rootFingerprint`.
-- **C1-I03 through C1-I06:** exact runner, module, ledger schema, and vocabulary bytes frozen above.
-- **C1-T01:** same-volume `.c1-staging-<32 lowercase hex GUID>`; must be absent before R8.1 and is not created here.
-- **C1-O01/C1-O02:** exact future canonical ledger and summary; both must be absent before R8.1 and remain absent afterward.
-- **C1-E01:** future redacted execution handoff; not created by preflight.
-
-No Registry row is created or mutated by R8.1.
-
-### Subject/Partition Registry
-
-- **PB-SP01:** require `12 = 12 Confirmed + 0 Pending + 0 Rejected` before opening C1-I01.
-- **PB-SP02:** every C1-I01 source row partitions into ApprovedAvailable or InvalidOrUnavailable; require `manifestSourceCount = approvedAvailableCount + invalidOrUnavailableCount` and `invalidOrUnavailableCount=0` without exposing identities or paths in portable evidence.
-- **PB-SP03:** remains unevaluated because R8.1 does not enumerate source files.
-- **PB-SP04:** before the LO, require `2 = 0 ValidatedDiagnostic + 2 Suppressed + 0 Quarantined`; C1-O01 and C1-O02 are absent.
-- **PB-SP05:** record only the approved declared state `FirstCaptureNoBaseline` or `ApprovedBaselinePresent`; the actual one-capture partition remains unevaluated until R8.2.
-
-Approved source-kind vocabulary is exactly `PcInstall`, `PcPatchOrCache`, `AndroidApk`, and `AndroidDataOrCache`. PB-I01 must freeze the exact selected subset and stable source-ID set. A locally available approved-boundary root may not be silently omitted.
-
-### Failure Transition Table
-
-- **PB-FT01:** any Pending/Rejected/missing/ambiguous PB-A row; Stop before C1-I01 access.
-- **PB-FT02:** branch, HEAD/upstream, protected status, version, hash, plan/package identity, or approval binding mismatch.
-- **PB-FT03:** manifest missing, malformed, unapproved, or leaking machine-local values.
-- **PB-FT04:** unavailable root, duplicate/case-unstable identity, unapproved kind, reparse point, symlink, junction, boundary violation, or incomplete approved set.
-- **PB-FT07:** pre-existing canonical output, unknown staging residue, invalid/absent budget, insufficient free space, or unapproved path.
-- **PB-FT08:** reserved for interruption/publication state during the later LO; any pre-existing ambiguous state blocks R8.1.
-- **PB-FT12:** unexpected process/network action, source content access, extraction, decoding, Unity, import, publication, or unauthorized write.
-
-PB-FT05, PB-FT06, PB-FT09, PB-FT10, and PB-FT11 require a capture/output/comparison subject and therefore cannot become GREEN or be normalized during R8.1. Any evidence suggesting such a subject already exists is unexpected state and Stop.
-
-## Frozen Operation, Output, Budget, And LO Boundary
-
-Operation identity:
-
-```text
-C1.SourceCorpusSnapshot.Refresh
-```
-
-Canonical output root:
+The fixed output root is:
 
 ```text
 C:\SoftWork\WT\StellaGaia\019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe\Extracted\Threads\019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe\C1
 ```
 
-The output root and every `.c1-staging-*` sibling must be absent. Existing ancestors must be owned, expected, and free of reparse points, symlinks, or junctions. Unknown/pre-existing state is preserved and classified PB-FT07; R8.1 has no cleanup authority.
+## RED And GREEN
 
-Budget formula:
+RED includes any HEAD/status/hash/version mismatch; malformed/unavailable/incomplete manifest set; unsafe path; invalid baseline; pre-existing output/staging; insufficient space; metadata sizing timeout; sensitive leak; unexpected process/write/network action; or weakened safety flag.
 
-```text
-requiredFreeSpaceBytes = max(1073741824, 2 * approvedCombinedStagedArtifactEstimateBytes)
-```
-
-PB-A06 must supply a positive integer estimate. PB-A07 must prove available output-volume free space meets the formula. R8.1 may not infer, lower, or replace the estimate.
-
-Guarded command, review-only during R8.1:
-
-```powershell
-$threadId = '019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe'
-$outputRoot = "C:\SoftWork\WT\StellaGaia\$threadId\Extracted\Threads\$threadId\C1"
-$sourceRootManifestPath = Read-Host 'Approved absolute path to the machine-local source-root manifest'
-pwsh -NoProfile -File .\Tools\AssetImport\New-StellaSoraSourceCorpusSnapshot.ps1 -SourceRootManifestPath $sourceRootManifestPath -OutputRoot $outputRoot -ThreadId $threadId -RefreshSnapshot
-```
-
-Do not run that block in R8.1. No wrapper, alternate path/flag, callback, background launcher, watchdog, transcript, extra command, or retry is permitted.
-
-Before LO R8.C1-1 can receive a separate execution authorization, one external LO record must freeze:
-
-1. exactly one operation identity and one attempt;
-2. exact execution HEAD, working directory, runner/module/schema/vocabulary/preflight-gate bytes and versions;
-3. PB-I01, C1-I01, C1-I02 state/identity, approved source-kind/source-ID sets, and canonical read/write boundaries;
-4. a positive integer `maximumRunDurationMinutes`, execution window, and trusted operator with foreground cancellation authority;
-5. the positive integer approved estimate, required-free-space result, and maximum retained-output/storage budget;
-6. allowed process set: one foreground `pwsh` runner and only the registered runner's bounded child-process contract;
-7. progress/checkpoint behavior, Stop conditions, no retry, staging `finally` behavior, rollback, quarantine, retention, and unknown-state preservation;
-8. expected C1-O01/C1-O02/C1-E01 classes and the sensitive-data leak policy.
-
-If any LO field is absent or changes after R8.1, `ReadyForOneC1Attempt` is stale and the LO remains unauthorized.
-
-## RED And Same-Task GREEN
-
-### RED
-
-- R7.4 is not GREEN or PB-I01 is absent, stale, mismatched, or not 12/12 Confirmed;
-- execution authorization does not bind this plan's exact containing HEAD;
-- any frozen repository byte/version or protected invariant differs;
-- any of the six lightweight gates fails or creates an output;
-- C1-I01/C1-I02 state, selected kinds/IDs, availability, boundary, or sensitive-data handling fails;
-- canonical output/staging state exists or the budget/free-space/reparse policy fails;
-- the LO record is incomplete, ambiguous, or permits more than one operation/attempt;
-- any real source file is enumerated/read/hashed or any unexpected process/write/network action occurs.
-
-On RED, emit the owning PB-FT ID, preserve existing state, make no repair, cleanup, retry, approval substitution, or command change, and stop.
-
-### Same-Task GREEN
+GREEN is exactly:
 
 ```text
-R7_4=ReadyForExactApproval
-PB-SP01=12=12 Confirmed+0 Pending+0 Rejected
-PB-SP02=manifestSourceCount=approvedAvailableCount+0 InvalidOrUnavailable
-PB-SP03=Unevaluated
+mode=PersonalLocalMode
+derivedHead=<current HEAD equal to upstream>
+derivedToolHashMismatchCount=0
+derivedManifestSourceSet=<redacted nonempty portable IDs/kinds>
+derivedBaselineState=<FirstCaptureNoBaseline|ApprovedBaselinePresent>
+derivedOutputBoundaryState=AbsentAndSafe
+derivedRequiredFreeSpaceBytes=<positive integer>
+availableFreeSpaceSatisfied=true
+PB-SP01=6=6 Passed+0 Failed
 PB-SP04=2=0 ValidatedDiagnostic+2 Suppressed+0 Quarantined
-PB-SP05=DeclaredOnly; capture comparison Unevaluated
-protectedStatusEntryCount=2
-protectedHashMismatchCount=0
-unexpectedStatusEntryCount=0
-lightweightGatePassedCount=6
-canonicalOutputExists=false
-stagingResidueCount=0
-requiredFreeSpaceSatisfied=true
-LORecordComplete=true
-realSourceFileAccessCount=0
+sourceContentReadCount=0
 createdOutputCount=0
 guardedRunnerStartCount=0
-realSourceProcessCount=0
-ReadyForOneC1Attempt=true
-phaseBExecuted=false
+sourceReadOnly=true
+fixedOutputRoot=true
+attemptCount=1
+foregroundCancellationAuthority=true
+retryAllowed=false
+C2Authorized=false
+UnityAuthorized=false
+extractionAuthorized=false
+importAuthorized=false
+result=ReadyForSinglePersonalLocalRun
 ```
 
-## Task R8.1 - Exact Preflight For One C1 Operation
+## Task R8.1 - Automatic Preflight
 
-**Duration:** 23 minutes target; stop no later than 30 minutes.
+**Duration:** 24 minutes target; stop no later than 30 minutes.
 
-### Step 1 - Bind execution authority and repository identity - 3 minutes
+### Step 1 - Derive repository, protected, version, and hash state - 4 minutes
 
-Require an exact R8.1 execution authorization naming this plan's pushed containing HEAD. Verify branch, HEAD/upstream equality, empty index, exact protected status set/hashes, exact authority bytes/versions, and absent forbidden paths. Require R7.4 GREEN evidence for the same HEAD.
+Run Git/version/hash checks and require the exact frozen values and protected status. No user transcription.
 
-### Step 2 - Validate PB-I01 and six lightweight gates - 4 minutes
+### Step 2 - Run seven lightweight gates - 4 minutes
 
-Without opening C1-I01, require PB-I01 identity and `PB-SP01: 12=12+0+0` against the execution HEAD. Run exactly:
+Run exactly the seven commands listed in the runbook. Require Passed results and no repository output/residue.
 
-```powershell
-pwsh -NoProfile -File .\Tools\AssetImport\Test-AssetCorpusContract.ps1
-pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusGate.ps1
-pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusSnapshotFunctions.ps1 -Case All
-pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusCatalog.ps1 -Case All
-pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Case All
-pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case All
+### Step 3 - Derive manifest shape and source set - 5 minutes
+
+Strictly parse C1-I01 locally, validate portable ID/kind set, availability, complete local boundary, and safe path chains. Do not print paths or read source contents.
+
+### Step 4 - Derive baseline, output boundary, and disk state - 5 minutes
+
+Validate baseline state, fixed output/staging absence, ancestor safety, bounded metadata-only size estimate, formula, and available space. Stop on timeout.
+
+### Step 5 - Derive process and safety state - 3 minutes
+
+Require one cancellable foreground attempt, exact command, source read-only, no retry, and all downstream denials.
+
+### Step 6 - Emit redacted result and stop - 3 minutes
+
+Recheck HEAD/status/output absence, emit RED or `ReadyForSinglePersonalLocalRun`, and stop. Do not request confirmation inside R8.1 execution until the final result is visible.
+
+## Single Confirmation And LO Boundary
+
+After GREEN, the only accepted confirmation is:
+
+```text
+ConfirmPersonalLocalRun
 ```
 
-Require six Passed/zero-issue results, `createdOutputCount=0`, compatibility `childProcessCount=1`, and `heavyChildProcessCount=0`. These are synthetic/fixture gates, not real-source validation.
+It has `PersonalLocalModeConfirmationCount=1`, no form fields, and applies only to the displayed state and next attempt. Immediately recheck HEAD/status/output/disk/safety. If unchanged, start the exact guarded command from the runbook as one foreground process. The confirmation is consumed at start. No automatic retry.
 
-### Step 3 - Validate runtime identities and approved boundary - 5 minutes
+## Verification And Stop
 
-Only after Step 2 GREEN, inspect C1-I01 locally without printing/copying path or contents. Validate strict shape/version, unique and case-stable source IDs, approved source-kind subset, exact PB-I01 identity sets, absolute available roots, complete approved-boundary inclusion, no network/runtime source, and safe path chains. Validate C1-I02 state/identity and strict shape when present. Do not enumerate or read source files.
-
-### Step 4 - Validate output, storage, and sensitive-path safety - 4 minutes
-
-Require canonical output and staging siblings absent, ancestors safe and non-reparse, approved estimate a positive integer, free space at least the frozen formula, and no unknown residue. Confirm trusted console/logging/transcription/history policy prevents portable disclosure. Do not create or clean any path.
-
-### Step 5 - Freeze command, process, time, cancellation, and retention fields - 4 minutes
-
-Compare the review-only guarded command verbatim. Validate all eight LO-record groups, one attempt, one foreground process, positive duration/storage bounds, operator-controlled cancellation, no retry, rollback/quarantine/retention ownership, and output/leak policy. Do not start the command.
-
-### Step 6 - Recheck end identity, emit result, and stop - 3 minutes
-
-Recheck HEAD/upstream, empty index, exact protected status/hashes, absent outputs/staging/forbidden paths, zero real-source access, zero guarded-runner/real-source processes, and unchanged approval/manifest/baseline/LO identities. Emit `ReadyForOneC1Attempt` or one typed Stop and stop.
-
-## Verification, Evidence, Staging, And Stop
-
-- **Focused verification:** exact Git/hash/version/status checks, six listed lightweight gates, local strict PB-I01/C1-I01/C1-I02 identity/shape checks, boundary/reparse/output/staging existence checks, free-space formula, and LO-record completeness review.
-- **Necessary regression:** the six lightweight gates only. Do not rerun the fresh R6 completion audit because it is equivalent historical product evidence and would not validate the new local approval state.
-- **Portable evidence:** containing HEAD, frozen hashes/versions, PB-A row statuses, selected source kinds and source IDs only when approved for redacted evidence, count equations, budget result without volume identity, command identity with expanded manifest path redacted, LO field presence, Stop/Ready result, and zero-operation assertions.
-- **Forbidden portable evidence:** manifest/root paths, source fingerprints before capture, user/host/account/volume identifiers, local tool-install paths, unrestricted stdout/stderr, credentials, or record contents.
-- **Protected-input check:** both protected paths/hashes and exact two-row status set at Task start and end.
-- **Forbidden-path check:** `Extracted`, `Assets/StellaGaia/Imported`, `Library`, `Temp`, `Obj`, `Build`, `Builds`, `Logs`, and `UserSettings` are absent at R8.1 start and end.
-- **R8.1 staging/commit/push list:** empty.
-- **R8.1 repository write count:** zero.
-- **R8.1 Stop checkpoint:** always stop after Step 6. Never continue into LO R8.C1-1 in the same Task or turn.
-- **Next action after P0 plan creation:** request P0 authorization for a separate R7.4 post-change revalidation child plan; do not execute R8.1 yet.
-- **Next action after R8.1 RED:** correction/reapproval at the owning R7/PB-FT gate; no automatic retry.
-- **Next action after R8.1 GREEN:** wait for a separate exact LO R8.C1-1 execution authorization binding the unchanged HEAD, PB-I01 identity, Ready result, complete LO record, and one-attempt command. R8.1 GREEN alone does not execute Phase B.
+- focused verification: current hashes/state, seven gates, strict local shape/set checks, metadata-only budget, and safety vector;
+- R8.1 staging/commit/push list: empty;
+- protected/forbidden checks: exact protected pair; `Extracted`, imported assets, Unity/cache/build/log paths absent;
+- Stop after R8.1 result; never start LO in the same ordinary Task;
+- GREEN next action: wait for one `ConfirmPersonalLocalRun`;
+- LO completion next action: separately planned R8.2, never C2.
