@@ -7,7 +7,7 @@ function Get-C6Rows([object]$Artifact, [string]$Property) {
     if ($null -eq $Artifact -or $null -eq $Artifact.PSObject.Properties[$Property]) {
         return $null
     }
-    @($Artifact.$Property)
+    return ,([object[]]@($Artifact.$Property))
 }
 
 function Get-C6OrdinalValues([object[]]$Values) {
@@ -143,7 +143,7 @@ function Test-C6ChildRowConservation {
     $suitabilityAssessments = Get-C6Rows $EvidenceAssessment 'capabilitySuitabilityAssessments'
 
     $familyCount = if ($null -ne $families) { $families.Count } else { 0 }
-    $assignedMembers = if ($null -ne $memberRows) { @($memberRows | Where-Object parentStatus -CEQ 'AssignedFamilyMember') } else { @() }
+    $assignedMembers = @(if ($null -ne $memberRows) { $memberRows | Where-Object parentStatus -CEQ 'AssignedFamilyMember' })
     $assignedMemberCount = $assignedMembers.Count
     $riskRequirementCount = if ($null -ne $riskRequirements) { $riskRequirements.Count } else { 0 }
     $suitabilityRequirementCount = if ($null -ne $suitabilityRequirements) { $suitabilityRequirements.Count } else { 0 }
@@ -166,7 +166,7 @@ function Test-C6ChildRowConservation {
     $familyById = New-C6Map $families 'familyId'
     $staticFamilyById = New-C6Map $staticFamilies 'familyId'
     if ($null -eq $familyById -or $null -eq $staticFamilyById -or
-        -not (Test-C6ExactSet @($families.familyId) @($staticFamilies.familyId))) {
+        -not (Test-C6ExactSet @($families | ForEach-Object familyId) @($staticFamilies | ForEach-Object familyId))) {
         return Fail-C6Child 'LF-16' 'ConservationCheck' 'C6:FamilyUniverse'
     }
 
@@ -177,7 +177,7 @@ function Test-C6ChildRowConservation {
     $staticResultById = New-C6Map $staticMembers 'staticResultId'
     if ($null -eq $memberById -or $null -eq $memberRecordById -or $null -eq $assignedById -or
         $null -eq $staticMemberById -or $null -eq $staticResultById -or
-        -not (Test-C6ExactSet @($assignedMembers.assetObjectId) @($staticMembers.assetObjectId))) {
+        -not (Test-C6ExactSet @($assignedMembers | ForEach-Object assetObjectId) @($staticMembers | ForEach-Object assetObjectId))) {
         return Fail-C6Child 'LF-16' 'ConservationCheck' 'C6:MemberUniverse'
     }
 
@@ -227,7 +227,7 @@ function Test-C6ChildRowConservation {
     $riskAssessmentById = New-C6Map $riskAssessments 'assessmentId'
     $riskAssessmentByRequirement = New-C6Map $riskAssessments 'requirementId'
     if ($null -eq $riskRequirementById -or $null -eq $riskAssessmentById -or $null -eq $riskAssessmentByRequirement -or
-        -not (Test-C6ExactSet @($riskRequirements.requirementId) @($riskAssessments.requirementId))) {
+        -not (Test-C6ExactSet @($riskRequirements | ForEach-Object requirementId) @($riskAssessments | ForEach-Object requirementId))) {
         return Fail-C6Child 'LF-16' 'ConservationCheck' 'C6:RiskAssessmentUniverse'
     }
     foreach ($requirement in $riskRequirements) {
@@ -263,7 +263,7 @@ function Test-C6ChildRowConservation {
     $suitabilityAssessmentById = New-C6Map $suitabilityAssessments 'suitabilityAssessmentId'
     $suitabilityAssessmentByRequirement = New-C6Map $suitabilityAssessments 'suitabilityRequirementId'
     if ($null -eq $suitabilityRequirementById -or $null -eq $suitabilityAssessmentById -or $null -eq $suitabilityAssessmentByRequirement -or
-        -not (Test-C6ExactSet @($suitabilityRequirements.suitabilityRequirementId) @($suitabilityAssessments.suitabilityRequirementId))) {
+        -not (Test-C6ExactSet @($suitabilityRequirements | ForEach-Object suitabilityRequirementId) @($suitabilityAssessments | ForEach-Object suitabilityRequirementId))) {
         return Fail-C6Child 'LF-18' 'ConservationCheck' 'C6:SuitabilityAssessmentUniverse'
     }
     foreach ($requirement in $suitabilityRequirements) {
@@ -299,10 +299,10 @@ function Test-C6ChildRowConservation {
 
     New-C6ChildResult 'Passed' $null $null $null $null `
         $familyCount $assignedMemberCount $riskRequirementCount $suitabilityRequirementCount `
-        @(Get-C6OrdinalValues @($families.familyId)) `
-        @(Get-C6OrdinalValues @($assignedMembers.assetObjectId)) `
-        @(Get-C6OrdinalValues @($riskRequirements.requirementId)) `
-        @(Get-C6OrdinalValues @($suitabilityRequirements.suitabilityRequirementId))
+        @(Get-C6OrdinalValues @($families | ForEach-Object familyId)) `
+        @(Get-C6OrdinalValues @($assignedMembers | ForEach-Object assetObjectId)) `
+        @(Get-C6OrdinalValues @($riskRequirements | ForEach-Object requirementId)) `
+        @(Get-C6OrdinalValues @($suitabilityRequirements | ForEach-Object suitabilityRequirementId))
 }
 
 Export-ModuleMember -Function Test-C6ChildRowConservation

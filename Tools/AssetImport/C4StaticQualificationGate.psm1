@@ -225,7 +225,7 @@ function Invoke-C4StaticQualificationKernel {
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
         [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$MemberStaticStatuses,
-        [Parameter(Mandatory)][object[]]$StaticObservationRows
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$StaticObservationRows
     )
 
     $issues = [Collections.Generic.List[string]]::new()
@@ -468,7 +468,8 @@ function Invoke-C4StaticQualificationKernel {
         })
     }
 
-    $assignedBytes = [long](($memberResults.serializedSizeBytes | Measure-Object -Sum).Sum)
+    [long]$assignedBytes = 0
+    foreach ($memberResult in $memberResults) { $assignedBytes += [long]$memberResult.serializedSizeBytes }
     [pscustomobject][ordered]@{
         status = 'Passed'; issues = @()
         assignedMemberCount = $memberResults.Count; assignedMemberBytes = $assignedBytes
@@ -530,7 +531,7 @@ function Invoke-C4StaticQualificationGate {
         [Parameter(Mandatory)][object]$LanePolicyRegistry,
         [Parameter(Mandatory)][string]$LanePolicyBytes,
         [Parameter(Mandatory)][string[]]$MemberStaticStatuses,
-        [Parameter(Mandatory)][object[]]$StaticObservationRows,
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$StaticObservationRows,
         [Parameter(Mandatory)][object[]]$ExecutionArtifacts,
         [Parameter(Mandatory)][object]$Stage
     )
@@ -552,8 +553,9 @@ function Invoke-C4StaticQualificationGate {
             memberResults=@();familyResults=@();checkResults=@()
         }
     }
+    [long]$assignedInputBytes=0;foreach($assignedMember in $assignedMembers){$assignedInputBytes+=[long]$assignedMember.serializedSizeBytes}
     $coverage = [ordered]@{
-        familyCount=@($FamilyRegistry.families).Count;memberCount=$assignedMembers.Count;memberBytes=[long](($assignedMembers.serializedSizeBytes|Measure-Object -Sum).Sum)
+        familyCount=@($FamilyRegistry.families).Count;memberCount=$assignedMembers.Count;memberBytes=$assignedInputBytes
         staticPassedCount=$kernel.staticPassedCount;staticPassedBytes=$kernel.staticPassedBytes;staticFailedCount=$kernel.staticFailedCount;staticFailedBytes=$kernel.staticFailedBytes;uncheckedCount=$kernel.uncheckedCount;uncheckedBytes=$kernel.uncheckedBytes
         requiredCheckCount=$kernel.requiredCheckCount;passedCheckCount=$kernel.passedCheckCount;failedCheckCount=$kernel.failedCheckCount;uncheckedCheckCount=$kernel.uncheckedCheckCount
     }

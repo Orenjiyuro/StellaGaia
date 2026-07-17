@@ -340,7 +340,7 @@ function Invoke-C3FamilyMembershipKernel {
             if ($policies.Count -eq 1 -and @($policies[0].familyKinds).Count -eq 1) {
                 $policy = $policies[0]; $familyKind = $policy.familyKinds[0]; $keyFacts = [Collections.Generic.List[object]]::new(); $keyValid = $true
                 foreach ($dimension in @($familyKind.keyDimensionIds)) {
-                    $matches = if ($factsByObject.ContainsKey($objectId)) { @($factsByObject[$objectId] | Where-Object factKind -CEQ $dimension) } else { @() }
+                    $matches = @(if ($factsByObject.ContainsKey($objectId)) { $factsByObject[$objectId] | Where-Object factKind -CEQ $dimension })
                     $definition = @($policy.factDefinitions | Where-Object factKind -CEQ $dimension)
                     if ($matches.Count -ne 1 -or $definition.Count -ne 1 -or ($matches[0].factStatus -cne 'Known' -and -not ($matches[0].factStatus -ceq 'NotApplicable' -and $definition[0].allowNotApplicable -eq $true))) { $keyValid=$false; break }
                     $keyFacts.Add($matches[0])
@@ -419,7 +419,8 @@ function Invoke-C3FamilyMembershipKernel {
     }
     $references.Sort([Comparison[object]]{param($a,$b)$script:C3Ordinal.Compare("$($a.fromAssetObjectId)|$($a.toAssetObjectId)|$($a.referenceKind)","$($b.fromAssetObjectId)|$($b.toAssetObjectId)|$($b.referenceKind)")})
     $assigned=@($memberRows|Where-Object parentStatus -CEQ AssignedFamilyMember).Count;$retained=@($memberRows|Where-Object parentStatus -CEQ RetainedForDiagnosis).Count;$configuration=@($memberRows|Where-Object parentStatus -CEQ ConfigurationOnly).Count
-    if ($DispatchRows.Count -ne $assigned+$retained+$configuration -or $assigned -ne (($families.memberCount|Measure-Object -Sum).Sum)) { $issues.Add('C3 family membership conservation failed.') }
+    [long]$familyMemberCount=0;foreach($family in $families){$familyMemberCount+=[long]$family.memberCount}
+    if ($DispatchRows.Count -ne $assigned+$retained+$configuration -or $assigned -ne $familyMemberCount) { $issues.Add('C3 family membership conservation failed.') }
     [pscustomobject][ordered]@{status=if($issues.Count){'Failed'}else{'Passed'};issues=$issues.ToArray();families=$families.ToArray();memberRows=$memberRows.ToArray();crossLaneReferences=$references.ToArray();dispatchEligibleObjectCount=$DispatchRows.Count;assignedFamilyMemberCount=$assigned;retainedForDiagnosisObjectCount=$retained;configurationOnlyObjectCount=$configuration}
 }
 

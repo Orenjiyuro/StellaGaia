@@ -4,7 +4,7 @@ $script:Utf8 = [Text.UTF8Encoding]::new($false)
 $script:Ordinal = [StringComparer]::Ordinal
 $script:Registry = @(
     [pscustomobject][ordered]@{ artifactId = 'G5-I01'; path = 'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json' }
-    [pscustomobject][ordered]@{ artifactId = 'G5-I02'; path = 'Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json' }
+    [pscustomobject][ordered]@{ artifactId = 'G5-I02'; path = 'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json' }
     [pscustomobject][ordered]@{ artifactId = 'G5-I03'; path = 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json' }
     [pscustomobject][ordered]@{ artifactId = 'G5-I04'; path = 'docs/asset-migration/schemas/root-gate-summary.schema.json' }
 )

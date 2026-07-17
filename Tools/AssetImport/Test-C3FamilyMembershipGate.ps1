@@ -217,6 +217,14 @@ $missingSupportFacts = @(Clone-Value $facts | Where-Object { -not ($_.assetObjec
 $missingSupportResult = Run-Kernel @($dispatchRows) $missingSupportFacts
 if ($missingSupportResult.status -cne 'Passed' -or $missingSupportResult.assignedFamilyMemberCount -ne 4 -or $missingSupportResult.retainedForDiagnosisObjectCount -ne 2 -or @($missingSupportResult.memberRows | Where-Object assetObjectId -ceq $objects.Audio)[0].parentStatus -cne 'RetainedForDiagnosis') { throw 'LF-04 missing required support fact behavior failed.' }
 
+$missingKeyFacts = @(Clone-Value $facts | Where-Object { -not ($_.assetObjectId -ceq $objects.UI -and $_.factKind -ceq 'AtlasId') })
+$missingKeyResult = Run-Kernel @($dispatchRows) $missingKeyFacts
+if ($missingKeyResult.status -cne 'Passed' -or $missingKeyResult.assignedFamilyMemberCount -ne 4 -or $missingKeyResult.retainedForDiagnosisObjectCount -ne 2 -or @($missingKeyResult.memberRows | Where-Object assetObjectId -ceq $objects.UI)[0].parentStatus -cne 'RetainedForDiagnosis') { throw 'LF-04 wholly missing family-key fact behavior failed.' }
+
+$noFamilyFacts = @(Clone-Value $facts | Where-Object factKind -CEQ 'PlatformVariant')
+$noFamilyResult = Run-Kernel @($dispatchRows) $noFamilyFacts
+if ($noFamilyResult.status -cne 'Passed' -or $noFamilyResult.assignedFamilyMemberCount -ne 0 -or $noFamilyResult.retainedForDiagnosisObjectCount -ne 6 -or $noFamilyResult.configurationOnlyObjectCount -ne 1 -or $noFamilyResult.families.Count -ne 0) { throw 'C3 zero-family conservation behavior failed.' }
+
 $invalidZeroDependencyRows=Clone-Value $dispatchRows
 $invalidAudio=@($invalidZeroDependencyRows|Where-Object assetObjectId -CEQ $objects.Audio)[0]
 $invalidAudio.memberSelectorInputs=@($invalidAudio.memberSelectorInputs|Where-Object kind -CNE ToolObservation)

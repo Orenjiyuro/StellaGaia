@@ -182,7 +182,10 @@ function Invoke-C5RequirementEvidenceKernel {
     }
 
     $orderedRequirements=@(Get-C5OrdinalRows @($requirements) requirementId);$orderedAssessments=@(Get-C5OrdinalRows @($assessments) assessmentId);$orderedSuitability=@(Get-C5OrdinalRows @($suitabilityRequirements) suitabilityRequirementId);$orderedSuitabilityAssessments=@(Get-C5OrdinalRows @($suitabilityAssessments) suitabilityAssessmentId)
-    $knownRequirementIds=@($orderedRequirements.requirementId)+@($orderedSuitability.suitabilityRequirementId)
+    $knownRequirementIds=@(
+        $orderedRequirements | ForEach-Object requirementId
+        $orderedSuitability | ForEach-Object suitabilityRequirementId
+    )
     foreach($package in $EvidencePackages){if($package.requirementId-cnotin$knownRequirementIds){Add-C5Issue $issues 'Evidence package does not resolve to a C5 requirement.'}}
     [pscustomobject][ordered]@{
         status=if($issues.Count){'Failed'}else{'Passed'};issues=@(Get-C5OrdinalValues @($issues) -Unique);policySetFingerprint=$policySetFingerprint;decisionPolicyFingerprint=$decisionPolicyFingerprint;inputStaticFingerprint=$InputStaticFingerprint

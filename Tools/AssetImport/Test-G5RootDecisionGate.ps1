@@ -43,7 +43,8 @@ function Clone-Bytes([byte[]] $Bytes) {
 
 $paths = [ordered]@{
     C1 = 'Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json'
-    C2 = 'Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json'
+    C2 = 'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json'
+    C2Fixture = 'Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json'
     C6 = 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json'
     Schema = 'docs/asset-migration/schemas/root-gate-summary.schema.json'
     Output = 'Tools/AssetImport/Fixtures/AssetCorpusContracts/valid-root-gate-summary.json'
@@ -54,7 +55,7 @@ $input = [pscustomobject][ordered]@{
     c1SummaryPath = $paths.C1
     c1SummaryBytes = Read-Bytes $paths.C1
     c2SummaryPath = $paths.C2
-    c2SummaryBytes = Read-Bytes $paths.C2
+    c2SummaryBytes = Read-Bytes $paths.C2Fixture
     c6HandoffPath = $paths.C6
     c6HandoffBytes = Read-Bytes $paths.C6
     rootSchemaPath = $paths.Schema
@@ -109,10 +110,10 @@ if ($rootText -cne $expectedText) {
 if ($passed.rootSummary.snapshotId -cne 'snapshot-pc-install-001' -or -not $passed.rootSummary.corpusSnapshotComplete.value) {
     throw 'G5 snapshot/corpus conclusion invalid.'
 }
-if ($passed.rootSummary.inputFingerprint -cne 'c2c39a3d8ad83dafadcb86418c65704c0cbccbfbc92e891565511b5bc31c5a95') {
+if ($passed.rootSummary.inputFingerprint -cne 'a5c14f0a88a9f868b236192d5cac6df4b58aad40819054aa4f71e158609b212d') {
     throw "G5 input fingerprint framing mismatch: $($passed.rootSummary.inputFingerprint)"
 }
-if (($passed.rootSummary.directGateSummaries.path -join ',') -cne 'Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json,Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json,Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json') {
+if (($passed.rootSummary.directGateSummaries.path -join ',') -cne 'Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json,Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json,Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json') {
     throw 'G5 direct summary Ordinal order invalid.'
 }
 if ($passed.rootSummary.familyConstructionCoverage.dispatchEligibleObjectCount -ne 7 -or $passed.rootSummary.stellaSora2AuthoringReady.value) {

@@ -2,7 +2,7 @@
   "schemaVersion": "2.0.0",
   "generatedAt": "2026-07-16T12:00:00Z",
   "snapshotId": "snapshot-pc-install-001",
-  "inputFingerprint": "c2c39a3d8ad83dafadcb86418c65704c0cbccbfbc92e891565511b5bc31c5a95",
+  "inputFingerprint": "a5c14f0a88a9f868b236192d5cac6df4b58aad40819054aa4f71e158609b212d",
   "toolVersions": [
     {
       "toolName": "g5-root-decision-gate",
@@ -11,12 +11,12 @@
   ],
   "directGateSummaries": [
     {
-      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
-      "sha256": "fadd41fd3bbb4143ebd41dfa3ca96c5e35dfe3fb855047e1219bda860b20e372"
+      "path": "Tools/AssetImport/Fixtures/DiscoveryGate/valid-discovery-summary.json",
+      "sha256": "c54f59198f17f35cb7ed16432e2786d9a5dcb4a87e1c42931ad49e125f5b83ab"
     },
     {
-      "path": "Tools/AssetImport/Fixtures/RootGate/valid-c2-discovery-summary.json",
-      "sha256": "c54f59198f17f35cb7ed16432e2786d9a5dcb4a87e1c42931ad49e125f5b83ab"
+      "path": "Tools/AssetImport/Fixtures/FamilyQualificationGate/valid-c3-c6-g5-handoff.json",
+      "sha256": "fadd41fd3bbb4143ebd41dfa3ca96c5e35dfe3fb855047e1219bda860b20e372"
     },
     {
       "path": "Tools/AssetImport/Fixtures/SourceCorpusGate/valid-source-corpus-summary.json",
