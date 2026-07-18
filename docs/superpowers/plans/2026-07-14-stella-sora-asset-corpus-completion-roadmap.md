@@ -8,6 +8,13 @@
 
 This override has priority over the completed historical Fast Feasibility Spike override and all R8-R13 work. It is the only active route until it reaches its terminal result.
 
+### Normative source, synchronization, and legacy-body rule
+
+- `NormativeSource=docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-completion-roadmap.md`. The CERG override in `docs/superpowers/plans/2026-07-17-stella-sora-phase-b-r7-r13-complete-execution.md` is a required mirror for discoverability and is not an independent authority.
+- Every CERG revision must modify the normative source first and update the mirror in the same commit. The UTF-8 text from this override heading through the line immediately before `## 2026-07-18 Fast Feasibility Spike Override` must be identical in both files. Any divergence sets `CERGOverrideSynchronized=false`, authorizes no Task or LO, and requires a docs-only correction.
+- All text below this override is retained historical context only. Every lower `Status`, `Current`, `Current Stop Checkpoint`, `Immediate Next Checkpoint`, `Authorized`, and `nextAction` statement—including the old FFS and R8-R13 route—is `SupersededHistoricalText` and grants no execution authority while CERG is active.
+- An executor must derive the current phase, budgets, authorization, and single next action only from this top override. It must not resume a lower legacy checkpoint even when that text calls itself current or approved.
+
 ### Historical Fast Feasibility Spike closure
 
 - The Fast Feasibility Spike is completed history: `ordinaryTaskUsed=3/3`; `spikeLOUsed=2/2`; `Character structural producer evidence=Demonstrated`; `Environment chain=NotDemonstrated`; `Audio producer evidence=Demonstrated`; `Overall=PartiallyFeasible`.
@@ -32,15 +39,16 @@ The old FFS, R8.3, R9-R13, complete C2/C3-C7, environment, audio, other characte
 
 - `ordinaryTaskBudget=5`; `LOBudget=3`.
 - After CERG-T0 completes: `ordinaryTaskUsed=1/5`; `LOUsed=0/3`.
+- Docs-only corrections required by total-control audit before CERG-T1 authorization remain part of `CERG-T0` and do not consume another route Task; after this correction the counters remain `ordinaryTaskUsed=1/5`, `LOUsed=0/3`.
 - Reaching either budget cap requires an immediate binary terminal result and stop. No unbounded tool rotation, candidate replacement, retry, or governance expansion is permitted.
 
 The only permitted sequence is:
 
 1. `CERG-T0` route reset.
-2. `CERG-T1` compare at most three candidates, lock exactly one character, and freeze its complete dependency/action/attack-FX universe.
+2. `CERG-T1` compare at most three candidates, lock exactly one character, freeze its exact pre-extraction universe, and freeze a closed discovery-obligation list for relationships not visible in authorized historical evidence.
 3. Exact human confirmation.
-4. `LO-CERG1` single-character dependency-closure extraction/staging.
-5. `CERG-T2` static closure acceptance and construction of the minimal Unity validation scene/automatic validator.
+4. `LO-CERG1` candidate-scoped dependency-closure extraction/staging that may resolve only the frozen discovery obligations.
+5. `CERG-T2` final exact-universe closure acceptance, visual-measurement contract freeze, and construction of the minimal Unity validation scene/automatic validator.
 6. Exact human confirmation.
 7. `LO-CERG2` single-thread Unity first import/run/capture.
 8. If all hard criteria are green, `CERG-T4` terminal acceptance. If and only if there is one clearly identified, fixed-scope problem repairable in one ordinary Task, run `CERG-T3` as the sole repair, obtain exact human confirmation, run `LO-CERG3` as the sole Unity revalidation, and then run `CERG-T4`.
@@ -51,11 +59,45 @@ An unrepairable problem, multiple non-closure problems, or any failure remaining
 
 - `CERG-T1` may compare at most three character families read-only and must select exactly one.
 - `char_14401` is the preferred first candidate because Mesh/Avatar/skeleton/clip relationship evidence exists, but no attack effect or complete action-set result may be presumed.
-- Before locking, the candidate must yield an exact universe covering model/SkinnedMesh, every required Material/Texture/Shader, skeleton/Avatar, the complete action clip/controller/override relationships, and every attack action's FX prefab/material/texture/shader/animation dependencies.
-- Completeness must come from authoritative controller, override, prefab, event, GUID, or equivalent reference relationships. Filename, same-directory location, a single-clip sample, and subjective similarity are forbidden completeness evidence.
-- After lock, the character may not be changed. If none of the at most three candidates can produce a frozen complete universe, CERG terminates `ProjectFailed` without extraction.
+- Before locking, the candidate must yield an exact pre-extraction universe covering every known model/SkinnedMesh, Material/Texture/Shader, skeleton/Avatar, action clip/controller/override, and attack-FX identity plus every unresolved relationship as one finite, identity-bearing discovery obligation. Unknown open-ended scanning is not a discovery obligation.
+- Final completeness must come from authoritative controller, override, prefab, event, GUID, serialized object, or equivalent ownership/reference relationships. Filename, same-directory location, a single-clip sample, and subjective similarity are forbidden completeness evidence.
+- After lock, the character may not be changed. If none of the at most three candidates has both an exact known universe and a finite candidate-scoped discovery-obligation list, CERG terminates `ProjectFailed` without extraction.
+- `LO-CERG1` may fill the frozen obligations but may not broaden the candidate, source boundary, relationship kinds, or selectors. Any newly encountered dependency must be attributable to a frozen authoritative edge and added to the same candidate closure; an unrelated family or open-ended corpus search is forbidden.
+- After `LO-CERG1`, `CERG-T2` must freeze the final exact universe with zero unresolved or contradictory rows. Otherwise it must not build the Unity scene or request `LO-CERG2`, and `CERG-T4=ProjectFailed`.
 - “All actions” means one closed, countable, identity-bearing complete action list. Unity validation must cover every item. Any unclassified action or unresolved action reference is failure.
 - Every attack effect must have an authoritative attack-action-to-FX trigger/reference relationship and must actually trigger during the corresponding Unity action. `NoEffectExpected` is allowed only when an authoritative relationship explicitly proves no effect is expected; otherwise absence is failure.
+
+### CERG-T1 authorized historical evidence and evidence states
+
+`CERG-T1` is read-only. Its complete historical evidence allowlist is:
+
+1. tracked repository plans, contracts, schemas, validators, and source-independent tool metadata;
+2. historical C1 ledger/summary identity, count, byte, hash, and portable provenance fields, without copying any machine-private or absolute path into portable artifacts or conversation;
+3. historical `LO-FFS1` file-tree identities and exported relationship metadata, including Unity `.meta` GUIDs and serialized prefab/controller/override/Animator/MonoBehaviour/manifest relationships already present in that immutable output;
+4. historical FFS result/log fields only for tool identity, attempt identity, exit state, and already-recorded structural observations.
+
+Raw source roots, PB-I03, machine-local manifests/baselines, new producer execution, AssetRipper, decode, Unity, binary interpretation beyond safe identity/enumeration, `LO-FFS2` audio content, and any write to historical output remain forbidden during `CERG-T1`.
+
+Every candidate relationship row must have exactly one state:
+
+- `ProvenPresent`: an authoritative owner/reference record identifies the target and relationship.
+- `ProvenAbsent`: an authoritative, exhaustively enumerated owner/reference collection proves that the relationship or effect is not defined. Missing filenames, directories, exports, or observations never establish this state.
+- `EvidenceUnavailableBeforeExtraction`: the authorized historical evidence does not expose the relationship, but one finite candidate-scoped selector/owner/relationship query is frozen as a `LO-CERG1` discovery obligation.
+- `Contradictory`: authoritative historical records disagree on identity or relationship.
+
+`EvidenceUnavailableBeforeExtraction` means “not visible in current evidence,” never “absent.” It is permitted at the end of `CERG-T1` only when every such row has one exact discovery obligation. `Contradictory` rejects that candidate. `ProvenAbsent` can support `NoEffectExpected` only when its exhaustive authority remains current after `LO-CERG1`; otherwise the final row fails closure.
+
+### CERG-T2 visual-measurement and capture contract
+
+Before requesting `LO-CERG2`, `CERG-T2` must freeze one exact, reviewable validation contract and its repository-relative asset/scene/script/output paths. The contract must assign concrete values—not placeholders—to all of the following:
+
+- Unity/editor identity, render pipeline, color space, quality tier, anti-aliasing, background, lighting transforms/intensities/shadows, ground plane, and deterministic time-step settings;
+- camera projection, FOV or orthographic size, near/far planes, target derived from finite combined renderer bounds, distance/framing formula, front/left/right/back rotations, close-up framing, and fixed root transform/canonical pose;
+- capture width, height, aspect ratio, pixel format, exact lossless still format, video container/codec or lossless frame sequence, frame rate, action pre/post padding, file naming, ordering, and SHA-256 inventory;
+- numeric bounds-occupancy interval, minimum border margin, zero-clipping rule, scale and facing tolerances, root/foot drift tolerances, finite bone/renderer-bounds thresholds, and per-action start/middle/end sample times;
+- attack-FX trigger-time tolerance, peak-frame selection rule, allowed FX bounds relative to character bounds, post-action disappearance/retention rule, and material/texture/shader identity assertions.
+
+Every phrase such as “reasonable scale,” “obvious misbinding,” “obvious anomaly,” “misplaced,” or “abnormal scale” must map to at least one frozen numeric or structural assertion and one visible capture. A subjective label alone cannot pass a criterion. Numeric/structural checks are necessary but not sufficient: total control may still reject visible corruption, but it may not accept `EverythingNormal` without the frozen measurements and required captures.
 
 ### `EverythingNormal` hard acceptance criteria
 
@@ -74,21 +116,21 @@ An unrepairable problem, multiple non-closure problems, or any failure remaining
 #### C. Model visible correctness
 
 - Capture at least front, left, right, back, and close-up views.
-- The complete character is visible with reasonable scale, orientation, and hierarchy.
+- The complete character is visible and its scale, orientation, framing, hierarchy, and renderer bounds satisfy the CERG-T2 contract.
 - No pink material, full transparency, missing faces, exploded geometry, skeleton collapse, or obvious texture misbinding.
 
 #### D. Complete action correctness
 
 - Every clip/state in the frozen action list plays from start to finish at least once.
 - Each item records identity, duration, start/middle/end samples, and valid bones/renderer bounds.
-- No freeze, exploded geometry, incorrect Avatar, obvious foot/root anomaly, or unbound curve.
+- No freeze, exploded geometry, incorrect Avatar, foot/root tolerance violation, or unbound curve.
 - Continuous capture or equivalent per-action evidence is mandatory; a static first frame is insufficient.
 
 #### E. Attack FX correctness
 
 - Every attack action expected to have FX actually triggers it at the corresponding time.
 - Renderer/particle/trail/material/texture/shader dependencies are complete.
-- Capture before attack, peak FX, and after attack. There must be no pink, invisible, obviously misplaced, abnormally scaled, non-terminating, or missing-texture effect.
+- Capture before attack, peak FX, and after attack. There must be no pink, invisible, placement/bounds-tolerance violation, abnormal scale under the frozen rule, non-terminating, or missing-texture effect.
 
 #### F. Independent acceptance
 
