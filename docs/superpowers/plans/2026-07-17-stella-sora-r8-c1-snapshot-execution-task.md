@@ -52,12 +52,12 @@ R8.1 writes no repository or output file and does not launch the guarded runner.
 |---|---|
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
-| PersonalLocalMode package | `6eb87d15d733865b008e10180a7c319b939853f8dffb6f29461c0ecefdc7c3b0` |
-| PersonalLocalMode runbook | `ab233818bef470ea0ee1ff00e6d0b2aed3bc002fa530b7ae5019932c7e677a6b` |
+| PersonalLocalMode package | `eb433e072bb8a4c56181b65587411a063cf8e7de9363c34f1b984a3d5313b534` |
+| PersonalLocalMode runbook | `e16ac550b61b0c7f90fe87e4a37827c04a644f1e2f7f4518317bc0eea4eb4c89` |
 | Completion roadmap | `06357b2ea581132618405096bdb0c2290a191505afecb98c02894ee1d659e5ed` |
 | Program Roadmap | `4932acb748bcd7565bdbca1f89343ba7df8d998493ea436ecb9b19a173c6d8d1` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
-| C1-I04 module | `04907242ad793f1e3aa07c49925f4ecc59091f241b381c0bb0917bc439d94f07` |
+| C1-I04 module | `ea863ec25d3d0d6f2595fc2a32430589f353558426bd0ce81f7c6eee5ca4befe` |
 | C1-I05 ledger schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
 | PB-I03 locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
@@ -67,7 +67,7 @@ R8.1 writes no repository or output file and does not launch the guarded runner.
 | `Test-SourceCorpusCatalog.ps1` | `4a379a772ff5e93b28703c2252d6dbb1d991c2b1758652b45c557b7b68eb097a` |
 | `Test-SourceCorpusRunnerPolicy.ps1` | `3b6e13205c6dda7e2d4488a6dbba9ff06d85c58ce0e9830a291caff126107bc4` |
 | `Test-SourceCorpusC0Compatibility.ps1` | `4deaed14c2a58aed63189e0f0c7e3e2e68e05b5aebdc8806ac5a06c149cf61fd` |
-| `Test-SourceCorpusPersonalLocalModePolicy.ps1` | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
+| `Test-SourceCorpusPersonalLocalModePolicy.ps1` | `507efb1c395cd3a82638ee7d6763b29c0275ab142a685378af8090cd86d9ad69` |
 
 This plan's own identity is its path plus containing commit; it cannot predeclare its own hash. R7.4 validates the final committed tree.
 
@@ -103,6 +103,8 @@ R8.1 derives:
 7. `derivedEstimatedOutputBytes` using bounded read-only file metadata count/size, without opening or hashing source files.
 8. `derivedRequiredFreeSpaceBytes=max(1073741824,2*derivedEstimatedOutputBytes)` and current available output-volume space.
 9. all safety flags, exact command identity, allowed foreground process, and no-retry/downstream denials.
+
+All nine groups are derived only through C1-I04 `Invoke-SourceCorpusPersonalLocalModePreflight -Stage AutomaticPreflight`. Its repository gate parses this frozen table, runs the seven lightweight gates once, and calls `Get-SourceCorpusPersonalLocalModeDerivedState`. The latter reads its source-kind vocabulary from the registered locator schema. Inline replacement validators, copied source-kind arrays, and alternate filesystem walks are RED.
 
 The locator path is derived exactly and is never printed:
 
@@ -165,11 +167,11 @@ result=ReadyForSinglePersonalLocalRun
 
 ### Step 1 - Derive repository, protected, version, and hash state - 4 minutes
 
-Run Git/version/hash checks and require the exact frozen values and protected status. No user transcription.
+Invoke the registered C1-I04 operational entrypoint. It runs Git/version/hash checks and requires the exact frozen values and protected status. No user transcription.
 
 ### Step 2 - Run seven lightweight gates - 4 minutes
 
-Run exactly the seven commands listed in the runbook. Require Passed results and no repository output/residue.
+Require the operational entrypoint's seven internally executed commands to return Passed and leave no repository output/residue. Do not rerun them manually in the same R8.1.
 
 ### Step 3 - Derive locator, boundary, manifest shape, and source set - 5 minutes
 
@@ -195,7 +197,7 @@ After GREEN, the only accepted confirmation is:
 ConfirmPersonalLocalRun
 ```
 
-It has `PersonalLocalModeConfirmationCount=1`, no form fields, and applies only to the displayed state and next attempt. Immediately recheck HEAD/status/PB-I03 exact bytes/boundary-manifest equality/output/disk/safety. If unchanged, derive the manifest argument from PB-I03 and start the exact guarded command from the runbook as one foreground process. The confirmation is consumed at start. No automatic retry.
+It has `PersonalLocalModeConfirmationCount=1`, no form fields, and applies only to the displayed state and next attempt. Immediately call `Invoke-SourceCorpusPersonalLocalModePreflight -Stage FinalRecheck -ExpectedState <exact redacted R8.1 state>` in the same foreground control chain. It invokes the same derived-state function used above and rechecks HEAD/status/PB-I03 exact bytes/boundary-manifest equality/source metadata/output/disk/safety. Require `FinalRecheckPassed`; then derive the manifest argument from PB-I03 and start the exact guarded command from the runbook as one foreground process. The confirmation is consumed at start. No automatic retry and no hand-written final recheck.
 
 ## Verification And Stop
 

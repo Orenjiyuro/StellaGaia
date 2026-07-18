@@ -58,7 +58,7 @@ All portable paths use forward slashes. SHA-256 values are lowercase hexadecimal
 | C1-I01 | Runtime-only source-root manifest | Located only through PB-I03 `manifestPath`; top level exactly `schemaVersion`, `sources`; version `1.0.0`; each source exactly `sourceId`, `sourceKind`, `rootPath` | R8.1 strictly parses locally and proves exact set equality with PB-I03 `sourceBoundary.sources`; never copied to Git or portable output |
 | C1-I02 | Machine-local immutable baseline record | PB-I03 `baseline` is exactly `disposition`, `path`; `Absent` requires null path; `Present` requires an absolute local path to a record whose top level is exactly `schemaVersion`, `inputFingerprint`, `sources`; version `1.0.0`; each source exactly `sourceId`, `sourceKind`, `rootFingerprint`; no `rootPath` | R8.1 derives `FirstCaptureNoBaseline` or validates the located immutable baseline; inconsistent disposition/path Stops |
 | C1-I03 | Guarded runner | `Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1`; exact SHA below | Current bytes derived automatically; mismatch stops before source enumeration |
-| C1-I04 | Snapshot/catalog module | `Tools/AssetImport/SourceCorpusGate.psm1`; exact SHA below | Current bytes derived automatically; mismatch stops |
+| C1-I04 | Snapshot/catalog and PersonalLocalMode preflight module | `Tools/AssetImport/SourceCorpusGate.psm1`; owns one shared derived-state function used by R8.1 and the final recheck; exact SHA below | Current bytes derived automatically; mismatch stops; hand-written replacement validators are forbidden |
 | C1-I05 | Public ledger schema | `docs/asset-migration/schemas/source-corpus-ledger.schema.json`; exact SHA below | Current bytes derived automatically; mismatch stops |
 | C1-I06 | Status vocabulary | `docs/asset-migration/schemas/status-vocabulary.json`; exact SHA below | Current bytes derived automatically; mismatch stops |
 | C1-T01 | Same-volume staging directory | one sibling `.c1-staging-<32 lowercase hex GUID>` beneath the canonical C1 parent | Must be absent before the run; known attempt-owned staging is removed in `finally`; unknown residue is preserved and stops |
@@ -73,12 +73,12 @@ All portable paths use forward slashes. SHA-256 values are lowercase hexadecimal
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
-| C1-I04 module | `04907242ad793f1e3aa07c49925f4ecc59091f241b381c0bb0917bc439d94f07` |
+| C1-I04 module | `ea863ec25d3d0d6f2595fc2a32430589f353558426bd0ce81f7c6eee5ca4befe` |
 | `Test-SourceCorpusGate.ps1` | `0311107a5e099d9f74ebe8ec776d916c4139cbbae43fcdfe31875cf85af136c5` |
 | C1-I05 ledger schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
 | PB-I03 locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
-| PersonalLocalMode policy test | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
+| PersonalLocalMode policy test | `507efb1c395cd3a82638ee7d6763b29c0275ab142a685378af8090cd86d9ad69` |
 
 Any registered byte/version mismatch is PB-FT02. R8.1 computes the current values; the user does not transcribe hashes.
 
@@ -176,6 +176,8 @@ R8.1 derives all of these without a human form:
 4. fixed canonical output/staging boundary and reparse safety;
 5. positive estimated output bytes, available space, and `requiredFreeSpaceBytes=max(1073741824,2*estimate)`;
 6. source-read-only, one-attempt, cancellable foreground process, no-retry, and downstream-denial flags.
+
+The only operational preflight entrypoint is `Invoke-SourceCorpusPersonalLocalModePreflight` from C1-I04. `AutomaticPreflight` runs the registered repository/hash/version checks, seven lightweight gates, and `Get-SourceCorpusPersonalLocalModeDerivedState`. `FinalRecheck` invokes that same derived-state function and compares it with the exact redacted R8.1 state through `Compare-SourceCorpusPersonalLocalModeDerivedState`. The source-kind vocabulary is always read from the registered locator schema; no caller may duplicate its own source-kind list, filesystem walk, or state comparison.
 
 R8.1 emits a redacted `ReadyForSinglePersonalLocalRun` summary. Only then may the user state exactly `ConfirmPersonalLocalRun`. That single confirmation:
 

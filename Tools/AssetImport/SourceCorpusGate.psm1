@@ -514,6 +514,439 @@ function Assert-GenuineDirectoryAtExactPath {
     Assert-NoReparsePointPathChain -Path $item.FullName
 }
 
+function Throw-PersonalLocalModeFailure {
+    param([Parameter(Mandatory)][string]$FailureType, [Parameter(Mandatory)][string]$Reason)
+    throw [System.InvalidOperationException]::new("$FailureType|$Reason")
+}
+
+function Assert-NoDuplicateJsonProperties {
+    param([Parameter(Mandatory)][System.Text.Json.JsonElement]$Element)
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Object) {
+        $names = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($property in $Element.EnumerateObject()) {
+            if (-not $names.Add($property.Name)) { Throw-PersonalLocalModeFailure 'PB-FT03' 'DuplicateJsonProperty' }
+            Assert-NoDuplicateJsonProperties -Element $property.Value
+        }
+    }
+    elseif ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Array) {
+        foreach ($value in $Element.EnumerateArray()) { Assert-NoDuplicateJsonProperties -Element $value }
+    }
+}
+
+function Assert-PersonalLocalModeJson {
+    param([Parameter(Mandatory)][string]$Json, [Parameter(Mandatory)][string]$FailureReason)
+    $document = $null
+    try {
+        $document = [System.Text.Json.JsonDocument]::Parse($Json)
+        Assert-NoDuplicateJsonProperties -Element $document.RootElement
+    }
+    catch [System.InvalidOperationException] { throw }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT03' $FailureReason }
+    finally { if ($null -ne $document) { $document.Dispose() } }
+}
+
+function Get-PersonalLocalModeFullPath {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$FailureType, [Parameter(Mandatory)][string]$Reason)
+    if ([string]::IsNullOrWhiteSpace($Path) -or $Path.StartsWith('\\') -or $Path.StartsWith('//') -or
+        -not [System.IO.Path]::IsPathFullyQualified($Path)) { Throw-PersonalLocalModeFailure $FailureType $Reason }
+    try { $fullPath = [System.IO.Path]::GetFullPath($Path) }
+    catch { Throw-PersonalLocalModeFailure $FailureType $Reason }
+    if ([System.IO.Path]::GetPathRoot($fullPath) -notmatch '^[A-Za-z]:\\$') { Throw-PersonalLocalModeFailure $FailureType $Reason }
+    return $fullPath
+}
+
+function Assert-NoExistingReparsePointPathChain {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$FailureType, [Parameter(Mandatory)][string]$Reason)
+    $current = [System.IO.Path]::GetFullPath($Path)
+    while ($null -ne $current) {
+        if (Test-Path -LiteralPath $current) {
+            try { $item = Get-Item -Force -LiteralPath $current -ErrorAction Stop }
+            catch { Throw-PersonalLocalModeFailure $FailureType $Reason }
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { Throw-PersonalLocalModeFailure $FailureType $Reason }
+        }
+        $parent = [System.IO.Directory]::GetParent($current)
+        if ($null -eq $parent) { break }
+        $current = $parent.FullName
+    }
+}
+
+function Get-SourceCorpusPersonalLocalModeDerivedState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$InputLocatorPath,
+        [Parameter(Mandatory)][string]$LocatorSchemaPath,
+        [Parameter(Mandatory)][string]$OutputRoot,
+        [ValidateRange(1, 300)][int]$MetadataTimeoutSeconds = 45
+    )
+    $started = [DateTime]::UtcNow
+    $locatorPath = Get-PersonalLocalModeFullPath $InputLocatorPath 'PB-FT03' 'LocatorPathInvalid'
+    $schemaPath = [System.IO.Path]::GetFullPath($LocatorSchemaPath)
+    $outputPath = Get-PersonalLocalModeFullPath $OutputRoot 'PB-FT07' 'OutputRootInvalid'
+    if (-not (Test-Path -LiteralPath $locatorPath -PathType Leaf)) { Throw-PersonalLocalModeFailure 'PB-FT03' 'LocatorMissing' }
+    if (-not (Test-Path -LiteralPath $schemaPath -PathType Leaf)) { Throw-PersonalLocalModeFailure 'PB-FT02' 'LocatorSchemaMissing' }
+    Assert-NoExistingReparsePointPathChain $locatorPath 'PB-FT03' 'LocatorPathUnsafe'
+
+    try {
+        $schemaText = Get-Content -Raw -LiteralPath $schemaPath -ErrorAction Stop
+        $schema = $schemaText | ConvertFrom-Json -ErrorAction Stop
+        $locatorText = Get-Content -Raw -LiteralPath $locatorPath -ErrorAction Stop
+        $locatorHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $locatorPath).Hash.ToLowerInvariant()
+    }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT03' 'LocatorUnreadable' }
+    Assert-PersonalLocalModeJson $locatorText 'LocatorJsonMalformed'
+    $schemaErrors = $null
+    try { $schemaValid = Test-Json -Json $locatorText -SchemaFile $schemaPath -ErrorAction SilentlyContinue -ErrorVariable schemaErrors }
+    catch { $schemaValid = $false }
+    if (-not $schemaValid -or @($schemaErrors).Count -ne 0) { Throw-PersonalLocalModeFailure 'PB-FT03' 'LocatorSchemaInvalid' }
+    try { $locator = $locatorText | ConvertFrom-Json -ErrorAction Stop }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT03' 'LocatorJsonMalformed' }
+    Assert-ExactObjectProperties $locator @('schemaVersion', 'manifestPath', 'baseline', 'sourceBoundary') 'PersonalLocalMode locator'
+    Assert-ExactObjectProperties $locator.baseline @('disposition', 'path') 'PersonalLocalMode baseline locator'
+    Assert-ExactObjectProperties $locator.sourceBoundary @('schemaVersion', 'sources') 'PersonalLocalMode source boundary'
+    if ($locator.schemaVersion -cne '1.0.0' -or $locator.sourceBoundary.schemaVersion -cne '1.0.0' -or @($locator.sourceBoundary.sources).Count -eq 0) {
+        Throw-PersonalLocalModeFailure 'PB-FT03' 'LocatorShapeInvalid'
+    }
+    $approvedKinds = @($schema.'$defs'.sourceRow.properties.sourceKind.enum)
+    if ($approvedKinds.Count -eq 0) { Throw-PersonalLocalModeFailure 'PB-FT02' 'RegisteredVocabularyMissing' }
+
+    $manifestPath = Get-PersonalLocalModeFullPath ([string]$locator.manifestPath) 'PB-FT03' 'ManifestLocatorInvalid'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Throw-PersonalLocalModeFailure 'PB-FT03' 'ManifestMissing' }
+    Assert-NoExistingReparsePointPathChain $manifestPath 'PB-FT03' 'ManifestPathUnsafe'
+    try {
+        $manifestText = Get-Content -Raw -LiteralPath $manifestPath -ErrorAction Stop
+        $manifestHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash.ToLowerInvariant()
+    }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT03' 'ManifestUnreadable' }
+    Assert-PersonalLocalModeJson $manifestText 'ManifestJsonMalformed'
+    try { $manifest = $manifestText | ConvertFrom-Json -ErrorAction Stop }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT03' 'ManifestJsonMalformed' }
+    Assert-ExactObjectProperties $manifest @('schemaVersion', 'sources') 'PersonalLocalMode manifest'
+    if ($manifest.schemaVersion -cne '1.0.0' -or @($manifest.sources).Count -eq 0) { Throw-PersonalLocalModeFailure 'PB-FT03' 'ManifestShapeInvalid' }
+
+    $boundary = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $manifestRows = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $rootPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($row in @($locator.sourceBoundary.sources)) {
+        Assert-ExactObjectProperties $row @('sourceId', 'sourceKind', 'rootPath') 'PersonalLocalMode source-boundary row'
+        if ([string]::IsNullOrWhiteSpace([string]$row.sourceId) -or $approvedKinds -cnotcontains [string]$row.sourceKind -or $boundary.ContainsKey([string]$row.sourceId)) {
+            Throw-PersonalLocalModeFailure 'PB-FT04' 'BoundaryRowInvalid'
+        }
+        $rootPath = Get-PersonalLocalModeFullPath ([string]$row.rootPath) 'PB-FT04' 'BoundaryRootInvalid'
+        if (-not $rootPaths.Add($rootPath)) { Throw-PersonalLocalModeFailure 'PB-FT04' 'BoundaryDuplicateRoot' }
+        $rootBoundary = $rootPath.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        $outputBoundary = $outputPath.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        if ($rootPath.Equals($outputPath, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $rootBoundary.StartsWith($outputBoundary, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $outputBoundary.StartsWith($rootBoundary, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Throw-PersonalLocalModeFailure 'PB-FT04' 'SourceOutputBoundaryOverlap'
+        }
+        $boundary.Add([string]$row.sourceId, [pscustomobject][ordered]@{
+            sourceId = [string]$row.sourceId; sourceKind = [string]$row.sourceKind; rootPath = [string]$row.rootPath; fullPath = $rootPath
+        })
+    }
+    foreach ($row in @($manifest.sources)) {
+        Assert-ExactObjectProperties $row @('sourceId', 'sourceKind', 'rootPath') 'PersonalLocalMode manifest row'
+        if ([string]::IsNullOrWhiteSpace([string]$row.sourceId) -or $approvedKinds -cnotcontains [string]$row.sourceKind -or $manifestRows.ContainsKey([string]$row.sourceId)) {
+            Throw-PersonalLocalModeFailure 'PB-FT04' 'ManifestRowInvalid'
+        }
+        Get-PersonalLocalModeFullPath ([string]$row.rootPath) 'PB-FT04' 'ManifestRootInvalid' | Out-Null
+        $manifestRows.Add([string]$row.sourceId, $row)
+    }
+    $boundaryMatched = 0
+    foreach ($key in $boundary.Keys) {
+        if (-not $manifestRows.ContainsKey($key)) { Throw-PersonalLocalModeFailure 'PB-FT04' 'BoundaryManifestSetMismatch' }
+        $left = $boundary[$key]; $right = $manifestRows[$key]
+        if ($left.sourceId -cne [string]$right.sourceId -or $left.sourceKind -cne [string]$right.sourceKind -or
+            -not [string]::Equals($left.rootPath, [string]$right.rootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Throw-PersonalLocalModeFailure 'PB-FT04' 'BoundaryManifestSetMismatch'
+        }
+        $boundaryMatched++
+    }
+    foreach ($key in $manifestRows.Keys) { if (-not $boundary.ContainsKey($key)) { Throw-PersonalLocalModeFailure 'PB-FT04' 'BoundaryManifestSetMismatch' } }
+
+    if ($locator.baseline.disposition -ceq 'Absent') {
+        if ($null -ne $locator.baseline.path) { Throw-PersonalLocalModeFailure 'PB-FT03' 'AbsentBaselinePathNotNull' }
+        $baselineState = 'FirstCaptureNoBaseline'
+    }
+    elseif ($locator.baseline.disposition -ceq 'Present') {
+        $baselinePath = Get-PersonalLocalModeFullPath ([string]$locator.baseline.path) 'PB-FT03' 'BaselinePathInvalid'
+        if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Throw-PersonalLocalModeFailure 'PB-FT03' 'BaselineMissing' }
+        Assert-NoExistingReparsePointPathChain $baselinePath 'PB-FT03' 'BaselinePathUnsafe'
+        try { $baselineText = Get-Content -Raw -LiteralPath $baselinePath -ErrorAction Stop; $baseline = $baselineText | ConvertFrom-Json -ErrorAction Stop }
+        catch { Throw-PersonalLocalModeFailure 'PB-FT03' 'BaselineMalformed' }
+        Assert-PersonalLocalModeJson $baselineText 'BaselineMalformed'
+        Assert-ExactObjectProperties $baseline @('schemaVersion', 'inputFingerprint', 'sources') 'PersonalLocalMode baseline'
+        if ($baseline.schemaVersion -cne '1.0.0') { Throw-PersonalLocalModeFailure 'PB-FT03' 'BaselineShapeInvalid' }
+        foreach ($row in @($baseline.sources)) {
+            Assert-ExactObjectProperties $row @('sourceId', 'sourceKind', 'rootFingerprint') 'PersonalLocalMode baseline source'
+            if ([string]::IsNullOrWhiteSpace([string]$row.sourceId) -or $approvedKinds -cnotcontains [string]$row.sourceKind -or
+                [string]::IsNullOrWhiteSpace([string]$row.rootFingerprint)) { Throw-PersonalLocalModeFailure 'PB-FT03' 'BaselineSourceInvalid' }
+        }
+        $baselineState = 'ApprovedBaselinePresent'
+    }
+    else { Throw-PersonalLocalModeFailure 'PB-FT03' 'BaselineDispositionInvalid' }
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($MetadataTimeoutSeconds)
+    $fileCount = 0L
+    $sourceBytes = 0L
+    [decimal]$estimate = 16777216 + ([decimal]$boundary.Count * 1048576)
+    $portableSources = [System.Collections.Generic.List[object]]::new()
+    foreach ($key in @($boundary.Keys | Sort-Object)) {
+        if ([DateTime]::UtcNow -gt $deadline) { Throw-PersonalLocalModeFailure 'PB-FT07' 'MetadataSizingTimeout' }
+        $source = $boundary[$key]
+        if (-not (Test-Path -LiteralPath $source.fullPath)) { Throw-PersonalLocalModeFailure 'PB-FT04' 'DeclaredRootMissing' }
+        Assert-NoExistingReparsePointPathChain $source.fullPath 'PB-FT04' 'DeclaredRootPathUnsafe'
+        try { $rootItem = Get-Item -Force -LiteralPath $source.fullPath -ErrorAction Stop }
+        catch { Throw-PersonalLocalModeFailure 'PB-FT04' 'DeclaredRootUnavailable' }
+        Assert-NoReparsePoint -Attributes $rootItem.Attributes -Label 'Declared source root'
+        if (-not $rootItem.PSIsContainer) {
+            if ($source.sourceKind -cne 'AndroidApk') { Throw-PersonalLocalModeFailure 'PB-FT04' 'FileRootKindInvalid' }
+            $fileCount++
+            $sourceBytes = Get-CheckedInt64Total @($sourceBytes, [long]$rootItem.Length)
+            $estimate += 4096 + (6 * ([decimal]$rootItem.Name.Length + $source.sourceId.Length + $source.sourceKind.Length))
+        }
+        else {
+            $stack = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+            $stack.Push([System.IO.DirectoryInfo]$rootItem)
+            while ($stack.Count -gt 0) {
+                if ([DateTime]::UtcNow -gt $deadline) { Throw-PersonalLocalModeFailure 'PB-FT07' 'MetadataSizingTimeout' }
+                $directory = $stack.Pop()
+                try { $items = $directory.EnumerateFileSystemInfos() }
+                catch { Throw-PersonalLocalModeFailure 'PB-FT04' 'RootMetadataUnavailable' }
+                try {
+                    foreach ($item in $items) {
+                        if ([DateTime]::UtcNow -gt $deadline) { Throw-PersonalLocalModeFailure 'PB-FT07' 'MetadataSizingTimeout' }
+                        Assert-NoReparsePoint -Attributes $item.Attributes -Label 'Declared source item'
+                        if (($item.Attributes -band [System.IO.FileAttributes]::Directory) -ne 0) { $stack.Push([System.IO.DirectoryInfo]$item); continue }
+                        $fileCount++
+                        $sourceBytes = Get-CheckedInt64Total @($sourceBytes, [long]([System.IO.FileInfo]$item).Length)
+                        $relativePath = [System.IO.Path]::GetRelativePath($source.fullPath, $item.FullName)
+                        if ([System.IO.Path]::IsPathFullyQualified($relativePath) -or $relativePath -eq '..' -or
+                            $relativePath.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)")) { Throw-PersonalLocalModeFailure 'PB-FT04' 'MetadataEscapedRoot' }
+                        $estimate += 4096 + (6 * ([decimal]$relativePath.Length + $source.sourceId.Length + $source.sourceKind.Length))
+                    }
+                }
+                catch [System.InvalidOperationException] { throw }
+                catch { Throw-PersonalLocalModeFailure 'PB-FT04' 'RootMetadataUnavailable' }
+            }
+        }
+        $portableSources.Add([pscustomobject][ordered]@{ sourceId = $source.sourceId; sourceKind = $source.sourceKind })
+    }
+    if ($estimate -le 0 -or $estimate -gt ([decimal][long]::MaxValue / 2)) { Throw-PersonalLocalModeFailure 'PB-FT07' 'OutputEstimateInvalid' }
+    $estimatedOutputBytes = [long][Math]::Ceiling($estimate)
+    $requiredFreeSpaceBytes = [long][Math]::Max([decimal]1073741824, [decimal]2 * $estimatedOutputBytes)
+    if (Test-Path -LiteralPath $outputPath) { Throw-PersonalLocalModeFailure 'PB-FT07' 'OutputAlreadyExists' }
+    Assert-NoExistingReparsePointPathChain $outputPath 'PB-FT07' 'OutputAncestorUnsafe'
+    $outputParent = [System.IO.Directory]::GetParent($outputPath).FullName
+    $stagingCount = if (Test-Path -LiteralPath $outputParent) { @(Get-ChildItem -Force -LiteralPath $outputParent -Filter '.c1-staging-*').Count } else { 0 }
+    if ($stagingCount -ne 0) { Throw-PersonalLocalModeFailure 'PB-FT07' 'StagingResidueExists' }
+    try { $availableFreeSpaceBytes = [long]([System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($outputPath))).AvailableFreeSpace }
+    catch { Throw-PersonalLocalModeFailure 'PB-FT07' 'OutputVolumeUnavailable' }
+    if ($availableFreeSpaceBytes -lt $requiredFreeSpaceBytes) { Throw-PersonalLocalModeFailure 'PB-FT07' 'InsufficientDisk' }
+
+    return [pscustomobject][ordered]@{
+        mode = 'PersonalLocalMode'
+        registeredSourceKindCount = $approvedKinds.Count
+        derivedInputLocatorState = 'LocatedAndValid'
+        derivedInputLocatorIdentitySha256 = $locatorHash
+        derivedManifestIdentitySha256 = $manifestHash
+        derivedSourceBoundaryState = 'ExactSetMatch'
+        derivedManifestSourceSet = $portableSources.ToArray()
+        boundarySourceCount = $boundary.Count
+        boundaryMatchedCount = $boundaryMatched
+        boundaryMissingOrMismatchedCount = 0
+        manifestSourceCount = $manifestRows.Count
+        manifestMatchedCount = $manifestRows.Count
+        manifestExtraOrMismatchedCount = 0
+        derivedBaselineState = $baselineState
+        declaredRootCount = $boundary.Count
+        sourceFileMetadataCount = $fileCount
+        sourceByteMetadataTotal = $sourceBytes
+        sourceReparseIssueCount = 0
+        sourceContentReadCount = 0
+        derivedOutputBoundaryState = 'AbsentAndSafe'
+        stagingResidueCount = $stagingCount
+        derivedEstimatedOutputBytes = $estimatedOutputBytes
+        estimateModel = '16MiB base + 1MiB/source + 4096B/file + 6B/metadata character'
+        derivedRequiredFreeSpaceBytes = $requiredFreeSpaceBytes
+        derivedAvailableFreeSpaceBytes = $availableFreeSpaceBytes
+        availableFreeSpaceSatisfied = $true
+        metadataSizingDurationMs = [long]([DateTime]::UtcNow - $started).TotalMilliseconds
+        createdOutputCount = 0
+        guardedRunnerStartCount = 0
+    }
+}
+
+function Compare-SourceCorpusPersonalLocalModeDerivedState {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object]$ExpectedState, [Parameter(Mandatory)][object]$ActualState)
+    $fields = @(
+        'mode', 'derivedHead', 'derivedBranch', 'registeredSourceKindCount', 'derivedInputLocatorState', 'derivedInputLocatorIdentitySha256',
+        'derivedManifestIdentitySha256', 'derivedSourceBoundaryState', 'derivedBaselineState', 'boundarySourceCount',
+        'boundaryMatchedCount', 'boundaryMissingOrMismatchedCount', 'manifestSourceCount', 'manifestMatchedCount',
+        'manifestExtraOrMismatchedCount', 'declaredRootCount', 'sourceFileMetadataCount', 'sourceByteMetadataTotal',
+        'sourceReparseIssueCount', 'sourceContentReadCount', 'derivedOutputBoundaryState', 'stagingResidueCount',
+        'derivedEstimatedOutputBytes', 'derivedRequiredFreeSpaceBytes', 'availableFreeSpaceSatisfied', 'createdOutputCount',
+        'guardedRunnerStartCount'
+    )
+    $mismatches = [System.Collections.Generic.List[string]]::new()
+    foreach ($field in $fields) {
+        $expected = Get-ExactJsonPropertyByPath -Value $ExpectedState -Path $field
+        $actual = Get-ExactJsonPropertyByPath -Value $ActualState -Path $field
+        if (($expected | ConvertTo-Json -Depth 10 -Compress) -cne ($actual | ConvertTo-Json -Depth 10 -Compress)) { $mismatches.Add($field) }
+    }
+    $expectedSources = @($ExpectedState.derivedManifestSourceSet | Sort-Object sourceId | ConvertTo-Json -Depth 5 -Compress) -join ''
+    $actualSources = @($ActualState.derivedManifestSourceSet | Sort-Object sourceId | ConvertTo-Json -Depth 5 -Compress) -join ''
+    if ($expectedSources -cne $actualSources) { $mismatches.Add('derivedManifestSourceSet') }
+    return [pscustomobject][ordered]@{ unchanged = $mismatches.Count -eq 0; mismatchCount = $mismatches.Count; mismatchedFields = $mismatches.ToArray() }
+}
+
+function Assert-SourceCorpusPersonalLocalModeRepositoryState {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $root = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $head = (& git -C $root rev-parse HEAD).Trim()
+    $upstream = (& git -C $root rev-parse '@{upstream}').Trim()
+    if ($LASTEXITCODE -ne 0 -or $head -cne $upstream) { Throw-PersonalLocalModeFailure 'PB-FT02' 'HeadOrUpstreamMismatch' }
+    $status = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+    $expectedStatus = @('?? AGENTS.md', '?? docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md')
+    if ($status.Count -ne 2 -or @(Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $status).Count -ne 0) {
+        Throw-PersonalLocalModeFailure 'PB-FT02' 'RepositoryStatusMismatch'
+    }
+    $protected = [ordered]@{
+        'AGENTS.md' = '397d256da9e5c126667bc39b427aff31be7dbbdb1e83f1a90ad6f7ab8c34fd6d'
+        'docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-c2-sp03-sp04.md' = '11ed3a2d7d933087d564e388991c45e5887600682dbc4ed9446e6117d4a5247b'
+    }
+    foreach ($entry in $protected.GetEnumerator()) {
+        if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $root $entry.Key)).Hash.ToLowerInvariant() -ne $entry.Value) {
+            Throw-PersonalLocalModeFailure 'PB-FT02' 'ProtectedHashMismatch'
+        }
+    }
+    foreach ($relativePath in @('Extracted', 'Assets/StellaGaia/Imported', 'Library', 'Temp', 'Obj', 'Build', 'Builds', 'Logs', 'UserSettings')) {
+        if (Test-Path -LiteralPath (Join-Path $root $relativePath)) { Throw-PersonalLocalModeFailure 'PB-FT07' 'ForbiddenOutputPresent' }
+    }
+    $r81Path = Join-Path $root 'docs/superpowers/plans/2026-07-17-stella-sora-r8-c1-snapshot-execution-task.md'
+    $r81Text = Get-Content -Raw -LiteralPath $r81Path -ErrorAction Stop
+    $frozen = @{}
+    foreach ($match in [regex]::Matches($r81Text, '(?m)^\|\s*(?<name>.+?)\s*\|\s*`(?<value>[^`]+)`\s*\|$')) {
+        $frozen[$match.Groups['name'].Value.Trim('`', ' ')] = $match.Groups['value'].Value
+    }
+    if ($PSVersionTable.PSVersion.ToString() -cne $frozen['PowerShell'] -or (& git --version).Trim() -cne "git version $($frozen['Git'])") {
+        Throw-PersonalLocalModeFailure 'PB-FT02' 'RuntimeVersionMismatch'
+    }
+    $identityPaths = [ordered]@{
+        'PersonalLocalMode package' = 'docs/asset-migration/source-corpus-phase-b-authorization-package.md'
+        'PersonalLocalMode runbook' = 'docs/asset-migration/source-corpus-phase-b-runbook.md'
+        'Completion roadmap' = 'docs/superpowers/plans/2026-07-14-stella-sora-asset-corpus-completion-roadmap.md'
+        'Program Roadmap' = 'docs/superpowers/plans/2026-07-17-stella-sora-phase-b-r7-r13-complete-execution.md'
+        'C1-I03 runner' = 'Tools/AssetImport/New-StellaSoraSourceCorpusSnapshot.ps1'
+        'C1-I04 module' = 'Tools/AssetImport/SourceCorpusGate.psm1'
+        'C1-I05 ledger schema' = 'docs/asset-migration/schemas/source-corpus-ledger.schema.json'
+        'C1-I06 vocabulary' = 'docs/asset-migration/schemas/status-vocabulary.json'
+        'PB-I03 locator schema' = 'docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json'
+        'Test-AssetCorpusContract.ps1' = 'Tools/AssetImport/Test-AssetCorpusContract.ps1'
+        'Test-SourceCorpusGate.ps1' = 'Tools/AssetImport/Test-SourceCorpusGate.ps1'
+        'Test-SourceCorpusSnapshotFunctions.ps1' = 'Tools/AssetImport/Test-SourceCorpusSnapshotFunctions.ps1'
+        'Test-SourceCorpusCatalog.ps1' = 'Tools/AssetImport/Test-SourceCorpusCatalog.ps1'
+        'Test-SourceCorpusRunnerPolicy.ps1' = 'Tools/AssetImport/Test-SourceCorpusRunnerPolicy.ps1'
+        'Test-SourceCorpusC0Compatibility.ps1' = 'Tools/AssetImport/Test-SourceCorpusC0Compatibility.ps1'
+        'Test-SourceCorpusPersonalLocalModePolicy.ps1' = 'Tools/AssetImport/Test-SourceCorpusPersonalLocalModePolicy.ps1'
+    }
+    foreach ($entry in $identityPaths.GetEnumerator()) {
+        if ([string]::IsNullOrWhiteSpace([string]$frozen[$entry.Key]) -or
+            (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $root $entry.Value)).Hash.ToLowerInvariant() -cne $frozen[$entry.Key]) {
+            Throw-PersonalLocalModeFailure 'PB-FT02' 'FrozenIdentityMismatch'
+        }
+    }
+    return [pscustomobject][ordered]@{
+        derivedHead = $head
+        derivedBranch = (& git -C $root branch --show-current).Trim()
+        derivedToolHashMismatchCount = 0
+        runtimeVersionMismatchCount = 0
+    }
+}
+
+function Invoke-SourceCorpusPersonalLocalModeLightweightGates {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $gates = @(
+        @('Tools/AssetImport/Test-AssetCorpusContract.ps1'),
+        @('Tools/AssetImport/Test-SourceCorpusGate.ps1'),
+        @('Tools/AssetImport/Test-SourceCorpusSnapshotFunctions.ps1', '-Case', 'All'),
+        @('Tools/AssetImport/Test-SourceCorpusCatalog.ps1', '-Case', 'All'),
+        @('Tools/AssetImport/Test-SourceCorpusRunnerPolicy.ps1', '-Case', 'All'),
+        @('Tools/AssetImport/Test-SourceCorpusC0Compatibility.ps1', '-Case', 'All'),
+        @('Tools/AssetImport/Test-SourceCorpusPersonalLocalModePolicy.ps1')
+    )
+    $results = [System.Collections.Generic.List[object]]::new()
+    Push-Location $RepositoryRoot
+    try {
+        foreach ($gate in $gates) {
+            $arguments = @('-NoProfile', '-File', (Join-Path $RepositoryRoot $gate[0])) + @($gate | Select-Object -Skip 1)
+            $output = @(& pwsh @arguments 2>&1)
+            if ($LASTEXITCODE -ne 0) { Throw-PersonalLocalModeFailure 'PB-FT02' 'LightweightGateFailed' }
+            $jsonLine = @($output | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })[-1]
+            try { $result = [string]$jsonLine | ConvertFrom-Json -ErrorAction Stop }
+            catch { Throw-PersonalLocalModeFailure 'PB-FT02' 'LightweightGateOutputInvalid' }
+            if ($result.status -cne 'Passed') { Throw-PersonalLocalModeFailure 'PB-FT02' 'LightweightGateFailed' }
+            $results.Add([pscustomobject][ordered]@{ gate = [System.IO.Path]::GetFileNameWithoutExtension($gate[0]); status = 'Passed' })
+        }
+    }
+    finally { Pop-Location }
+    return $results.ToArray()
+}
+
+function Invoke-SourceCorpusPersonalLocalModePreflight {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('AutomaticPreflight', 'FinalRecheck')][string]$Stage,
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')][string]$ThreadId,
+        [object]$ExpectedState,
+        [ValidateRange(1, 300)][int]$MetadataTimeoutSeconds = 45
+    )
+    $root = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $repositoryState = Assert-SourceCorpusPersonalLocalModeRepositoryState -RepositoryRoot $root
+    $gateResults = if ($Stage -ceq 'AutomaticPreflight') {
+        Invoke-SourceCorpusPersonalLocalModeLightweightGates -RepositoryRoot $root
+    }
+    else { @() }
+    $repositoryState = Assert-SourceCorpusPersonalLocalModeRepositoryState -RepositoryRoot $root
+    $locatorPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'StellaGaia\PhaseB\personal-local-mode-inputs.json'
+    $outputRoot = Join-Path $root "Extracted\Threads\$ThreadId\C1"
+    $derivedState = Get-SourceCorpusPersonalLocalModeDerivedState `
+        -InputLocatorPath $locatorPath `
+        -LocatorSchemaPath (Join-Path $root 'docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json') `
+        -OutputRoot $outputRoot `
+        -MetadataTimeoutSeconds $MetadataTimeoutSeconds
+    $derivedState | Add-Member -NotePropertyName derivedHead -NotePropertyValue $repositoryState.derivedHead
+    $derivedState | Add-Member -NotePropertyName derivedBranch -NotePropertyValue $repositoryState.derivedBranch
+    $derivedState | Add-Member -NotePropertyName derivedToolHashMismatchCount -NotePropertyValue $repositoryState.derivedToolHashMismatchCount
+    $derivedState | Add-Member -NotePropertyName runtimeVersionMismatchCount -NotePropertyValue $repositoryState.runtimeVersionMismatchCount
+    if ($Stage -ceq 'AutomaticPreflight') {
+        $derivedState | Add-Member -NotePropertyName lightweightGateCount -NotePropertyValue $gateResults.Count
+        $derivedState | Add-Member -NotePropertyName lightweightGates -NotePropertyValue $gateResults
+        $derivedState | Add-Member -NotePropertyName PBSP01 -NotePropertyValue '6=6 Passed+0 Failed'
+        $derivedState | Add-Member -NotePropertyName PBSP04 -NotePropertyValue '2=0 ValidatedDiagnostic+2 Suppressed+0 Quarantined'
+        $safetyFlags = [ordered]@{
+            sourceReadOnly = $true; fixedOutputRoot = $true; attemptCount = 1; foregroundCancellationAuthority = $true;
+            retryAllowed = $false; C2Authorized = $false; UnityAuthorized = $false; extractionAuthorized = $false; importAuthorized = $false
+        }
+        foreach ($flag in $safetyFlags.GetEnumerator()) { $derivedState | Add-Member -NotePropertyName $flag.Key -NotePropertyValue $flag.Value }
+        $derivedState | Add-Member -NotePropertyName result -NotePropertyValue 'ReadyForSinglePersonalLocalRun'
+        return $derivedState
+    }
+    if ($null -eq $ExpectedState) { Throw-PersonalLocalModeFailure 'PB-FT01' 'ExpectedStateMissing' }
+    $comparison = Compare-SourceCorpusPersonalLocalModeDerivedState -ExpectedState $ExpectedState -ActualState $derivedState
+    if (-not $comparison.unchanged) { Throw-PersonalLocalModeFailure 'PB-FT01' 'DerivedStateDrift' }
+    return [pscustomobject][ordered]@{
+        status = 'FinalRecheckPassed'
+        derivedHead = $repositoryState.derivedHead
+        mismatchCount = 0
+        confirmationConsumed = $false
+        guardedRunnerStartCount = 0
+        nextAction = 'StartOneForegroundAttempt'
+    }
+}
+
 function Write-SourceCorpusOutputs {
     param([Parameter(Mandatory)][string]$OutputRoot,[Parameter(Mandatory)][object]$Ledger,[Parameter(Mandatory)][object]$Summary)
     Assert-SourceCorpusWriterContracts -Ledger $Ledger -Summary $Summary
@@ -561,5 +994,8 @@ Export-ModuleMember -Function @(
     'Get-CheckedInt64Total',
     'Assert-C1OutputPathPolicy',
     'New-SourceCorpusSummary',
+    'Get-SourceCorpusPersonalLocalModeDerivedState',
+    'Compare-SourceCorpusPersonalLocalModeDerivedState',
+    'Invoke-SourceCorpusPersonalLocalModePreflight',
     'Write-SourceCorpusOutputs'
 )

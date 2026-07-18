@@ -287,9 +287,14 @@ if (-not [string]::IsNullOrWhiteSpace($taskText.LocatorSchema)) {
 
 $locatorSchemaHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepositoryRoot $taskDocuments.LocatorSchema)).Hash.ToLowerInvariant()
 $policyTestHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $PSCommandPath).Hash.ToLowerInvariant()
+$preflightModuleHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepositoryRoot 'Tools/AssetImport/SourceCorpusGate.psm1')).Hash.ToLowerInvariant()
 foreach ($taskName in @('Package', 'R74', 'R75', 'R81')) {
     Assert-ContainsLiteral -DocumentName $taskName -Text $taskText[$taskName] -Expected $locatorSchemaHash
     Assert-ContainsLiteral -DocumentName $taskName -Text $taskText[$taskName] -Expected $policyTestHash
+    Assert-ContainsLiteral -DocumentName $taskName -Text $taskText[$taskName] -Expected $preflightModuleHash
+}
+foreach ($taskName in @('Package', 'Runbook', 'R74', 'R81')) {
+    Assert-ContainsLiteral -DocumentName $taskName -Text $taskText[$taskName] -Expected 'Invoke-SourceCorpusPersonalLocalModePreflight'
 }
 
 foreach ($taskName in @('Package', 'R74', 'R75', 'R81')) {
@@ -380,12 +385,119 @@ foreach ($vector in $semanticVectors.GetEnumerator()) {
     }
 }
 
+$preflightModulePath = Join-Path $RepositoryRoot 'Tools/AssetImport/SourceCorpusGate.psm1'
+$preflightModule = Import-Module $preflightModulePath -Force -PassThru
+$requiredPreflightCommands = @(
+    'Get-SourceCorpusPersonalLocalModeDerivedState',
+    'Compare-SourceCorpusPersonalLocalModeDerivedState',
+    'Invoke-SourceCorpusPersonalLocalModePreflight'
+)
+$missingPreflightCommands = @($requiredPreflightCommands | Where-Object {
+    $null -eq (Get-Command -Name $_ -Module $preflightModule.Name -ErrorAction SilentlyContinue)
+})
+foreach ($missingCommand in $missingPreflightCommands) {
+    Add-PolicyIssue "SourceCorpusGate is missing reusable PersonalLocalMode command: $missingCommand"
+}
+
+$preflightSyntheticVectorCount = 0
+if ($missingPreflightCommands.Count -eq 0) {
+    $syntheticRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('stella-personal-local-preflight-' + [guid]::NewGuid().ToString('N'))
+    try {
+        $sourceDirectory = Join-Path $syntheticRoot 'android-data'
+        $apkPath = Join-Path $syntheticRoot 'client.apk'
+        $manifestPath = Join-Path $syntheticRoot 'manifest.json'
+        $locatorPath = Join-Path $syntheticRoot 'locator.json'
+        $outputRoot = Join-Path $syntheticRoot 'output/C1'
+        New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
+        [System.IO.File]::WriteAllBytes((Join-Path $sourceDirectory 'data.bin'), [byte[]](1, 2, 3, 4))
+        [System.IO.File]::WriteAllBytes($apkPath, [byte[]](5, 6, 7))
+
+        $sources = @(
+            [pscustomobject][ordered]@{ sourceId = 'android-data'; sourceKind = 'AndroidDataOrCache'; rootPath = $sourceDirectory },
+            [pscustomobject][ordered]@{ sourceId = 'android-apk'; sourceKind = 'AndroidApk'; rootPath = $apkPath }
+        )
+        $manifest = [pscustomobject][ordered]@{ schemaVersion = '1.0.0'; sources = $sources }
+        $locator = [pscustomobject][ordered]@{
+            schemaVersion = '1.0.0'
+            manifestPath = $manifestPath
+            baseline = [pscustomobject][ordered]@{ disposition = 'Absent'; path = $null }
+            sourceBoundary = [pscustomobject][ordered]@{ schemaVersion = '1.0.0'; sources = $sources }
+        }
+        [System.IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::WriteAllText($locatorPath, ($locator | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
+
+        $derivedState = Get-SourceCorpusPersonalLocalModeDerivedState `
+            -InputLocatorPath $locatorPath `
+            -LocatorSchemaPath (Join-Path $RepositoryRoot 'docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json') `
+            -OutputRoot $outputRoot `
+            -MetadataTimeoutSeconds 10
+        $preflightSyntheticVectorCount++
+        if ($derivedState.registeredSourceKindCount -ne 4 -or
+            @($derivedState.derivedManifestSourceSet | Where-Object sourceKind -CEQ 'AndroidDataOrCache').Count -ne 1) {
+            Add-PolicyIssue 'Reusable preflight does not derive source-kind vocabulary from the registered schema.'
+        }
+        $preflightSyntheticVectorCount++
+        if ($derivedState.sourceFileMetadataCount -ne 2 -or
+            $derivedState.sourceByteMetadataTotal -ne 7 -or
+            @($derivedState.derivedManifestSourceSet | Where-Object sourceKind -CEQ 'AndroidApk').Count -ne 1) {
+            Add-PolicyIssue 'Reusable preflight does not conserve synthetic directory and exact APK file roots.'
+        }
+
+        $comparison = Compare-SourceCorpusPersonalLocalModeDerivedState -ExpectedState $derivedState -ActualState $derivedState
+        $preflightSyntheticVectorCount++
+        if (-not $comparison.unchanged -or $comparison.mismatchCount -ne 0) {
+            Add-PolicyIssue 'Reusable final recheck rejects an unchanged derived state.'
+        }
+        $driftedState = $derivedState | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $driftedState.sourceFileMetadataCount++
+        $driftComparison = Compare-SourceCorpusPersonalLocalModeDerivedState -ExpectedState $derivedState -ActualState $driftedState
+        if ($driftComparison.unchanged -or $driftComparison.mismatchCount -eq 0) {
+            Add-PolicyIssue 'Reusable final recheck does not reject derived metadata drift.'
+        }
+
+        $mismatchedManifest = [pscustomobject][ordered]@{ schemaVersion = '1.0.0'; sources = @($sources[0]) }
+        [System.IO.File]::WriteAllText($manifestPath, ($mismatchedManifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
+        $preflightSyntheticVectorCount++
+        $boundaryMismatchRejected = $false
+        try {
+            Get-SourceCorpusPersonalLocalModeDerivedState `
+                -InputLocatorPath $locatorPath `
+                -LocatorSchemaPath (Join-Path $RepositoryRoot 'docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json') `
+                -OutputRoot $outputRoot `
+                -MetadataTimeoutSeconds 10 | Out-Null
+        }
+        catch {
+            $boundaryMismatchRejected = $true
+        }
+        if (-not $boundaryMismatchRejected) {
+            Add-PolicyIssue 'Reusable preflight accepts a synthetic boundary/manifest mismatch.'
+        }
+
+        $preflightSyntheticVectorCount++
+        if (Test-Path -LiteralPath $outputRoot) {
+            Add-PolicyIssue 'Reusable preflight created its synthetic output root.'
+        }
+    }
+    catch {
+        Add-PolicyIssue "Reusable PersonalLocalMode synthetic preflight failed: $($_.Exception.Message)"
+    }
+    finally {
+        if (Test-Path -LiteralPath $syntheticRoot) {
+            Remove-Item -LiteralPath $syntheticRoot -Recurse -Force
+        }
+    }
+}
+if ($preflightSyntheticVectorCount -ne 5) {
+    Add-PolicyIssue "Reusable PersonalLocalMode preflight synthetic vector count is $preflightSyntheticVectorCount instead of 5."
+}
+
 $taskResult = [pscustomobject][ordered]@{
     status = if ($taskIssues.Count -eq 0) { 'Passed' } else { 'Failed' }
     issueCount = $taskIssues.Count
     issues = $taskIssues.ToArray()
     checkedDocumentCount = $taskDocuments.Count
     semanticVectorCount = $semanticVectors.Count
+    preflightSyntheticVectorCount = $preflightSyntheticVectorCount
     registrySemanticCheckCount = 3
     realInputAccessCount = 0
     processLaunchCount = 0

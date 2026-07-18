@@ -30,6 +30,7 @@ Read-only active governance:
 - completion roadmap and Program Roadmap;
 - R7.4, this R7.5 path, and R8.1 plan;
 - `docs/asset-migration/schemas/personal-local-mode-input-locator.schema.json`;
+- `Tools/AssetImport/SourceCorpusGate.psm1` reusable preflight/final-recheck implementation;
 - `Tools/AssetImport/Test-SourceCorpusPersonalLocalModePolicy.ps1`;
 - Git/protected/forbidden metadata.
 
@@ -39,14 +40,15 @@ The focused test may run. Runtime manifest, baseline, source roots/content, prod
 
 | Identity | SHA-256 |
 |---|---|
-| Package | `6eb87d15d733865b008e10180a7c319b939853f8dffb6f29461c0ecefdc7c3b0` |
-| Runbook | `ab233818bef470ea0ee1ff00e6d0b2aed3bc002fa530b7ae5019932c7e677a6b` |
+| Package | `eb433e072bb8a4c56181b65587411a063cf8e7de9363c34f1b984a3d5313b534` |
+| Runbook | `e16ac550b61b0c7f90fe87e4a37827c04a644f1e2f7f4518317bc0eea4eb4c89` |
 | Completion roadmap | `06357b2ea581132618405096bdb0c2290a191505afecb98c02894ee1d659e5ed` |
 | Program Roadmap | `4932acb748bcd7565bdbca1f89343ba7df8d998493ea436ecb9b19a173c6d8d1` |
-| R7.4 plan | `901afff5f9db3fc177219798652aa419553013827ad62c1f6ae0f5a9514e3663` |
-| R8.1 plan | `5112ad7201a8b5ad1da9a2a32ff736fc44b0fa51cd541f7aa83badc49ba66f36` |
+| R7.4 plan | `7b2005b7f4366fe5825dd701bb792f197b1cbaaefb31c3c9862bff46728a74e8` |
+| R8.1 plan | `f298fd0a9f569dcbce600462c354a31d0c989b802559bafd896da4f601497af6` |
 | Locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
-| Policy test | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
+| C1-I04 module | `ea863ec25d3d0d6f2595fc2a32430589f353558426bd0ce81f7c6eee5ca4befe` |
+| Policy test | `507efb1c395cd3a82638ee7d6763b29c0275ab142a685378af8090cd86d9ad69` |
 
 This plan is bound by path plus final containing commit and cannot predeclare its own hash.
 
@@ -58,6 +60,7 @@ This plan is bound by path plus final containing commit and cannot predeclare it
 - **PB-SP02/PB-SP06:** boundary and manifest rows conserve independently and require exact bidirectional equality. PB-SP03 through PB-SP05 retain source-file/output/baseline semantics.
 - **PB-FT01 through PB-FT12:** all failures remain typed; none can be waived by confirmation.
 - **Confirmation:** `ConfirmPersonalLocalRun`, exactly once after R8.1 GREEN and before one LO; no form fields.
+- **Shared implementation:** R8.1 and the final recheck both invoke C1-I04 `Invoke-SourceCorpusPersonalLocalModePreflight`; five synthetic vectors guard schema-derived vocabulary, APK file roots, boundary mismatch, final-state drift, and zero output.
 
 ## RED And GREEN
 

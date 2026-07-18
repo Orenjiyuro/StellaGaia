@@ -26,17 +26,17 @@ Writes/staging/commit/push: none. Runtime manifest, baseline, source roots/conte
 |---|---|
 | PowerShell | `7.6.0` |
 | Git | `2.53.0.windows.2` |
-| PersonalLocalMode package | `6eb87d15d733865b008e10180a7c319b939853f8dffb6f29461c0ecefdc7c3b0` |
-| PersonalLocalMode runbook | `ab233818bef470ea0ee1ff00e6d0b2aed3bc002fa530b7ae5019932c7e677a6b` |
+| PersonalLocalMode package | `eb433e072bb8a4c56181b65587411a063cf8e7de9363c34f1b984a3d5313b534` |
+| PersonalLocalMode runbook | `e16ac550b61b0c7f90fe87e4a37827c04a644f1e2f7f4518317bc0eea4eb4c89` |
 | Completion roadmap | `06357b2ea581132618405096bdb0c2290a191505afecb98c02894ee1d659e5ed` |
 | Program Roadmap | `4932acb748bcd7565bdbca1f89343ba7df8d998493ea436ecb9b19a173c6d8d1` |
-| R8.1 plan | `5112ad7201a8b5ad1da9a2a32ff736fc44b0fa51cd541f7aa83badc49ba66f36` |
+| R8.1 plan | `f298fd0a9f569dcbce600462c354a31d0c989b802559bafd896da4f601497af6` |
 | C1-I03 runner | `8bfef5d423bd3343d361ff215007df6a9f4bcbcf166e85a8fc1bc1ec12a27d41` |
-| C1-I04 module | `04907242ad793f1e3aa07c49925f4ecc59091f241b381c0bb0917bc439d94f07` |
+| C1-I04 module | `ea863ec25d3d0d6f2595fc2a32430589f353558426bd0ce81f7c6eee5ca4befe` |
 | C1-I05 schema | `b7b3265531bbd548f7f6d0e11a7b8151870044d79578fb88b373dc3479c8e95c` |
 | C1-I06 vocabulary | `9d845b2290cc606de755b2b4cc0fb877e58bc4f3964a55bec01a6ec17d8468e6` |
 | PB-I03 locator schema | `85a736a5b04be3b5d6a7f27cbaf645a3dafe252c0b17b1d3b48f0ff4d77f463e` |
-| PersonalLocalMode policy test | `2e507defc1e4e17af2595bdcca6d5f26e5c73687e44085997a9dd7086ea4c43a` |
+| PersonalLocalMode policy test | `507efb1c395cd3a82638ee7d6763b29c0275ab142a685378af8090cd86d9ad69` |
 
 This plan and R7.5 are bound by their paths plus the final containing commit; no self-hash is predeclared.
 
@@ -51,6 +51,7 @@ Protected status is exactly the two known untracked rows with hashes `397d256da9
 - PB-FT01 through PB-FT12 appear exactly once.
 - package/runbook/Roadmaps/R7.5/R8.1 contain no twelve-row human form.
 - R8.1 owns automatic HEAD/tool/locator/boundary/manifest/baseline/output/disk derivation.
+- R8.1 and the final recheck both use C1-I04 `Invoke-SourceCorpusPersonalLocalModePreflight`; copied source-kind arrays, inline locator parsers, alternate filesystem walks, and duplicated state comparison are forbidden.
 - `ConfirmPersonalLocalRun` occurs only after R8.1 GREEN and before one LO.
 
 Safety invariants:

@@ -26,7 +26,7 @@ Do not request human form fields. Derive every check below from current local st
 
 ### Repository, contract, and policy gates
 
-Run from the fixed implementation worktree:
+The operational entrypoint internally runs these exact checks from the fixed implementation worktree. They remain listed for auditability, not as a second manual pass:
 
 ```powershell
 git status --short --branch
@@ -51,6 +51,17 @@ pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusRunnerPolicy.ps1 -Cas
 pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusC0Compatibility.ps1 -Case All
 pwsh -NoProfile -File .\Tools\AssetImport\Test-SourceCorpusPersonalLocalModePolicy.ps1
 ```
+
+Run R8.1 only through the shared C1-I04 implementation:
+
+```powershell
+$threadId = '019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe'
+Import-Module .\Tools\AssetImport\SourceCorpusGate.psm1 -Force
+$preflightState = Invoke-SourceCorpusPersonalLocalModePreflight -Stage AutomaticPreflight -RepositoryRoot (Get-Location).Path -ThreadId $threadId
+$preflightState | ConvertTo-Json -Depth 10
+```
+
+The result is redacted. Retain its exact returned values for the later final comparison; if that exact state is unavailable, rerun R8.1. Do not replace the function with an inline locator parser, copied source-kind list, or separate filesystem walker.
 
 Require seven Passed results. The compatibility gate must retain `childProcessCount=1` and `heavyChildProcessCount=0`; runner policy must return its expected synthetic created-output accounting and leave repository outputs absent; the PersonalLocalMode test must report zero real-input access, process launches, and created outputs.
 
@@ -165,7 +176,7 @@ ConfirmPersonalLocalRun
 
 This is the only human authorization in PersonalLocalMode. It has `PersonalLocalModeConfirmationCount=1`, applies to the displayed state and next one attempt, and is consumed when the foreground runner starts. It carries no operator/compliance identity fields.
 
-Immediately before start, recheck HEAD/upstream/status, protected hashes, output/staging absence, free space, and safety flags. Drift invalidates the confirmation and returns to R8.1.
+Immediately before start, call `Invoke-SourceCorpusPersonalLocalModePreflight -Stage FinalRecheck -ExpectedState $preflightState` in the same foreground control chain. It rechecks HEAD/upstream/status, protected and registered hashes, PB-I03/manifest exact identities, boundary equality, baseline, source metadata, output/staging absence, free space, and safety state through the same implementation used by R8.1. Require `FinalRecheckPassed`; drift or an internal error invalidates the confirmation and returns to R8.1. No hand-written recheck is permitted.
 
 ## Trusted Local Execution Boundary
 
