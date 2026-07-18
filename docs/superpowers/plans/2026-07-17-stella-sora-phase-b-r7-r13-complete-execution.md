@@ -6,6 +6,107 @@
 >
 > **Execution cadence:** one separately written child Task per turn, 20-30 minutes maximum. Each child Task Step is one 2-5 minute action. A command that cannot safely finish inside one child Task is a Special Long-Running Operation, not an ordinary Task, and requires the separate gate defined below.
 
+## 2026-07-18 Single Character End-to-End Restoration Gate Override
+
+This override has priority over the completed historical Fast Feasibility Spike override and all R8-R13 work. It is the only active route until it reaches its terminal result.
+
+### Historical Fast Feasibility Spike closure
+
+- The Fast Feasibility Spike is completed history: `ordinaryTaskUsed=3/3`; `spikeLOUsed=2/2`; `Character structural producer evidence=Demonstrated`; `Environment chain=NotDemonstrated`; `Audio producer evidence=Demonstrated`; `Overall=PartiallyFeasible`.
+- The spike proved only structural producer evidence for Character and producer evidence for Audio. It did not validate Unity display, material/texture rendering, complete action playback, attack effects, or asset reusability.
+
+### CERG product question and binary terminal result
+
+The only product question is:
+
+> 能否把一个有代表性的 StellaSora 角色作为依赖闭合的 Unity 资产还原，并证明其模型显示正常、骨骼/Avatar正常、完整动作全集正常播放、对应攻击特效正常显示？
+
+CERG has exactly two permitted terminal results:
+
+- `EverythingNormal`: every hard acceptance criterion in this override holds simultaneously.
+- `ProjectFailed`: any hard acceptance criterion does not hold, or auditable evidence cannot be produced within the fixed budgets.
+
+`Feasible`, `PartiallyFeasible`, `NotDemonstrated`, and `Blocked` are forbidden as CERG terminal results. If Unity, a required tool, authorization, or input remains unavailable at the budget endpoint, the result is `ProjectFailed`. That conclusion means only that this fixed route did not prove success; it must not be described as proof that the assets are intrinsically or absolutely impossible to restore.
+
+The old FFS, R8.3, R9-R13, complete C2/C3-C7, environment, audio, other characters, and full-corpus governance remain `Suspended`. They may not run in parallel with CERG and are not CERG prerequisites.
+
+### Fixed budgets and only permitted sequence
+
+- `ordinaryTaskBudget=5`; `LOBudget=3`.
+- After CERG-T0 completes: `ordinaryTaskUsed=1/5`; `LOUsed=0/3`.
+- Reaching either budget cap requires an immediate binary terminal result and stop. No unbounded tool rotation, candidate replacement, retry, or governance expansion is permitted.
+
+The only permitted sequence is:
+
+1. `CERG-T0` route reset.
+2. `CERG-T1` compare at most three candidates, lock exactly one character, and freeze its complete dependency/action/attack-FX universe.
+3. Exact human confirmation.
+4. `LO-CERG1` single-character dependency-closure extraction/staging.
+5. `CERG-T2` static closure acceptance and construction of the minimal Unity validation scene/automatic validator.
+6. Exact human confirmation.
+7. `LO-CERG2` single-thread Unity first import/run/capture.
+8. If all hard criteria are green, `CERG-T4` terminal acceptance. If and only if there is one clearly identified, fixed-scope problem repairable in one ordinary Task, run `CERG-T3` as the sole repair, obtain exact human confirmation, run `LO-CERG3` as the sole Unity revalidation, and then run `CERG-T4`.
+
+An unrepairable problem, multiple non-closure problems, or any failure remaining after `LO-CERG3` requires `CERG-T4=ProjectFailed`.
+
+### Candidate lock and exact-universe rules
+
+- `CERG-T1` may compare at most three character families read-only and must select exactly one.
+- `char_14401` is the preferred first candidate because Mesh/Avatar/skeleton/clip relationship evidence exists, but no attack effect or complete action-set result may be presumed.
+- Before locking, the candidate must yield an exact universe covering model/SkinnedMesh, every required Material/Texture/Shader, skeleton/Avatar, the complete action clip/controller/override relationships, and every attack action's FX prefab/material/texture/shader/animation dependencies.
+- Completeness must come from authoritative controller, override, prefab, event, GUID, or equivalent reference relationships. Filename, same-directory location, a single-clip sample, and subjective similarity are forbidden completeness evidence.
+- After lock, the character may not be changed. If none of the at most three candidates can produce a frozen complete universe, CERG terminates `ProjectFailed` without extraction.
+- “All actions” means one closed, countable, identity-bearing complete action list. Unity validation must cover every item. Any unclassified action or unresolved action reference is failure.
+- Every attack effect must have an authoritative attack-action-to-FX trigger/reference relationship and must actually trigger during the corresponding Unity action. `NoEffectExpected` is allowed only when an authoritative relationship explicitly proves no effect is expected; otherwise absence is failure.
+
+### `EverythingNormal` hard acceptance criteria
+
+#### A. Dependency closure
+
+- Model, every renderer/Mesh/Material/Texture/Shader, skeleton/Avatar, complete action list, controller/override, and attack FX are fully resolved.
+- `requiredMissingReferenceCount=0`.
+
+#### B. Unity import/runtime integrity
+
+- Use the Unity project at the repository root; do not create another project copy.
+- Zero missing scripts, shaders, materials, textures, or bones.
+- Zero import errors, exceptions, NaN/Inf transforms, or animation-binding failures.
+- Exact asset, scene, and script paths are frozen only by the later `CERG-T2`; CERG-T0 authorizes none of them.
+
+#### C. Model visible correctness
+
+- Capture at least front, left, right, back, and close-up views.
+- The complete character is visible with reasonable scale, orientation, and hierarchy.
+- No pink material, full transparency, missing faces, exploded geometry, skeleton collapse, or obvious texture misbinding.
+
+#### D. Complete action correctness
+
+- Every clip/state in the frozen action list plays from start to finish at least once.
+- Each item records identity, duration, start/middle/end samples, and valid bones/renderer bounds.
+- No freeze, exploded geometry, incorrect Avatar, obvious foot/root anomaly, or unbound curve.
+- Continuous capture or equivalent per-action evidence is mandatory; a static first frame is insufficient.
+
+#### E. Attack FX correctness
+
+- Every attack action expected to have FX actually triggers it at the corresponding time.
+- Renderer/particle/trail/material/texture/shader dependencies are complete.
+- Capture before attack, peak FX, and after attack. There must be no pink, invisible, obviously misplaced, abnormally scaled, non-terminating, or missing-texture effect.
+
+#### F. Independent acceptance
+
+- The implementation task produces evidence only and may not relax the meaning of “normal”.
+- Total control independently inspects Unity logs, per-action structured results, screenshots, and continuous capture before accepting `EverythingNormal`.
+- Any criterion lacking visible or structured evidence requires `ProjectFailed`; producer `exit=0` cannot substitute for correct visible/runtime behavior.
+
+### Authorization boundary
+
+- `CERG-T0` modifies only these roadmaps. It authorizes no real source access, extraction, staging, `Assets/StellaGaia/Imported`, Unity, cache, scene, script, process, or `Extracted` write.
+- `CERG-T1` remains read-only and must stop at the exact human confirmation for `LO-CERG1`.
+- `LO-CERG1`, `LO-CERG2`, and `LO-CERG3` each require separate exact authorization. Unity is single-threaded, with no background retry or package download.
+- Each LO permits one attempt. `LO-CERG3` is the only possible Unity revalidation and requires a total-control-approved single repair cause first.
+- Source remains permanently read-only; portable and private paths remain separate; absolute source paths must not enter the repository or conversation.
+- On completion of CERG-T0, the only next action is `AwaitTotalControlAuditBeforeCERG-T1`.
+
 ## 2026-07-18 Fast Feasibility Spike Override
 
 - `mode=FastFeasibilitySpike`; `ordinaryTaskBudget=3`; `ordinaryTaskUsed=1`; `spikeLOBudget=2`; `spikeLOUsed=0` (reported as `ordinaryTaskUsed=1/3`, `spikeLOUsed=0/2`). The historical C1 snapshot LO belongs to the superseded route, is not counted in this spike, and its quarantined C1-O01/C1-O02 outputs remain immutable diagnostic history.
