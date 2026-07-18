@@ -6,6 +6,18 @@
 >
 > **Execution cadence:** one separately written child Task per turn, 20-30 minutes maximum. Each child Task Step is one 2-5 minute action. A command that cannot safely finish inside one child Task is a Special Long-Running Operation, not an ordinary Task, and requires the separate gate defined below.
 
+## 2026-07-18 Fast Feasibility Spike Override
+
+- `mode=FastFeasibilitySpike`; `ordinaryTaskBudget=3`; `ordinaryTaskUsed=1`; `spikeLOBudget=2`; `spikeLOUsed=0` (reported as `ordinaryTaskUsed=1/3`, `spikeLOUsed=0/2`). The historical C1 snapshot LO belongs to the superseded route, is not counted in this spike, and its quarantined C1-O01/C1-O02 outputs remain immutable diagnostic history.
+- The only permitted sequence is `FFS-T1 -> LO-FFS1 (character + environment; shared bundle/AssetRipper route) -> FFS-T2 (read-only acceptance) -> LO-FFS2 (WEM/BNK) -> FFS-T3 (read-only acceptance and forced overall conclusion)`.
+- The spike freezes only three vertical samples: (1) character model plus skeleton/avatar/bone hierarchy plus animation clip; (2) environment Mesh plus Material plus Texture and at least one binding chain; (3) WEM decode/playability plus BNK membership/provenance.
+- Character is Demonstrated only when the same candidate family exports at least one Mesh or SkinnedMesh, one auditable skeleton/avatar/bone hierarchy, and one AnimationClip whose relationship to that skeleton candidate is proven. A complete controller is not required.
+- Environment is Demonstrated only when the same candidate slice exports at least one Mesh, Material, and Texture and proves at least one Mesh-to-Material-to-Texture binding or deterministic rebind. A complete room is not required.
+- Audio is Demonstrated only when one WEM decodes into probeable/playable media and its BNK membership/provenance is auditable. Complete Wwise event semantics and Unity playback are not required.
+- The forced overall conclusion is exactly one of: `Feasible` for 3/3 Demonstrated; `PartiallyFeasible` for 1-2/3 Demonstrated with no global safety issue invalidating the proven domains; `NotDemonstrated` when both spike LOs complete with 0/3 Demonstrated; or `Blocked` only when an LO cannot safely begin/finish or an input, tool, or authorization boundary cannot be satisfied and therefore execution evidence is insufficient. An ordinary sample failure is not `Blocked`.
+- Reaching either total budget cap requires an immediate forced conclusion and stop; no additional Task, LO, tool rotation, or governance expansion is permitted.
+- Suspended and not prerequisites for this spike: the old R8.3 baseline route, first-capture correction, complete R9-R13 route, full C2/C3-C7 processing, Unity full-project restoration, import, publication, and merge. This override grants no LO, extraction, decode, Unity, import, publication, or merge authority.
+
 ## 1. Goal And Product Path
 
 - **Target user:** the human operator who owns the local StellaSora inputs, tool installations, storage, Unity license, evidence review, and final integration decision.
