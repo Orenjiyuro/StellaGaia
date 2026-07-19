@@ -40,38 +40,38 @@ The old FFS, R8.3, R9-R13, complete C2/C3-C7, environment, audio, other characte
 ### Fixed budgets and only permitted sequence
 
 - `ordinaryTaskBudget=5`; `LOBudget=3`.
-- After CERG-T0 completes: `ordinaryTaskUsed=1/5`; `LOUsed=0/3`.
-- Docs-only corrections required by total-control audit before CERG-T1 authorization remain part of `CERG-T0` and do not consume another route Task; after this correction the counters remain `ordinaryTaskUsed=1/5`, `LOUsed=0/3`.
+- `CERG-T0` completed at `ordinaryTaskUsed=1/5`; the historical T1-v1 evaluation consumed the second ordinary Task. Its purported T4 conclusion consumed no Task and is invalidated below. During this docs-only contract correction the counters remain `ordinaryTaskUsed=2/5`, `LOUsed=0/3`.
 - Reaching either budget cap requires an immediate binary terminal result and stop. No unbounded tool rotation, candidate replacement, retry, or governance expansion is permitted.
 
 The only permitted sequence is:
 
-1. `CERG-T0` route reset.
-2. `CERG-T1` compare at most three candidates, lock exactly one character, freeze its exact pre-extraction universe, and freeze a closed discovery-obligation list for relationships not visible in authorized historical evidence.
-3. Exact human confirmation.
-4. `LO-CERG1` candidate-scoped dependency-closure extraction/staging that may resolve only the frozen discovery obligations.
-5. `CERG-T2` final exact-universe closure acceptance, visual-measurement contract freeze, and construction of the minimal Unity validation scene/automatic validator.
-6. Exact human confirmation.
-7. `LO-CERG2` single-thread Unity first import/run/capture.
-8. If all hard criteria are green, `CERG-T4` terminal acceptance. If and only if there is one clearly identified, fixed-scope problem repairable in one ordinary Task, run `CERG-T3` as the sole repair, obtain exact human confirmation, run `LO-CERG3` as the sole Unity revalidation, and then run `CERG-T4`.
+1. `CERG-T0` route reset completed.
+2. The historical `CERG-T1-v1` evaluation ran, but its empty evaluation and resulting T4 conclusion are `InvalidatedByContractDefect` as frozen below; only the T1-v1 Task is counted.
+3. This docs-only correction reopens the same `CERG-T1` route without changing the counters.
+4. After total-control audit, `CERG-T1-v2` projects the exact C1 candidate members, locks exactly `char_14401`, and freezes a closed discovery-obligation list for relationships unavailable before extraction. Completion sets `ordinaryTaskUsed=3/5`, `LOUsed=0/3`.
+5. A separately authorized, read-only `LO-CERG1` immediate preflight binds private source roots, exact registered leaves, tool executable identity/hash, arguments, limits, and outputs; exact human confirmation binds the resulting preflight digest.
+6. `LO-CERG1` performs one candidate-scoped dependency-closure extraction/staging attempt and may resolve only the frozen discovery obligations.
+7. `CERG-T2` performs final exact-universe closure acceptance, freezes the visual-measurement contract, and constructs the minimal Unity validation scene/automatic validator; completion sets `ordinaryTaskUsed=4/5`.
+8. After exact human confirmation, `LO-CERG2` performs the single-thread Unity first import/run/capture.
+9. `CERG-T4` is the fifth and final ordinary Task and returns `EverythingNormal` only when all hard criteria are green; otherwise it returns `ProjectFailed`.
 
-An unrepairable problem, multiple non-closure problems, or any failure remaining after `LO-CERG3` requires `CERG-T4=ProjectFailed`.
+Because the counted T1-v1 Task used the route's former repair slot, `CERG-T3` and `LO-CERG3` are no longer reachable in this reopened route. Any defect remaining after `LO-CERG2` requires the evidence-producing `CERG-T4` to return `ProjectFailed`; the invalidated historical conclusion is not that terminal result.
 
 ### Candidate lock and exact-universe rules
 
 - `CERG-T1` may compare at most three character families read-only and must select exactly one.
 - `char_14401` is the preferred first candidate because Mesh/Avatar/skeleton/clip relationship evidence exists, but no attack effect or complete action-set result may be presumed.
-- Before locking, the candidate must yield an exact pre-extraction universe covering every known model/SkinnedMesh, Material/Texture/Shader, skeleton/Avatar, controller/nested-state-machine/Motion/BlendTree/clip, and attack-FX-prefab/component identity plus every unresolved relationship as one finite, identity-bearing LO operation. Every LO operation must freeze exact source members and leaf selectors; a source root alone is never an input selector.
+- Before locking, the candidate must yield an exact pre-extraction universe covering every identity already visible for model/SkinnedMesh, Material/Texture/Shader, skeleton/Avatar, controller/nested-state-machine/Motion/BlendTree/clip, and attack-FX-prefab/component, plus every unavailable relationship as one finite identity-bearing discovery obligation over exact C1 SourceMembers. Tool identity, arguments, and execution/output limits belong only to the later immediate preflight; a source root alone is never an input selector.
 - Final completeness must come from authoritative controller, override, prefab, event, GUID, serialized object, or equivalent ownership/reference relationships. Filename, same-directory location, a single-clip sample, and subjective similarity are forbidden completeness evidence.
-- After lock, the character may not be changed. If none of the at most three candidates has both an exact known universe and a finite candidate-scoped discovery-obligation list, CERG terminates `ProjectFailed` without extraction.
-- `LO-CERG1` may fill the frozen obligations but may not broaden the candidate, source boundary, relationship kinds, or selectors. Any newly encountered dependency must be attributable to a frozen authoritative edge and added to the same candidate closure; an unrelated family or open-ended corpus search is forbidden.
+- After lock, the character may not be changed. This reopened v2 route evaluates only `char_14401`; an empty or prohibited C1 projection means no candidate was evaluated and is a contract/input failure, never `ProjectFailed`. If a nonempty projection exposes contradictory authority or an obligation that cannot be bounded, T1-v2 suppresses the lock and returns to total-control audit; it does not emit a terminal conclusion.
+- `LO-CERG1` may fill the frozen obligations but may not broaden the candidate, source boundary, relationship kinds, or selectors. A newly encountered dependency outside the registered member set is recorded as an unresolved external identity but is not read; an unrelated family or open-ended corpus search is forbidden, and CERG-T2 closure cannot pass while it remains unresolved.
 - After `LO-CERG1`, `CERG-T2` must freeze the final exact universe with zero unresolved or contradictory rows. Otherwise it must not build the Unity scene or request `LO-CERG2`, and `CERG-T4=ProjectFailed`.
 - “All actions” means one closed, countable, identity-bearing traversal of every nested StateMachine state, Motion, recursive BlendTree child, parameter branch, and leaf ActionClip. Unity validation must cover every state and every branch-to-leaf route. Any unclassified state/Motion/branch/clip or unresolved reference is failure.
 - Every attack effect must have an authoritative attack-action-to-FX trigger/reference relationship and must actually trigger during the corresponding Unity action. `NoEffectExpected` is allowed only when an authoritative relationship explicitly proves no effect is expected; otherwise absence is failure.
 
 ### CERG-T1 authorized historical evidence and evidence states
 
-`CERG-T1` keeps every repository and historical-evidence input read-only. Its only permitted writes are the exact non-overwriting T1-T01/T1-O01 publication defined below. Its complete historical evidence allowlist is:
+`CERG-T1-v2` keeps every repository and historical-evidence input read-only. Under a future explicit authorization, its only permitted writes are the exact non-overwriting T1V2-T01/T1V2-O01 publication defined below. Its complete historical evidence allowlist is:
 
 1. tracked repository plans, contracts, and source-independent tool metadata;
 2. historical C1 ledger/summary identity, count, byte, hash, and portable provenance fields, without copying any machine-private or absolute path into portable artifacts or conversation;
@@ -89,9 +89,112 @@ Every candidate relationship row must have exactly one state:
 
 `EvidenceUnavailableBeforeExtraction` means “not visible in current evidence,” never “absent.” It is permitted at the end of `CERG-T1` only when every such row has one exact discovery obligation. `Contradictory` rejects that candidate. `ProvenAbsent` can support `NoEffectExpected` only when its exhaustive authority remains current after `LO-CERG1`; otherwise the final row fails closure.
 
-### CERG-T1 central contract
+### CERG-T1-v1 invalidation and reopened CERG-T1-v2 central contract
 
-The definitions in this section are the only T1 Artifact Registry, Subject/Partition Registry, Failure Transition Table, identity model, and output contract. No child plan or implementation may add fields, states, artifacts, or transitions without first revising this normative override and its mirror.
+#### Invalidated historical decision
+
+- The immutable historical file `Extracted/CERG/SingleCharacter/T1/candidate-lock.json` remains preserved at `byteCount=7767`, `sha256=5d71f0f8c3dbde8038076b49a944b5c58f4883ef4b65865129be50f69406bdff`. It is `HistoricalT1V1Artifact`, is never deleted or overwritten, and is not consumable by any LO.
+- The T4 conclusion derived from that file is `InvalidatedByContractDefect`, `consumed=false`, `terminal=false`, because T1-v1 required exact source leaves, tool SHA, arguments, and output limits while forbidding the C1 member projection and local preflight needed to produce them. Its `subjects=[]`, `relationships=[]`, and `loOperations=[]` therefore prove that no candidate was evaluated; they do not prove candidate failure.
+- `InvalidatedByContractDefect` is a historical decision disposition, not a third CERG terminal result. It changes no asset fact, consumes no T4 Task, and cannot be cited as `ProjectFailed`. The only current counters are `ordinaryTaskUsed=2/5`, `LOUsed=0/3`.
+- The unresolved OverrideController reference recorded as `deadbeef` is `EvidenceUnavailableBeforeExtraction`. It freezes a bounded `ResolveBaseController` discovery obligation; it is neither `ProvenAbsent` nor candidate-rejection evidence.
+
+The following v2 definitions are the only executable T1 Artifact Registry, Subject/Partition Registry, Failure Transition Table, identity model, and output contract. The entire later section headed `Historical CERG-T1-v1 central contract` is retained only to explain the immutable v1 artifact and grants no authority.
+
+#### T1-v2 Artifact Registry
+
+| ID | Path or byte range | Required shape and role | Rule |
+|---|---|---|---|
+| `T1V2-I01` | Normative CERG override heading-bounded bytes | UTF-8 contract bytes and whole-byte SHA-256 | Required direct input |
+| `T1V2-I02` | Mirror CERG override over the identical byte range | Byte-for-byte mirror of T1V2-I01 | Divergence suppresses all T1-v2 output |
+| `T1V2-I03` | `Extracted/Threads/019f4a24-5ca0-7002-9dc2-4a0e42ad3cbe/C1/source-corpus-ledger.json` | Read-only C1 ledger. Permitted projection is `sources[*].{sourceId,sourceKind,rootFingerprint}` and candidate-related `files[*].{sourceId,relativePath,sizeBytes,sha256}` | No captured time, absolute/private root, object content, or unrestricted observation may be projected |
+| `T1V2-I04` | `Extracted/FastFeasibilitySpike/LO-FFS1` | Read-only historical Mesh/Avatar/skeleton/clip and serialized relationship evidence, limited to the already-authorized safe metadata classes | Used to classify known relationships, never to assert unseen completeness |
+| `T1V2-H01` | `Extracted/CERG/SingleCharacter/T1/candidate-lock.json` | Immutable v1 artifact with the exact identity frozen above | Historical-only; must remain byte-identical and is never an input authority for candidate rejection |
+| `T1V2-T01` | `Extracted/CERG/SingleCharacter/T1-v2/candidate-lock.json.tmp` | Temporary canonical bytes with exactly the T1V2-O01 shape | Must be absent at start; never consumable; atomically renamed or rolled back in the same Task |
+| `T1V2-O01` | `Extracted/CERG/SingleCharacter/T1-v2/candidate-lock.json` | Sole v2 candidate lock, schema `cerg-t1-candidate-lock/2.0.0` | Must be absent at start and never overwritten; only `Passed` may proceed to preflight |
+| `LO1-PT01` | `Extracted/CERG/SingleCharacter/LO-CERG1/preflight.json.tmp` | Machine-private temporary preflight bytes | Must be absent at start; rolled back if any preflight check is not Green |
+| `LO1-P01` | `Extracted/CERG/SingleCharacter/LO-CERG1/preflight.json` | Machine-private, read-only preflight record, schema `cerg-lo-cerg1-preflight/1.0.0` | Not a T1-v2 output; created only by separate authorization immediately before confirmation and never committed or quoted with private paths |
+
+No v2 candidate-lock producer, validator, schema file, fixture, mutation matrix, or diagnostic artifact is authorized. T1-v2 manually projects direct registered evidence into T1V2-O01, and total control reproduces the decision from the cited raw ledger/relationship locators. This contract correction creates none of the registered artifacts.
+
+#### T1-v2 identity, Subject Registry, and partitions
+
+- All hashes are lowercase SHA-256. Text is UTF-8 NFC and identity fields forbid U+0000. Portable paths use `/`, are relative, contain no scheme/root/`.`/`..` segment, and compare by ordinal UTF-8 byte order. Integers are base-10 JSON integers; JSON objects use the declared field order and arrays use the sort keys below. Identity tuples encode each declared field in order as UTF-8 text separated by one U+0000 byte. A member-set fingerprint sorts rows by portable path then hashes the concatenation of `portableRelativePath`, decimal `byteCount`, and lowercase `sha256` tuples; an empty member set is forbidden for a required input.
+- `memberId = "C1F-" + sha256("C1File\0" + sourceId + "\0" + relativePath + "\0" + sizeBytes + "\0" + sha256)`. `subjectId = "SUB-" + sha256(candidateId + "\0" + subjectKind + "\0" + authorityIdentity)`. `relationshipId = "REL-" + sha256(ownerSubjectId + "\0" + relationshipKind + "\0" + targetIdentity)`. `obligationId = "OBL-" + sha256(candidateId + "\0" + obligationKind + "\0" + sortedMemberIds + "\0" + ownerIdentity)`, where `sortedMemberIds` is the ordinal-sorted member-ID list joined by U+0000.
+- `CandidateFamily` has exactly one permitted identity in v2: `candidateId=char_14401`, `familyIdentityKind=PortableFamilyKey`, `familyIdentityValue=char_14401`. Candidate rotation is forbidden by this reopen correction.
+- `EvidenceItem` rows have exactly `evidenceId`, `inputArtifactId`, `evidenceClass`, `portableRelativePath`, `byteCount`, `sha256`, `locatorKind`, `locator`. `evidenceClass`/`locatorKind` is closed to `C1SourceProjection/C1SourceId`, `C1FileProjection/C1FileTuple`, `LOFFS1WholeFile/WholeFileIdentity`, `UnityMeta/UnityGuidRecord`, or `SerializedRelationship/YamlObjectPath`. Each ID is `"EVI-" + sha256(inputArtifactId + "\0" + evidenceClass + "\0" + portableRelativePath + "\0" + locator)`; every reference resolves exactly once.
+- `SourceRoot` rows have exactly `sourceId`, `sourceKind`, `rootFingerprint`, `evidenceRefIds`. `sourceKind` is `PcInstall`, `PcPatchOrCache`, `AndroidApk`, or `AndroidDataOrCache`; each row cites exactly one matching `C1SourceProjection/C1SourceId` evidence item and contains no private root path.
+- `SourceMember` rows are exact C1 file projections with fields `memberId`, `candidateId`, `sourceId`, `portableRelativePath`, `sizeBytes`, `sha256`, `memberClass`, `evidenceRefIds`. `portableRelativePath` is the C1 `relativePath`; `memberClass` is exactly `Model`, `Animation`, `FX`, `Material`, `Texture`, `Timeline`, `Weapon`, `Combo`, `Controller`, or `OtherCandidateDependency`. The class and path only delimit inputs; neither proves semantic completeness. Each row cites exactly one matching `C1FileProjection/C1FileTuple` evidence item.
+- `KnownSubject` rows have exactly `subjectId`, `candidateId`, `subjectKind`, `authorityIdentity`, `memberRefIds`, `evidenceRefIds`. `subjectKind` is `CandidateFamilyAnchor`, `Model`, `Mesh`, `SkinnedMesh`, `Skeleton`, `Avatar`, `Controller`, `StateMachine`, `State`, `Motion`, `BlendTree`, `ActionClip`, `AnimationEvent`, `AttackAction`, `FXPrefab`, `FXComponent`, `Material`, `Texture`, `Shader`, `Weapon`, `Combo`, or `Timeline`. Exactly one `CandidateFamilyAnchor` with `authorityIdentity=char_14401` is mandatory so an unavailable owner can be represented without inventing an asset identity.
+- `Relationship` rows have exactly `relationshipId`, `candidateId`, `ownerSubjectId`, `relationshipKind`, `targetIdentity`, `evidenceState`, `evidenceRefIds`, `obligationId`. `evidenceState` is `ProvenPresent`, `ProvenAbsent`, `EvidenceUnavailableBeforeExtraction`, or `Contradictory`; `obligationId` is non-null exactly for `EvidenceUnavailableBeforeExtraction`. When the target is not yet identifiable, `targetIdentity` is exactly `Unresolved:<obligationKind>` and cannot be mistaken for an asset ID.
+- `DiscoveryObligation` rows have exactly `obligationId`, `candidateId`, `obligationKind`, `ownerIdentity`, `allowedMemberRefIds`, `requiredRelationshipKinds`, `requiredSubjectKinds`, `successDisposition`, `failureDisposition`. `obligationKind` is `ResolveBaseController`, `EnumerateControllerGraph`, `EnumerateOverrideMap`, `EnumerateCompleteActionUniverse`, `EnumerateAnimationEvents`, `ResolveAttackFXTriggers`, `EnumerateFXPrefabComponents`, `ResolveRendererMaterialTextureShader`, `ResolveSkeletonAvatar`, `ResolveTimelineWeaponsCombos`, or `ResolveReferencedDependencies`. `successDisposition=ResolvedByLOCERG1`; `failureDisposition=UnresolvedForCERGT2`.
+- `relationshipKind` is closed to `ModelToMesh`, `SkinnedMeshToSkeleton`, `SkeletonToAvatar`, `StateMachineToState`, `StateToMotion`, `StateToNestedStateMachine`, `BlendTreeToChildMotion`, `BlendTreeParameterBranchToLeafClip`, `ControllerToStateMachine`, `OverrideSourceToReplacementClip`, `ActionToAnimationEvent`, `AttackActionToFXTrigger`, `FXTriggerToPrefab`, `FXPrefabToSerializedComponent`, `FXComponentToAssetReference`, `RendererToMaterial`, `MaterialToTexture`, `MaterialToShader`, `TimelineToAction`, `WeaponToAction`, `ComboToAction`, or `SerializedObjectReference`.
+- Partition conservation is mandatory: every evidence item belongs to exactly one evidence class; every SourceMember resolves to exactly one SourceRoot and belongs to exactly one `memberClass`; every known subject belongs to exactly one `subjectKind`; every relationship belongs to exactly one evidence state; every `EvidenceUnavailableBeforeExtraction` relationship maps one-to-one to one obligation; no other relationship maps to an obligation. `evidenceItemCount=sum(evidenceClassCounts)`, `sourceRootCount=count(sourceRoots)`, `candidateMemberCount=sum(memberClassCounts)`, `knownSubjectCount=sum(subjectKindCounts)`, `relationshipCount=sum(evidenceStateCounts)`, and `discoveryObligationCount=EvidenceUnavailableBeforeExtractionCount`.
+
+Candidate-related C1 membership must be a finite, directly reviewed row set for `char_14401`. Exact path tokens or known authoritative references may locate rows for review, but filename/directory similarity cannot establish ownership or completeness. Every included row keeps its exact C1 path, byte count, and SHA; a source root, glob, directory, or unbounded search is never serialized as a SourceMember.
+
+#### Complete T1V2-O01 shape and lock rule
+
+T1V2-O01 has exactly these mandatory top-level fields in this order: `schemaVersion`, `artifactId`, `contractHeadCommit`, `normativeOverrideSha256`, `mirrorOverrideSha256`, `status`, `consumableForLoCerg1Preflight`, `selectedCandidateId`, `priorInvalidation`, `inputArtifacts`, `evidenceItems`, `candidate`, `sourceRoots`, `sourceMembers`, `knownSubjects`, `relationships`, `discoveryObligations`, `partitions`, `failures`, `summary`, `nextAction`.
+
+- Fixed values are `schemaVersion=cerg-t1-candidate-lock/2.0.0`, `artifactId=CERG-T1V2-O01`, `status=Passed`, `consumableForLoCerg1Preflight=true`, and `selectedCandidateId=char_14401`. `contractHeadCommit` is 40 lowercase hex. Both override hashes are equal 64-character lowercase hex.
+- `priorInvalidation` has exactly `historicalArtifactId`, `portableRelativePath`, `byteCount`, `sha256`, `disposition`, `consumed`, `terminal`; its fixed values are the T1V2-H01 identity above, `InvalidatedByContractDefect`, `false`, and `false`.
+- `inputArtifacts` rows have exactly `artifactId`, `portableRelativePath`, `byteCount`, `sha256`, `memberCount`, `memberSetFingerprint`; rows cover T1V2-I01 through T1V2-I04 exactly once and are ordered by `artifactId`.
+- `evidenceItems` uses the exact EvidenceItem shape above and sorts by `evidenceId`. `candidate` has exactly `candidateId`, `comparisonOrdinal`, `familyIdentityKind`, `familyIdentityValue`, `disposition`, `memberRefIds`, `baselineEvidenceRefIds`, `rejectionFailureIds`; v2 fixes `comparisonOrdinal=1`, `disposition=Locked`, and `rejectionFailureIds=[]`.
+- `sourceRoots`, `sourceMembers`, `knownSubjects`, `relationships`, and `discoveryObligations` use the exact row shapes above and sort by `sourceId` or their primary ID. The candidate's `memberRefIds` equals the complete SourceMember ID set, and the SourceRoot set equals the distinct roots referenced by those members. `partitions` has exactly `evidenceClassCounts`, `memberClassCounts`, `subjectKindCounts`, `evidenceStateCounts`, `evidenceItemCount`, `sourceRootCount`, `candidateMemberCount`, `knownSubjectCount`, `relationshipCount`, `discoveryObligationCount`, with every enum key present including zero counts.
+- `failures` rows have exactly `failureId`, `transitionId`, `ownerKind`, `ownerId`, `redactedReasonCode`, `evidenceRefIds`; a published Passed artifact fixes `failures=[]`. `summary` has exactly `candidateCount`, `lockedCount`, `rejectedCount`, `evidenceItemCount`, `sourceRootCount`, `sourceMemberCount`, `knownSubjectCount`, `relationshipCount`, `discoveryObligationCount`, `failureCount`, with fixed `candidateCount=1`, `lockedCount=1`, `rejectedCount=0`, `failureCount=0`, and `sourceMemberCount=partitions.candidateMemberCount`.
+- `nextAction` is exactly `PrepareLOCERG1PreflightThenRequestExactHumanConfirmation`. Any failed lock predicate, malformed record, suppressed execution, contradiction, unbounded obligation, or unevaluated execution produces no T1V2-O01 and no terminal conclusion; T1-v2 has no diagnostic `Failed` artifact.
+
+`char_14401` is Locked only when: (1) at least one nonempty exact C1 SourceMember set is projected; (2) the immutable historical evidence proves the existing Mesh/Avatar/skeleton/clip structural baseline; (3) every candidate-associated C1 model, animation, FX, material, texture, timeline, weapon, and combo row found by the finite direct review is included with size/hash; (4) every unknown Controller, complete-action, animation-event, attack-FX, serialized-component, renderer/material/texture/shader, weapon/combo/timeline, and referenced-dependency relationship is represented as `EvidenceUnavailableBeforeExtraction` with exactly one bounded obligation over listed SourceMembers; and (5) there is no contradictory authoritative identity. Lock means “eligible for bounded discovery,” not “dependency closure or Unity correctness proven.”
+
+The missing base Controller, full nested StateMachine/Motion/BlendTree/clip traversal, and attack-action-to-FX graph are mandatory discovery obligations when they are not visible historically. They cannot be converted to `ProvenAbsent`, `NoEffectExpected`, or candidate rejection merely because FFS did not extract or expose them.
+
+#### LO-CERG1 immediate preflight contract
+
+Tool executable path/SHA, expanded arguments, private source-root bindings, and execution/output caps are deliberately absent from T1V2-O01. They are frozen only in LO1-P01 after a Passed v2 lock and under separate read-only preflight authorization immediately adjacent to the proposed LO.
+
+LO1-P01 has exactly: `schemaVersion`, `artifactId`, `candidateLockSha256`, `contractHeadCommit`, `selectedCandidateId`, `createdAt`, `sourceRootBindings`, `operations`, `aggregateLimits`, `outputRoot`, `status`, `nextAction`.
+
+- Fixed values are `schemaVersion=cerg-lo-cerg1-preflight/1.0.0`, `artifactId=LO-CERG1-P01`, `selectedCandidateId=char_14401`, `status=Green`, and `nextAction=RequestExactHumanConfirmationForLOCERG1`.
+- `sourceRootBindings` rows have exactly `sourceId`, `privateAbsoluteReadOnlyRoot`, `rootFingerprint`. Rows correspond one-to-one with T1V2-O01 SourceRoots and must match their fingerprints. This machine-private field never enters tracked content or conversation.
+- `operations` rows have exactly `operationId`, `obligationRefIds`, `toolId`, `toolVersion`, `privateToolExecutablePath`, `toolExecutableSha256`, `inputMemberRefIds`, `argumentTokens`, `workingDirectory`, `maxFilesRead`, `maxBytesRead`, `maxDurationSeconds`, `maxResultRows`, `maxOutputFiles`, `maxOutputBytes`, `outputPortableRelativePath`, `allowedChildProcessCount`. Each of the six `max*` fields is a positive integer; `allowedChildProcessCount` is a non-negative integer; every input member resolves to one exact T1V2-O01 SourceMember; no root/glob/directory/pattern input is allowed.
+- `aggregateLimits` has exactly `maxFilesRead`, `maxBytesRead`, `maxDurationSeconds`, `maxResultRows`, `maxOutputFiles`, `maxOutputBytes`, each equal to the sum of its operation values. `outputRoot` is exactly `Extracted/CERG/SingleCharacter/LO-CERG1`; every operation output is a distinct descendant leaf of that root. `allowedChildProcessCount` is zero unless one named tool requires one fixed child.
+- `Green` requires all registered leaves to exist under their private read-only roots and match C1 size/hash, the tool executable to match its SHA, outputs/temp to be absent, and every operation/aggregate cap to validate. Any `NotReady` condition suppresses LO1-P01, rolls back LO1-PT01 in the same preflight attempt, and yields `CorrectPreflightWithoutReadingAssetsOrDenyLOCERG1` only as an in-memory decision.
+- The exact human confirmation binds the LO1-P01 SHA-256, candidate-lock SHA-256, all operation IDs, aggregate limits, output root, one-attempt/no-retry rule, cancellation, and rollback. Any changed input/tool/argument/limit/output invalidates the preflight. Preparing or failing preflight consumes no LO attempt; extraction begins only after confirmation.
+
+#### T1-v2 Failure Transition Table
+
+| ID | Trigger | Candidate/result | LO state | Required next action |
+|---|---|---|---|---|
+| `T1V2-FT01` | Override mirror mismatch, input hash mutation, unsafe/private projection, malformed field/ID/path/hash, conservation failure, or pre-existing v2 temp/output | No T1V2-O01; no terminal result | denied | Correct contract/input/output state and rerun only with authorization |
+| `T1V2-FT02` | C1 cannot be read under the registered projection, or projected candidate members are empty so no actual candidate evaluation occurred | No T1V2-O01; `InvalidContractExecution`, not candidate rejection | denied | Return to total-control audit; never run T4 from this state |
+| `T1V2-FT03` | An exact projected C1 member identity contradicts another authoritative identity | No T1V2-O01; no terminal result | denied | Return the exact contradiction to total-control audit |
+| `T1V2-FT04` | A required unknown relationship cannot be bounded to the finite registered SourceMember set by one discovery obligation | No T1V2-O01; no terminal result | denied | Return the exact unbounded relationship to total-control audit |
+| `T1V2-FT05` | Relationship is unavailable historically but has one finite exact obligation, including `deadbeef` base Controller | Candidate remains eligible; state is `EvidenceUnavailableBeforeExtraction` | preflight may proceed after Passed lock | Resolve only in LO-CERG1 |
+| `T1V2-FT06` | Every lock predicate, identity, partition, and freshness check holds | Exactly `char_14401=Locked`; canonical Passed artifact | preflight pending | Prepare LO1-P01, then request exact confirmation |
+| `LO1-PF01` | Tool/root/member/argument/cap/output binding is absent, stale, mismatched, root-only, or unbounded | Passed candidate lock remains unchanged; no candidate rejection | preflight `NotReady`; LO attempt not started | Correct within separately authorized preflight window or deny LO; no source scan/candidate switch |
+| `LO1-PF02` | Green preflight and exact confirmation match byte-for-byte | Candidate lock unchanged | one LO-CERG1 attempt authorized | Execute only registered operations and stop |
+
+If preflight cannot become Green within its separately authorized bounded window, or required discovery remains unresolved after the single LO-CERG1 attempt, the route may reach a genuine `ProjectFailed` only through the later evidence-producing CERG-T4. Neither state retroactively changes T1-v2 into candidate non-evaluation.
+
+#### Fixed v2 counterexamples
+
+| Case | Input | Required result |
+|---|---|---|
+| `T1V2-DR01` | `subjects=[]`, `relationships=[]`, and `discoveryObligations=[]` because C1 projection was forbidden or skipped | T1V2-FT02; no artifact and no ProjectFailed conclusion |
+| `T1V2-DR02` | C1 row for `char_14401` has exact portable relative path, size, and SHA | Permitted SourceMember projection; no source-content read required |
+| `T1V2-DR03` | OverrideController contains `deadbeef` while the base Controller is absent from FFS export | `EvidenceUnavailableBeforeExtraction` plus one `ResolveBaseController` obligation; never `ProvenAbsent` or automatic rejection |
+| `T1V2-DR04` | T1V2-O01 omits tool path/SHA/arguments | Valid by design; those fields belong only to LO1-P01 |
+| `T1V2-DR05` | LO1-P01 names a source root/glob or omits exact member size/hash or any positive file/byte/time/result/output cap | LO1-PF01; LO denied, candidate lock preserved |
+| `T1V2-DR06` | Filename/directory similarity is used to claim complete action or FX closure | Malformed evidence claim under T1V2-FT01; no lock from that claim |
+| `T1V2-DR07` | A finite C1 member list and structural baseline exist; Controller/action/FX relations are unknown but each has one bounded obligation | `char_14401=Locked`; proceed only to preflight |
+| `T1V2-DR08` | LO-CERG1 discovers a dependency outside the registered member set | Record unresolved external identity, do not read it or broaden scope; CERG-T2 closure cannot pass |
+| `T1V2-DR09` | T1-v1 artifact or its derived T4 conclusion is offered as current failure authority | Reject the citation as `InvalidatedByContractDefect`; preserve the bytes only as history |
+
+This docs-only correction authorizes no T1-v2 artifact generation or preflight. Its only next action is `AwaitTotalControlAuditBeforeCERGT1V2`.
+
+### Historical CERG-T1-v1 central contract
+
+The definitions in this historical section produced T1V2-H01 but are invalidated and non-executable. They are preserved verbatim except for this status notice and cannot authorize candidate rejection, T4, LO, overwrite, cleanup, or rerun.
 
 #### T1 Artifact Registry
 
@@ -271,11 +374,11 @@ Every phrase such as “reasonable scale,” “obvious misbinding,” “obviou
 ### Authorization boundary
 
 - `CERG-T0` modifies only these roadmaps. It authorizes no real source access, extraction, staging, `Assets/StellaGaia/Imported`, Unity, cache, scene, script, process, or `Extracted` write.
-- `CERG-T1` keeps every repository, source, C1, FFS, and historical-evidence input read-only. Its only writes are creation of the exact T1-T01/T1-O01 parent directories and the non-overwriting atomic T1-T01-to-T1-O01 publication defined above; it must then stop at the exact human confirmation for `LO-CERG1`.
+- `CERG-T1-v2` keeps every repository, source, C1, FFS, and historical-evidence input read-only. Under a future explicit authorization, its only writes are creation and non-overwriting atomic publication of T1V2-T01/T1V2-O01; it then stops before the separately authorized LO1-P01 preflight.
 - `LO-CERG1`, `LO-CERG2`, and `LO-CERG3` each require separate exact authorization. Unity is single-threaded, with no background retry or package download.
 - Each LO permits one attempt. `LO-CERG3` is the only possible Unity revalidation and requires a total-control-approved single repair cause first.
 - Source remains permanently read-only; portable and private paths remain separate; absolute source paths must not enter the repository or conversation.
-- On completion of CERG-T0, the only next action is `AwaitTotalControlAuditBeforeCERG-T1`.
+- After this contract correction, the only next action is `AwaitTotalControlAuditBeforeCERGT1V2`.
 
 ## 2026-07-18 Fast Feasibility Spike Override
 
