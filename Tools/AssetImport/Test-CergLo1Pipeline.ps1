@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'New-CergLo1ResultGraph.ps1')
 
 $script:CergTestImplementationRole = 'FixtureContractTest'
-$script:CergTestImplementationVersion = 'CERG-T1A-PIPELINE-TEST/3'
+$script:CergTestImplementationVersion = 'CERG-T1A-PIPELINE-TEST/4'
 
 function Write-CergFixtureJson {
     param([string]$Path, [object]$Value, [switch]$Canonical)
@@ -422,9 +422,10 @@ $testDefinitions = @(
     @('T1A3-TEST20','RecursiveAttackBlendFX'),
     @('T1A3-TEST21','AssetRipperPngMetaMaterialShader'),
     @('T1A3-TEST22','PrefabRolePartitionAndAttribution'),
-    @('T1A3-TEST23','AttackAnchorClassification')
+    @('T1A3-TEST23','AttackAnchorClassification'),
+    @('T1A4-TEST24','BlendTreeTypeEnumStrict')
 )
-$fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('cerg-t1a3-' + [guid]::NewGuid().ToString('N'))
+$fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('cerg-t1a4-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($fixtureRoot) | Out-Null
 $rows = [System.Collections.Generic.List[object]]::new()
 try {
@@ -542,6 +543,43 @@ try {
                     $mismatch=New-CergUnityGraphFixture (Join-Path $caseRoot 'MismatchedAnchor');$candidate=Read-CergJsonFile $mismatch.CandidatePath;$candidate.attackAnchors[0].serializedFileId=[int64]74;Update-CergFixtureBindings $mismatch $candidate;$mismatchResult=Invoke-CergGraphFixture $mismatch;Assert-CergResultUnresolved $mismatchResult 'Mismatched attack anchor'
                     $heuristic=New-CergUnityGraphFixture (Join-Path $caseRoot 'HeuristicOnly');Remove-CergFixtureLine (Join-Path $heuristic.OutputRoot 'Controller\Hero.controller') '(?m)^  m_Tag: Attack\r?\n';$candidate=Read-CergJsonFile $heuristic.CandidatePath;$anchor=$candidate.attackAnchors[0];$clip=@($candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)[0];$oldId=$clip.subjectId;$clip.serializedFileId=[int64]74;$clip.sourceObjectId="$($clip.unityGuid):74";$clip.authorityIdentity="BaselineYamlObject:$($clip.unityGuid):74";$clip.subjectId=Get-CergSubjectId $clip;$anchor.clipSubjectRefId=$clip.subjectId;$anchor.serializedFileId=[int64]74;$bytes=$script:CergUtf8NoBom.GetBytes((ConvertTo-CergCanonicalJsonValue @('cerg-t1/attack-anchor/1',$anchor.candidateId,$anchor.portableRelativePath,[int64]$anchor.byteCount,$anchor.sha256,$anchor.unityGuid,[int64]74)));$anchor.attackAnchorId='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant());foreach($relationship in $candidate.relationships){if($relationship.sourceSubjectId-ceq$oldId){$relationship.sourceSubjectId=$clip.subjectId};if($relationship.targetSubjectId-ceq$oldId){$relationship.targetSubjectId=$clip.subjectId};$relationship.relationshipId=Get-CergRelationshipId $relationship};Update-CergFixtureBindings $heuristic $candidate;$heuristicResult=Invoke-CergGraphFixture $heuristic;Assert-CergResultUnresolved $heuristicResult 'Name/path/event-only attack heuristic';$stateFour=@($heuristicResult.subjects|Where-Object serializedFileId -EQ 4);Assert-CergFixture (@($stateFour|Where-Object subjectKind -CEQ 'ActionState').Count-eq1-and@($stateFour|Where-Object subjectKind -CEQ 'AttackAction').Count-eq0) 'State/clip name, path, or FX event self-classified an attack.'
                 }
+                'T1A4-TEST24' {
+                    $typeNames=[ordered]@{'0'='OneD';'1'='SimpleDirectional2D';'2'='FreeformDirectional2D';'3'='FreeformCartesian2D';'4'='Direct'}
+                    foreach($typeCode in @('0','1','2','3','4')){
+                        $f=New-CergUnityGraphFixture (Join-Path $caseRoot "Valid$typeCode");$path=Join-Path $f.OutputRoot 'Controller\Hero.controller'
+                        if($typeCode-cin@('1','2','3')){
+                            Replace-CergFixtureText $path '(?m)^  m_BlendType: 0$' "  m_BlendType: $typeCode"
+                            Replace-CergFixtureText $path '(?m)^  m_BlendParameter: Speed$' "  m_BlendParameter: SpeedX`n  m_BlendParameterY: SpeedY"
+                            Replace-CergFixtureText $path '(?m)^  m_BlendParameter: Direction$' "  m_BlendParameter: DirectionX`n  m_BlendParameterY: DirectionY"
+                            Replace-CergFixtureText $path '(?m)^    m_Threshold: 0\.25$' '    m_Position: {x: -0.25, y: 0.75}'
+                            Replace-CergFixtureText $path '(?m)^    m_Threshold: -0\.75$' '    m_Position: {x: 0.5, y: -0.5}'
+                        } elseif($typeCode-ceq'4') {
+                            Replace-CergFixtureText $path '(?m)^  m_BlendType: 0$' '  m_BlendType: 4'
+                            Remove-CergFixtureLine $path '(?m)^  m_BlendParameter: (?:Speed|Direction)\r?\n'
+                            Replace-CergFixtureText $path '(?m)^    m_Threshold: 0\.25$' '    m_DirectBlendParameter: DirectOuter'
+                            Replace-CergFixtureText $path '(?m)^    m_Threshold: -0\.75$' '    m_DirectBlendParameter: DirectInner'
+                        }
+                        $r=Invoke-CergGraphFixture $f;$trees=@($r.subjects|Where-Object subjectKind -CEQ 'BlendTree'|Sort-Object serializedFileId);$branches=@($r.relationships|Where-Object relationshipKind -CEQ 'BlendTreeContainsBranch'|Sort-Object relationshipId)
+                        Assert-CergFixture ($r.status-ceq'Closed'-and$r.consumableForT2-and$r.closure.requiredMissingReferenceCount-eq0-and$trees.Count-eq2-and$trees[0].serializedFileId-eq5-and$trees[1].serializedFileId-eq6-and$trees[0].blendTreeType-ceq$typeNames[$typeCode]-and$trees[1].blendTreeType-ceq$typeNames[$typeCode]-and$branches.Count-eq2) "Valid m_BlendType $typeCode did not map exactly."
+                        if($typeCode-cin@('1','2','3')){
+                            $outer=@($branches|Where-Object sourceSubjectId -CEQ $trees[0].subjectId)[0];$inner=@($branches|Where-Object sourceSubjectId -CEQ $trees[1].subjectId)[0]
+                            Assert-CergFixture ($null-eq$outer.blendThreshold-and[decimal]$outer.blendPositionX-eq[decimal]-0.25-and[decimal]$outer.blendPositionY-eq[decimal]0.75-and$null-eq$inner.blendThreshold-and[decimal]$inner.blendPositionX-eq[decimal]0.5-and[decimal]$inner.blendPositionY-eq[decimal]-0.5) "2D m_BlendType $typeCode lost exact branch positions."
+                        } elseif($typeCode-ceq'4') {
+                            $byId=@{};foreach($subject in $r.subjects){$byId[$subject.subjectId]=$subject};$directNames=@($branches|ForEach-Object{$byId[$_.directBlendParameterSubjectId].parameterName}|Sort-Object)
+                            Assert-CergFixture (($directNames -join ',')-ceq'DirectInner,DirectOuter'-and@($branches|Where-Object{$null-ne$_.blendThreshold-or$null-ne$_.blendPositionX-or$null-ne$_.blendPositionY}).Count-eq0) 'Direct m_BlendType did not preserve the exact field partition.'
+                        }
+                    }
+                    $invalidVariants=@(
+                        @('Missing','(?m)^  m_Name: LocomotionBlend\r?\n  m_BlendType: 0$','  m_Name: LocomotionBlend'),
+                        @('Duplicate','(?m)^  m_Name: LocomotionBlend\r?\n  m_BlendType: 0$',"  m_Name: LocomotionBlend`n  m_BlendType: 0`n  m_BlendType: 1"),
+                        @('Decimal','(?m)^  m_Name: LocomotionBlend\r?\n  m_BlendType: 0$',"  m_Name: LocomotionBlend`n  m_BlendType: 1.0"),
+                        @('Unknown','(?m)^  m_Name: LocomotionBlend\r?\n  m_BlendType: 0$',"  m_Name: LocomotionBlend`n  m_BlendType: 5")
+                    )
+                    foreach($variant in $invalidVariants){
+                        $f=New-CergUnityGraphFixture (Join-Path $caseRoot $variant[0]);Replace-CergFixtureText (Join-Path $f.OutputRoot 'Controller\Hero.controller') $variant[1] $variant[2];$r=Invoke-CergGraphFixture $f
+                        Assert-CergResultUnresolved $r ("Invalid m_BlendType "+$variant[0]);Assert-CergFixture (@($r.subjects|Where-Object subjectKind -CEQ 'BlendTree').Count-eq0-and@($r.relationships|Where-Object relationshipKind -CEQ 'BlendTreeContainsBranch').Count-eq0-and[IO.File]::Exists($f.Result)-and-not[IO.File]::Exists($f.ResultTemp)) ("Invalid m_BlendType "+$variant[0]+" emitted a typed or non-atomic result.")
+                    }
+                }
             }
             $rows.Add([pscustomobject][ordered]@{testId=$testId;testClass=$testClass;status='Passed';evidenceLocator="SyntheticFixture/$testId/Assertions"})
         } catch {
@@ -553,6 +591,6 @@ try {
     if([System.IO.Directory]::Exists($fixtureRoot)){[System.IO.Directory]::Delete($fixtureRoot,$true)}
 }
 
-$result=[pscustomobject][ordered]@{schemaVersion='cerg-t1a-fixture-result/1.2.0';testRows=@($rows);partitions=[pscustomobject][ordered]@{passedCount=@($rows|Where-Object status -CEQ 'Passed').Count;failedCount=@($rows|Where-Object status -CEQ 'Failed').Count;totalCount=$rows.Count}}
+$result=[pscustomobject][ordered]@{schemaVersion='cerg-t1a-fixture-result/1.3.0';testRows=@($rows);partitions=[pscustomobject][ordered]@{passedCount=@($rows|Where-Object status -CEQ 'Passed').Count;failedCount=@($rows|Where-Object status -CEQ 'Failed').Count;totalCount=$rows.Count}}
 $result | ConvertTo-Json -Depth 10
 if($result.partitions.failedCount -ne 0){exit 1}

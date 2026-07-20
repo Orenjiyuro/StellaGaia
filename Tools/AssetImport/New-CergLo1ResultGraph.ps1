@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/3'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/4'
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
 $script:CergEvidenceStates = @('ProvenPresent','ProvenAbsent','EvidenceUnavailableBeforeExtraction','Contradictory')
@@ -205,7 +205,19 @@ function New-CergParsedSubject {
     $rendererKind=$null;$componentClass=$null;$blendTreeType=$null
     if($Kind-ceq'Renderer'){$rendererKind=switch($Document.TypeName){'SkinnedMeshRenderer'{'SkinnedMeshRenderer'}'MeshRenderer'{'MeshRenderer'}'ParticleSystemRenderer'{'ParticleSystemRenderer'}'TrailRenderer'{'TrailRenderer'}default{'OtherRenderer'}}}
     if($Kind-ceq'FXComponent'){$componentClass=switch($Document.TypeName){'ParticleSystem'{'ParticleSystem'}'TrailRenderer'{'TrailRenderer'}'Animator'{'Animator'}'Transform'{'Transform'}default{'OtherSerializedFXComponent'}}}
-    if($Kind-ceq'BlendTree'){$typeMatch=[regex]::Match($Document.Body,'(?m)^\s*m_BlendType:\s*(\d+)\s*$');$blendTreeType=if(-not$typeMatch.Success){'OneD'}else{switch([int]$typeMatch.Groups[1].Value){0{'OneD'}1{'SimpleDirectional2D'}2{'FreeformDirectional2D'}3{'FreeformCartesian2D'}4{'Direct'}default{'OneD'}}}}
+    if($Kind-ceq'BlendTree'){
+        $typeMatches=[regex]::Matches($Document.Body,'(?m)^[ \t]*m_BlendType:[ \t]*(?<value>.*?)[ \t]*\r?$')
+        if($typeMatches.Count-ne1){throw "BlendTreeTypeInvalid: m_BlendType must occur exactly once; found $($typeMatches.Count)."}
+        $typeScalar=$typeMatches[0].Groups['value'].Value
+        if($typeScalar-cnotmatch'^[0-4]$'){throw "BlendTreeTypeInvalid: m_BlendType must be one ASCII digit from 0 through 4; found '$typeScalar'."}
+        $blendTreeType=switch($typeScalar){
+            '0'{'OneD'}
+            '1'{'SimpleDirectional2D'}
+            '2'{'FreeformDirectional2D'}
+            '3'{'FreeformCartesian2D'}
+            '4'{'Direct'}
+        }
+    }
     $row=[pscustomobject][ordered]@{subjectId='';candidateId=$CandidateId;subjectKind=$Kind;authorityIdentity=$AuthorityIdentity;unityGuid=$(if($null-ne$Document){$Document.Guid}else{$null});serializedFileId=$(if($null-ne$Document){[int64]$Document.FileId}else{$null});sourceObjectId=$(if($null-ne$Document){"$($Document.Guid):$($Document.FileId)"}else{$AuthorityIdentity});portableRelativePath=$PortablePath;contentSha256=$ContentSha;unityTypeName=$(if($null-ne$Document){$Document.TypeName}else{$Kind});rendererKind=$rendererKind;componentClass=$componentClass;blendTreeType=$blendTreeType;parameterName=$(if($Kind-ceq'BlendParameter'){$ParameterName}else{$null});evidenceRefIds=@(Get-CergSortedStrings $EvidenceRefs);originObligationIds=@(Get-CergSortedStrings $Origins)}
     $row.subjectId=Get-CergSubjectId $row;return $row
 }
