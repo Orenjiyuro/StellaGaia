@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:CergStagingImplementationRole = 'ExactLeafStagingWrapper'
-$script:CergStagingImplementationVersion = 'CERG-LO1-EXACT-STAGING/1'
+$script:CergStagingImplementationVersion = 'CERG-LO1-EXACT-STAGING/2'
 $script:CergUtf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:CergOrdinal = [System.StringComparer]::Ordinal
 
@@ -141,6 +141,20 @@ function Get-CergStructuredSha256 {
     finally { $sha.Dispose() }
 }
 
+function Get-CergOrdinalSet {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Values,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $result = [string[]]@($Values | ForEach-Object { ([string]$_).Normalize([System.Text.NormalizationForm]::FormC) })
+    [System.Array]::Sort($result, [System.StringComparer]::Ordinal)
+    for ($i = 0; $i -lt $result.Count; $i++) {
+        if ([string]::IsNullOrWhiteSpace($result[$i])) { throw "$Label contains a null or empty identity." }
+        if ($i -gt 0 -and $result[$i] -ceq $result[$i - 1]) { throw "$Label contains a duplicate identity: $($result[$i])" }
+    }
+    return $result
+}
+
 function Read-CergJsonFile {
     param([Parameter(Mandatory = $true)][string]$LiteralPath)
     if (-not [System.IO.File]::Exists($LiteralPath)) { throw "Required JSON leaf is missing: $LiteralPath" }
@@ -216,6 +230,14 @@ function Invoke-CergLo1ExactStaging {
     $rootBindings = @($preflight.sourceRootBindings)
     $planRows = @($preflight.stagingPlan.memberRows)
     if ($sourceMembers.Count -eq 0 -or $sourceMembers.Count -ne $planRows.Count) { throw 'Source-member/staging-plan cardinality mismatch.' }
+    $sourceMemberIds = @(Get-CergOrdinalSet @($sourceMembers | ForEach-Object { $_.memberId }) 'Candidate SourceMembers')
+    $planSourceMemberIds = @(Get-CergOrdinalSet @($planRows | ForEach-Object { $_.sourceMemberRefId }) 'Staging plan SourceMember references')
+    $operationSourceMemberIds = @(Get-CergOrdinalSet @($preflight.operation.inputMemberRefIds) 'Operation input SourceMember references')
+    $sourceSetBytes = ConvertTo-CergCanonicalJsonValue $sourceMemberIds
+    if ((ConvertTo-CergCanonicalJsonValue $planSourceMemberIds) -cne $sourceSetBytes -or
+        (ConvertTo-CergCanonicalJsonValue $operationSourceMemberIds) -cne $sourceSetBytes) {
+        throw 'SourceMemberBijectionFailure: candidate, operation, and staging-plan member-ID sets differ.'
+    }
     if ([int64]$preflight.operation.sourceReadMaxFiles -ne $sourceMembers.Count) { throw 'sourceReadMaxFiles must equal the exact member count.' }
     $expectedBytes = ($sourceMembers | Measure-Object -Property sizeBytes -Sum).Sum
     if ([int64]$preflight.operation.sourceReadMaxBytes -ne [int64]$expectedBytes) { throw 'sourceReadMaxBytes must equal the exact member byte sum.' }
@@ -292,6 +314,10 @@ function Invoke-CergLo1ExactStaging {
             $actualLeaves[$i].sha256 -cne $inventoryRows[$i].sha256) {
             throw 'Staging bijection failed: staged identity mismatch.'
         }
+    }
+    $inventorySourceMemberIds = @(Get-CergOrdinalSet @($inventoryRows | ForEach-Object { $_.sourceMemberRefId }) 'Staging inventory SourceMember references')
+    if ((ConvertTo-CergCanonicalJsonValue $inventorySourceMemberIds) -cne $sourceSetBytes) {
+        throw 'SourceMemberBijectionFailure: staged inventory does not conserve every SourceMember exactly once.'
     }
 
     $fingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/staging-member-set/1' -Payload @($inventoryRows)
