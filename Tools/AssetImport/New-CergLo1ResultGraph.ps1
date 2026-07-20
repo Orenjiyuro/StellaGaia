@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/2'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/3'
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
 $script:CergEvidenceStates = @('ProvenPresent','ProvenAbsent','EvidenceUnavailableBeforeExtraction','Contradictory')
@@ -68,7 +68,7 @@ function Assert-CergRequiredProperties {
 
 function Assert-CergUpstreamBindings {
     param([object]$Candidate,[object]$Preflight,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath)
-    Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','sourceMembers','discoveryObligations') 'Candidate lock'
+    Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','attackAnchors','sourceMembers','discoveryObligations') 'Candidate lock'
     Assert-CergRequiredProperties $Preflight @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','operation','stagingPlan','status') 'Preflight'
     Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'
     Assert-CergRequiredProperties $Staging @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','selectedCandidateId','memberRows','memberCount','byteCount','memberSetFingerprint','status') 'Staging inventory'
@@ -96,16 +96,19 @@ function Assert-CergUpstreamBindings {
 function Get-CergUnityDocuments {
     param([string]$OutputRoot)
     $allowed=@('.controller','.overridecontroller','.prefab','.anim','.mat','.asset')
+    $externalTextures=@('.png','.tga','.jpg','.jpeg','.psd','.exr')
+    $externalShaders=@('.shader','.shadergraph')
     $files=@([System.IO.Directory]::EnumerateFiles($OutputRoot,'*',[System.IO.SearchOption]::AllDirectories)|ForEach-Object{
         $full=Get-CergFullPath $_;$relative=$full.Substring($OutputRoot.TrimEnd('\','/').Length+1).Replace('\','/');[pscustomobject]@{FullPath=$full;RelativePath=(ConvertTo-CergPortablePath $relative);Extension=[System.IO.Path]::GetExtension($full).ToLowerInvariant()}
     })
     if(@($files|Where-Object{$_.RelativePath.EndsWith('.cerggraph.json',[StringComparison]::Ordinal)}).Count-ne0){throw 'Prebuilt graph fragments are forbidden production input.'}
-    $guidByAsset=@{}
-    foreach($meta in @($files|Where-Object Extension -CEQ '.meta')){}
+    $guidByAsset=@{};$assetByGuid=@{};$metaByAsset=@{}
     foreach($metaLeaf in [System.IO.Directory]::EnumerateFiles($OutputRoot,'*.meta',[System.IO.SearchOption]::AllDirectories)){
-        $text=[System.IO.File]::ReadAllText($metaLeaf,$script:CergUtf8NoBom);$match=[regex]::Match($text,'(?m)^guid:\s*([0-9a-f]{32})\s*$')
+        $text=[System.IO.File]::ReadAllText($metaLeaf,$script:CergUtf8NoBom);$match=[regex]::Match($text,'(?m)^guid:\s*([0-9a-f]{32})\s*$');$importerMatch=[regex]::Match($text,'(?m)^(?<kind>[A-Za-z][A-Za-z0-9]*Importer):(?:\s|$)')
         if(-not$match.Success){throw 'Unity meta leaf lacks one lowercase 32-hex GUID.'}
-        $asset=$metaLeaf.Substring(0,$metaLeaf.Length-5);$guidByAsset[(Get-CergFullPath $asset)]=$match.Groups[1].Value
+        $asset=Get-CergFullPath ($metaLeaf.Substring(0,$metaLeaf.Length-5));$guid=$match.Groups[1].Value
+        if($assetByGuid.ContainsKey($guid)){throw "Duplicate Unity GUID ownership: $guid"}
+        $guidByAsset[$asset]=$guid;$assetByGuid[$guid]=$asset;$metaByAsset[$asset]=[pscustomobject]@{FullPath=(Get-CergFullPath $metaLeaf);RelativePath=(ConvertTo-CergPortablePath ((Get-CergFullPath $metaLeaf).Substring($OutputRoot.TrimEnd('\','/').Length+1).Replace('\','/')));Sha256=(Get-CergSha256Hex $metaLeaf);ByteCount=[int64]([IO.FileInfo]::new($metaLeaf).Length);ImporterKind=$(if($importerMatch.Success){$importerMatch.Groups['kind'].Value}else{$null})}
     }
     $documents=[System.Collections.Generic.List[object]]::new()
     foreach($file in @($files|Where-Object{$_.Extension-cin$allowed})){
@@ -116,8 +119,14 @@ function Get-CergUnityDocuments {
         foreach($match in $matches){
             $nameMatch=[regex]::Match($match.Groups['body'].Value,'(?m)^\s*m_Name:\s*(.*?)\s*$')
             $tagMatch=[regex]::Match($match.Groups['body'].Value,'(?m)^\s*m_Tag:\s*(.*?)\s*$')
-            $documents.Add([pscustomobject]@{ClassId=[int]$match.Groups['classId'].Value;FileId=[int64]$match.Groups['fileId'].Value;TypeName=$match.Groups['typeName'].Value;Body=$match.Groups['body'].Value;Name=$(if($nameMatch.Success){$nameMatch.Groups[1].Value}else{''});Tag=$(if($tagMatch.Success){$tagMatch.Groups[1].Value}else{''});FullPath=$file.FullPath;RelativePath=$file.RelativePath;Guid=$guidByAsset[$file.FullPath];Extension=$file.Extension})
+            $meta=$metaByAsset[$file.FullPath]
+            $documents.Add([pscustomobject]@{ClassId=[int]$match.Groups['classId'].Value;FileId=[int64]$match.Groups['fileId'].Value;TypeName=$match.Groups['typeName'].Value;Body=$match.Groups['body'].Value;Name=$(if($nameMatch.Success){$nameMatch.Groups[1].Value}else{''});Tag=$(if($tagMatch.Success){$tagMatch.Groups[1].Value}else{''});FullPath=$file.FullPath;RelativePath=$file.RelativePath;Guid=$guidByAsset[$file.FullPath];Extension=$file.Extension;IsExternalLeaf=$false;MetaFullPath=$meta.FullPath;MetaRelativePath=$meta.RelativePath;MetaSha256=$meta.Sha256;MetaByteCount=$meta.ByteCount;ImporterKind=$null})
         }
+    }
+    foreach($file in @($files|Where-Object{$_.Extension-cin($externalTextures+$externalShaders)})){
+        if(-not$guidByAsset.ContainsKey($file.FullPath)){throw "External Unity asset lacks matching .meta: $($file.RelativePath)"}
+        $meta=$metaByAsset[$file.FullPath];$isTexture=$file.Extension-cin$externalTextures;$typeName=if($isTexture){'Texture2D'}else{'Shader'};$importer=if($isTexture){'TextureImporter'}else{'ShaderImporter'};if($meta.ImporterKind-cne$importer){throw "External Unity asset has mismatched importer $($meta.ImporterKind): $($file.RelativePath)"}
+        $documents.Add([pscustomobject]@{ClassId=$(if($isTexture){28}else{48});FileId=[int64]0;TypeName=$typeName;Body='';Name=[IO.Path]::GetFileNameWithoutExtension($file.FullPath);Tag='';FullPath=$file.FullPath;RelativePath=$file.RelativePath;Guid=$guidByAsset[$file.FullPath];Extension=$file.Extension;IsExternalLeaf=$true;MetaFullPath=$meta.FullPath;MetaRelativePath=$meta.RelativePath;MetaSha256=$meta.Sha256;MetaByteCount=$meta.ByteCount;ImporterKind=$importer})
     }
     return @($documents)
 }
@@ -136,12 +145,42 @@ function Get-CergYamlReferences {
     return @($rows)
 }
 
+function Get-CergYamlListBlocks {
+    param([string]$Body,[string]$ListName)
+    $lines=@($Body -split "`r?`n");$header=-1;$headerIndent=0
+    for($i=0;$i-lt$lines.Count;$i++){$m=[regex]::Match($lines[$i],"^(?<indent>\s*)$([regex]::Escape($ListName)):\s*$" );if($m.Success){$header=$i;$headerIndent=$m.Groups['indent'].Value.Length;break}}
+    if($header-lt0){return @()}
+    $blocks=[System.Collections.Generic.List[object]]::new();$current=$null
+    for($i=$header+1;$i-lt$lines.Count;$i++){
+        $line=$lines[$i];if([string]::IsNullOrWhiteSpace($line)){continue};$indent=([regex]::Match($line,'^\s*').Value.Length)
+        if($indent-le$headerIndent-and$line-notmatch'^\s*-'){break}
+        $start=[regex]::Match($line,'^\s*-\s*(?<key>[A-Za-z_][A-Za-z0-9_]*):\s*(?<value>.*)$')
+        if($start.Success){$current=[ordered]@{};$current[$start.Groups['key'].Value]=$start.Groups['value'].Value;$blocks.Add($current);continue}
+        if($null-eq$current){continue};$field=[regex]::Match($line,'^\s+(?<key>[A-Za-z_][A-Za-z0-9_]*):\s*(?<value>.*)$');if($field.Success){$key=$field.Groups['key'].Value;if($current.Contains($key)){throw "$ListName element contains duplicate field $key."};$current[$key]=$field.Groups['value'].Value}
+    }
+    return @($blocks)
+}
+
+function ConvertTo-CergFiniteDecimal {
+    param([string]$Text,[string]$Label)
+    $value=[decimal]0
+    if(-not[decimal]::TryParse($Text,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$value)){throw "$Label is not an invariant finite decimal."}
+    return $value
+}
+
+function Get-CergReferenceFromText {
+    param([string]$Text,[string]$DefaultGuid)
+    $m=[regex]::Match($Text,'\{\s*fileID:\s*(?<file>-?\d+)(?:,\s*guid:\s*(?<guid>[0-9a-f]{32}),\s*type:\s*\d+)?\s*\}')
+    if(-not$m.Success){throw 'Serialized reference is missing or malformed.'}
+    return [pscustomobject]@{FileId=[int64]$m.Groups['file'].Value;Guid=$(if($m.Groups['guid'].Success){$m.Groups['guid'].Value}else{$DefaultGuid})}
+}
+
 function Get-CergSubjectKindFromDocument {
     param([object]$Document)
     switch($Document.TypeName){
         'AnimatorController'{'Controller'} 'AnimatorOverrideController'{'OverrideController'} 'AnimatorStateMachine'{'StateMachine'}
-        'AnimatorState'{if($Document.Tag-ceq'Attack'){'AttackAction'}else{'ActionState'}} 'BlendTree'{'BlendTree'} 'AnimationClip'{'ActionClip'}
-        'GameObject'{'FXObject'} 'SkinnedMeshRenderer'{'Renderer'} 'MeshRenderer'{'Renderer'} 'ParticleSystemRenderer'{'Renderer'}
+        'AnimatorState'{'ActionState'} 'BlendTree'{'BlendTree'} 'AnimationClip'{'ActionClip'}
+        'GameObject'{'GameObject'} 'SkinnedMeshRenderer'{'Renderer'} 'MeshRenderer'{'Renderer'} 'ParticleSystemRenderer'{'Renderer'}
         'ParticleSystem'{'FXComponent'} 'TrailRenderer'{'FXComponent'} 'Transform'{'FXComponent'} 'Animator'{'FXComponent'} 'MonoBehaviour'{'FXComponent'}
         'Material'{'Material'} 'Texture2D'{'Texture'} 'Shader'{'Shader'} 'Mesh'{'Mesh'} 'Avatar'{'Avatar'} 'Skeleton'{'Skeleton'} 'Bone'{'Bone'}
         'TimelineAsset'{'Timeline'} 'Weapon'{'Weapon'} 'Combo'{'Combo'} default{'ReferencedObject'}
@@ -179,28 +218,65 @@ function New-CergParsedScope {
 
 function New-CergParsedRelationship {
     param([string]$CandidateId,[object]$Proposal,[object]$Scope)
-    $row=[pscustomobject][ordered]@{relationshipId='';candidateId=$CandidateId;slotOrdinal=[int]$Proposal.SlotOrdinal;sourceSubjectId=$Proposal.Source.subjectId;relationshipKind=$Proposal.Kind;targetSubjectId=$(if($null-eq$Proposal.Target){$null}else{$Proposal.Target.subjectId});state=$(if($Proposal.PSObject.Properties['State']){$Proposal.State}else{'ProvenPresent'});authorityKind=$Scope.authorityKind;authorityScopeId=$Scope.authorityScopeId;authorityScopeFingerprint=$Scope.authorityScopeFingerprint;serializedPropertyPath=$(if($Proposal.Kind-in@('FXComponentReferencesSubject','SerializedObjectReference')){$Proposal.PropertyPath}else{$null});overrideSourceClipSubjectId=$(if($Proposal.PSObject.Properties['OverrideSource']){$Proposal.OverrideSource.subjectId}else{$null});blendChildOrdinal=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){$Proposal.BlendChildOrdinal}else{$null});blendThreshold=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){$Proposal.BlendThreshold}else{$null});blendPositionX=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){$Proposal.BlendPositionX}else{$null});blendPositionY=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){$Proposal.BlendPositionY}else{$null});childTimeScale=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){[decimal]1}else{$null});childCycleOffset=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){[decimal]0}else{$null});childMirror=$(if($Proposal.Kind-ceq'BlendTreeContainsBranch'){$false}else{$null});directBlendParameterSubjectId=$null;blendParameterValues=@();eventTime=$(if($Proposal.Kind-ceq'ActionHasAnimationEvent'){$Proposal.EventTime}else{$null});eventFunctionName=$(if($Proposal.Kind-ceq'ActionHasAnimationEvent'){$Proposal.EventFunctionName}else{$null});evidenceRefIds=@($Proposal.Evidence.evidenceId);conflictingTargetSubjectIds=@();obligationId=$null;originObligationIds=@(Get-CergSortedStrings $Proposal.Origins)}
+    $row=[pscustomobject][ordered]@{relationshipId='';candidateId=$CandidateId;slotOrdinal=[int]$Proposal.SlotOrdinal;sourceSubjectId=$Proposal.Source.subjectId;relationshipKind=$Proposal.Kind;targetSubjectId=$(if($null-eq$Proposal.Target){$null}else{$Proposal.Target.subjectId});state=$(if($Proposal.PSObject.Properties['State']){$Proposal.State}else{'ProvenPresent'});authorityKind=$Scope.authorityKind;authorityScopeId=$Scope.authorityScopeId;authorityScopeFingerprint=$Scope.authorityScopeFingerprint;serializedPropertyPath=$Proposal.PropertyPath;overrideSourceClipSubjectId=$(if($Proposal.PSObject.Properties['OverrideSource']){$Proposal.OverrideSource.subjectId}else{$null});blendChildOrdinal=$(if($Proposal.PSObject.Properties['BlendChildOrdinal']){$Proposal.BlendChildOrdinal}else{$null});blendThreshold=$(if($Proposal.PSObject.Properties['BlendThreshold']){$Proposal.BlendThreshold}else{$null});blendPositionX=$(if($Proposal.PSObject.Properties['BlendPositionX']){$Proposal.BlendPositionX}else{$null});blendPositionY=$(if($Proposal.PSObject.Properties['BlendPositionY']){$Proposal.BlendPositionY}else{$null});childTimeScale=$(if($Proposal.PSObject.Properties['ChildTimeScale']){$Proposal.ChildTimeScale}else{$null});childCycleOffset=$(if($Proposal.PSObject.Properties['ChildCycleOffset']){$Proposal.ChildCycleOffset}else{$null});childMirror=$(if($Proposal.PSObject.Properties['ChildMirror']){$Proposal.ChildMirror}else{$null});directBlendParameterSubjectId=$(if($Proposal.PSObject.Properties['DirectBlendParameterSubjectId']){$Proposal.DirectBlendParameterSubjectId}else{$null});blendParameterValues=$(if($Proposal.PSObject.Properties['BlendParameterValues']){@($Proposal.BlendParameterValues)}else{@()});eventTime=$(if($Proposal.PSObject.Properties['EventTime']){$Proposal.EventTime}else{$null});eventFunctionName=$(if($Proposal.PSObject.Properties['EventFunctionName']){$Proposal.EventFunctionName}else{$null});evidenceRefIds=@($Proposal.Evidence.evidenceId);conflictingTargetSubjectIds=@();obligationId=$null;originObligationIds=@(Get-CergSortedStrings $Proposal.Origins)}
     $row.relationshipId=Get-CergRelationshipId $row;return $row
 }
 
 function New-CergUnityYamlGraph {
     param([string]$OutputRoot,[object]$Candidate,[object]$Preflight)
     $candidateId=[string]$Candidate.selectedCandidateId;$obligations=@($Candidate.discoveryObligations);$documents=@(Get-CergUnityDocuments $OutputRoot)
-    if($documents.Count-eq0){throw 'No direct Unity YAML documents were discovered.'}
+    if($documents.Count-eq0){throw 'No direct Unity documents or external asset leaves were discovered.'}
+    $docByKey=@{};$externalDocByGuid=@{}
+    foreach($doc in $documents){$key="$($doc.Guid):$($doc.FileId)";if($docByKey.ContainsKey($key)){throw "Duplicate Unity object identity: $key"};$docByKey[$key]=$doc;if($doc.IsExternalLeaf){$externalDocByGuid[$doc.Guid]=$doc}}
+
+    $anchors=@($Candidate.attackAnchors)
+    if($anchors.Count-ne1){throw 'Candidate lock must contain exactly one attack anchor.'}
+    $anchor=$anchors[0]
+    Assert-CergExactProperties $anchor @('attackAnchorId','candidateId','clipSubjectRefId','portableRelativePath','byteCount','sha256','unityGuid','serializedFileId','evidenceRefIds','authorityKind') 'AttackAnchor'
+    if($anchor.candidateId-cne$candidateId-or$anchor.authorityKind-cne'ImmutableFFSAttackClip'){throw 'Attack anchor candidate or authority kind is invalid.'}
+    $anchorPayload=@('cerg-t1/attack-anchor/1',$candidateId,[string]$anchor.portableRelativePath,[int64]$anchor.byteCount,[string]$anchor.sha256,[string]$anchor.unityGuid,[int64]$anchor.serializedFileId)
+    $anchorJson=ConvertTo-CergCanonicalJsonValue $anchorPayload;$anchorBytes=$script:CergUtf8NoBom.GetBytes($anchorJson);$anchorExpected='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($anchorBytes)).ToLowerInvariant())
+    if($anchor.attackAnchorId-cne$anchorExpected){throw 'Attack anchor identity is stale.'}
+    $anchorSubject=@($Candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)
+    if($anchorSubject.Count-ne1-or$anchorSubject[0].subjectKind-cne'ActionClip'-or$anchorSubject[0].unityGuid-cne$anchor.unityGuid-or[int64]$anchorSubject[0].serializedFileId-ne[int64]$anchor.serializedFileId-or$anchorSubject[0].portableRelativePath-cne$anchor.portableRelativePath-or$anchorSubject[0].contentSha256-cne$anchor.sha256){throw 'Attack anchor does not resolve its O01 ActionClip tuple.'}
+    $anchorDoc=$docByKey["$($anchor.unityGuid):$($anchor.serializedFileId)"]
+    if($null-eq$anchorDoc-or$anchorDoc.TypeName-cne'AnimationClip'-or$anchorDoc.RelativePath-cne$anchor.portableRelativePath-or[int64]([IO.FileInfo]::new($anchorDoc.FullPath).Length)-ne[int64]$anchor.byteCount-or(Get-CergSha256Hex $anchorDoc.FullPath)-cne$anchor.sha256){throw 'Attack anchor is missing, stale, or mismatched in D01.'}
+
+    function Resolve-CergMotionLeaves([object]$Document,[hashtable]$Active){
+        $key="$($Document.Guid):$($Document.FileId)";if($Active.ContainsKey($key)){throw "BlendTree cycle at $key"};$next=@{};foreach($k in $Active.Keys){$next[$k]=$true};$next[$key]=$true
+        if($Document.TypeName-ceq'AnimationClip'){return @($Document)}
+        if($Document.TypeName-cne'BlendTree'){throw "Unclassified motion target $key"}
+        $blocks=@(Get-CergYamlListBlocks $Document.Body 'm_Childs');if($blocks.Count-eq0){throw "BlendTree has no child blocks: $key"}
+        $leaves=[System.Collections.Generic.List[object]]::new();foreach($block in $blocks){if(-not$block.Contains('m_Motion')){throw "BlendTree child has no m_Motion: $key"};$ref=Get-CergReferenceFromText $block['m_Motion'] $Document.Guid;$target=$docByKey["$($ref.Guid):$($ref.FileId)"];if($null-eq$target){throw "BlendTree child target is unresolved: $($ref.Guid):$($ref.FileId)"};foreach($leaf in @(Resolve-CergMotionLeaves $target $next)){$leaves.Add($leaf)}};return @($leaves)
+    }
+    $stateLeaves=@{};$attackStateKeys=@{};$attackLeafKeys=@{};$anchorReachableStateCount=0
+    foreach($stateDoc in @($documents|Where-Object TypeName -CEQ 'AnimatorState')){
+        $refs=@(Get-CergYamlReferences $stateDoc|Where-Object PropertyPath -CEQ 'm_Motion');if($refs.Count-ne1){throw "AnimatorState must have exactly one m_Motion: $($stateDoc.Guid):$($stateDoc.FileId)"};$motionDoc=$docByKey["$($refs[0].Guid):$($refs[0].FileId)"];if($null-eq$motionDoc){throw 'AnimatorState motion is unresolved.'};$leaves=@(Resolve-CergMotionLeaves $motionDoc @{});$stateKey="$($stateDoc.Guid):$($stateDoc.FileId)";$stateLeaves[$stateKey]=$leaves
+        $anchorReachable=@($leaves|Where-Object{$_.Guid-ceq$anchor.unityGuid-and[int64]$_.FileId-eq[int64]$anchor.serializedFileId}).Count-gt0;$tagAttack=$stateDoc.Tag-ceq'Attack'
+        if($anchorReachable){$anchorReachableStateCount++};if($anchorReachable-or$tagAttack){$attackStateKeys[$stateKey]=$true;foreach($leaf in $leaves){$attackLeafKeys["$($leaf.Guid):$($leaf.FileId)"]=$leaf}}
+    }
+    if($anchorReachableStateCount-lt1){throw 'The immutable attack anchor is not reachable from any serialized AnimatorState.'}
+    $eventBlocksByClip=@{};$fxPrefabGuids=@{}
+    foreach($entry in $attackLeafKeys.GetEnumerator()){
+        $clip=$entry.Value;$blocks=@(Get-CergYamlListBlocks $clip.Body 'm_Events');$parsed=[System.Collections.Generic.List[object]]::new();$ordinal=0
+        foreach($block in $blocks){foreach($required in @('time','functionName','objectReferenceParameter')){if(-not$block.Contains($required)-or[string]::IsNullOrWhiteSpace([string]$block[$required])){throw "AnimationEvent $ordinal is missing $required."}};$time=ConvertTo-CergFiniteDecimal ([string]$block['time']) "AnimationEvent[$ordinal].time";$ref=Get-CergReferenceFromText ([string]$block['objectReferenceParameter']) $clip.Guid;$prefabGroups=@($documents|Where-Object{$_.Guid-ceq$ref.Guid-and$_.Extension-ceq'.prefab'}|Group-Object FullPath);if($prefabGroups.Count-ne1){throw "AnimationEvent FX prefab GUID is unresolved or ambiguous: $($ref.Guid)"};$fxPrefabGuids[$ref.Guid]=$true;$parsed.Add([pscustomobject]@{Ordinal=$ordinal;Time=$time;FunctionName=[string]$block['functionName'];Reference=$ref;PrefabDoc=$prefabGroups[0].Group[0]});$ordinal++}
+        $eventBlocksByClip[$entry.Key]=@($parsed)
+    }
+    $allPrefabGuids=@($documents|Where-Object Extension -CEQ '.prefab'|ForEach-Object Guid|Select-Object -Unique);foreach($guid in $fxPrefabGuids.Keys){if($guid-cnotin$allPrefabGuids){throw 'Attack FX prefab is outside the prefab partition.'}}
+
     $fileInfo=@{};$evidence=[System.Collections.Generic.List[object]]::new()
     foreach($group in ($documents|Group-Object FullPath)){
-        $doc=$group.Group[0];$origins=@(Get-CergSortedStrings @($obligations|ForEach-Object obligationId));$file=[pscustomobject]@{FullPath=$doc.FullPath;RelativePath=$doc.RelativePath};$ev=New-CergParsedEvidence $file $origins;$evidence.Add($ev);$fileInfo[$doc.FullPath]=[pscustomobject]@{Evidence=$ev;Sha=$ev.sha256;RelativePath=$doc.RelativePath}
+        $doc=$group.Group[0];$originList=[System.Collections.Generic.List[string]]::new();foreach($member in $group.Group){$memberKey="$($member.Guid):$($member.FileId)";$kind=Get-CergSubjectKindFromDocument $member;if($member.TypeName-ceq'AnimatorState'-and$attackStateKeys.ContainsKey($memberKey)){$kind='AttackAction'};if($member.TypeName-ceq'GameObject'-and$fxPrefabGuids.ContainsKey($member.Guid)){$kind='FXObject'};foreach($id in @(Get-CergOriginsForKind $obligations $kind '')){$originList.Add($id)};if($attackLeafKeys.ContainsKey($memberKey)){foreach($relationshipKind in @('ActionHasAnimationEvent','AttackTriggersFX')){foreach($id in @(Get-CergOriginsForKind $obligations '' $relationshipKind)){$originList.Add($id)}}};if($fxPrefabGuids.ContainsKey($member.Guid)){foreach($id in @(Get-CergOriginsForKind $obligations 'FXPrefab' '')){$originList.Add($id)}}};$origins=@(Get-CergSortedStrings @($originList|Select-Object -Unique));$file=[pscustomobject]@{FullPath=$doc.FullPath;RelativePath=$doc.RelativePath};$assetEv=New-CergParsedEvidence $file $origins;$metaFile=[pscustomobject]@{FullPath=$doc.MetaFullPath;RelativePath=$doc.MetaRelativePath};$metaEv=New-CergParsedEvidence $metaFile $origins;$evidence.Add($assetEv);$evidence.Add($metaEv);$fileInfo[$doc.FullPath]=[pscustomobject]@{Evidence=$assetEv;MetaEvidence=$metaEv;Sha=$assetEv.sha256;RelativePath=$doc.RelativePath;MetaRelativePath=$doc.MetaRelativePath}
     }
-    $subjects=[System.Collections.Generic.List[object]]::new();$subjectByKey=@{};$docBySubjectId=@{}
+    $subjects=[System.Collections.Generic.List[object]]::new();$subjectByKey=@{};$externalSubjectByGuid=@{};$docBySubjectId=@{}
     foreach($doc in $documents){
-        $kind=Get-CergSubjectKindFromDocument $doc;$origins=Get-CergOriginsForKind $obligations $kind '';$info=$fileInfo[$doc.FullPath]
-        $subject=New-CergParsedSubject $candidateId $kind "YamlObject:$($doc.Guid):$($doc.FileId)" $doc $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins
-        if($subjectByKey.ContainsKey("$($doc.Guid):$($doc.FileId)")){throw 'Duplicate Unity YAML object identity.'};$subjects.Add($subject);$subjectByKey["$($doc.Guid):$($doc.FileId)"]=$subject;$docBySubjectId[$subject.subjectId]=$doc
+        $kind=Get-CergSubjectKindFromDocument $doc;$key="$($doc.Guid):$($doc.FileId)";if($doc.TypeName-ceq'AnimatorState'-and$attackStateKeys.ContainsKey($key)){$kind='AttackAction'};if($doc.TypeName-ceq'GameObject'-and$fxPrefabGuids.ContainsKey($doc.Guid)){$kind='FXObject'};if($doc.Extension-ceq'.prefab'-and-not$fxPrefabGuids.ContainsKey($doc.Guid)-and$kind-ceq'FXComponent'){$kind='ReferencedObject'}
+        $origins=Get-CergOriginsForKind $obligations $kind '';$info=$fileInfo[$doc.FullPath];$authority=if($doc.IsExternalLeaf){"ExternalLeaf:$($doc.Guid):$($doc.RelativePath):$($info.Sha):$($doc.MetaSha256):$($doc.ImporterKind)"}else{"DiscoveredYamlObject:$($doc.Guid):$($doc.FileId)"};if($kind-ceq'AttackAction'){$stateKey="$($doc.Guid):$($doc.FileId)";$anchorReached=@($stateLeaves[$stateKey]|Where-Object{$_.Guid-ceq$anchor.unityGuid-and[int64]$_.FileId-eq[int64]$anchor.serializedFileId}).Count-gt0;if($anchorReached){$authority+=':AttackAnchor:'+$anchor.attackAnchorId};if($doc.Tag-ceq'Attack'){$authority+=':AttackTag:m_Tag'}}
+        $subject=New-CergParsedSubject $candidateId $kind $authority $doc $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins
+        $subjects.Add($subject);$subjectByKey[$key]=$subject;if($doc.IsExternalLeaf){$externalSubjectByGuid[$doc.Guid]=$subject};$docBySubjectId[$subject.subjectId]=$doc
     }
     $prefabByGuid=@{}
-    foreach($group in @($documents|Where-Object Extension -CEQ '.prefab'|Group-Object Guid)){
-        $doc=$group.Group[0];$info=$fileInfo[$doc.FullPath];$origins=Get-CergOriginsForKind $obligations 'FXPrefab' '';$subject=New-CergParsedSubject $candidateId 'FXPrefab' "UnityPrefabGuid:$($doc.Guid)" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins;$subjects.Add($subject);$prefabByGuid[$doc.Guid]=$subject
-    }
+    foreach($guid in $fxPrefabGuids.Keys){$doc=@($documents|Where-Object{$_.Guid-ceq$guid-and$_.Extension-ceq'.prefab'}|Select-Object -First 1)[0];$info=$fileInfo[$doc.FullPath];$origins=Get-CergOriginsForKind $obligations 'FXPrefab' '';$subject=New-CergParsedSubject $candidateId 'FXPrefab' "AttackReferencedUnityPrefabGuid:$guid" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins;$subjects.Add($subject);$prefabByGuid[$guid]=$subject}
     $proposals=[System.Collections.Generic.List[object]]::new();$slotCounters=@{}
     function AddProposal([object]$Source,[object]$Target,[string]$Kind,[string]$PropertyPath,[string]$AuthorityKind,[object]$Evidence,[hashtable]$Extra){
         if($null-eq$Source-or$null-eq$Target){return};$key="$($Source.subjectId)|$Kind";if(-not$slotCounters.ContainsKey($key)){$slotCounters[$key]=0};$slotCounters[$key]++
@@ -211,15 +287,16 @@ function New-CergUnityYamlGraph {
     foreach($doc in $documents){
         $source=$subjectByKey["$($doc.Guid):$($doc.FileId)"];$info=$fileInfo[$doc.FullPath];$refs=@(Get-CergYamlReferences $doc)
         foreach($ref in $refs){
-            $target=$subjectByKey["$($ref.Guid):$($ref.FileId)"];if($null-eq$target-and$prefabByGuid.ContainsKey($ref.Guid)){$target=$prefabByGuid[$ref.Guid]}
-            if($null-eq$target-and$ref.FileId-ne0){throw "Unresolved Unity serialized reference: $($ref.Guid):$($ref.FileId) from $($doc.RelativePath)#$($doc.FileId)."}
+            $target=$subjectByKey["$($ref.Guid):$($ref.FileId)"];if($null-eq$target-and$externalSubjectByGuid.ContainsKey($ref.Guid)){$target=$externalSubjectByGuid[$ref.Guid]};if($null-eq$target-and$prefabByGuid.ContainsKey($ref.Guid)){$target=$prefabByGuid[$ref.Guid]}
+            $deferred=($doc.TypeName-ceq'AnimatorOverrideController'-and$ref.PropertyPath-cin@('m_OriginalClip','m_OverrideClip'))-or($doc.TypeName-ceq'BlendTree'-and$ref.PropertyPath-ceq'm_Motion')-or($doc.TypeName-ceq'AnimationClip'-and$ref.PropertyPath-ceq'objectReferenceParameter')-or($doc.TypeName-ceq'Transform'-and$ref.PropertyPath-ceq'm_Father')
+            if($null-eq$target-and$ref.FileId-ne0-and-not$deferred){throw "Unresolved Unity serialized reference: $($ref.Guid):$($ref.FileId) from $($doc.RelativePath)#$($doc.FileId)."}
             $proposalCountBefore=$proposals.Count
             switch($doc.TypeName){
                 'AnimatorController'{if($ref.PropertyPath-ceq'm_StateMachine'){AddProposal $source $target 'ControllerOwnsStateMachine' $ref.PropertyPath 'Controller' $info.Evidence @{}}}
                 'AnimatorStateMachine'{if($ref.PropertyPath-ceq'm_State'){AddProposal $source $target 'StateMachineContainsState' $ref.PropertyPath 'Controller' $info.Evidence @{}}elseif($ref.PropertyPath-ceq'm_StateMachine'){AddProposal $source $target 'StateMachineContainsStateMachine' $ref.PropertyPath 'Controller' $info.Evidence @{}}}
                 'AnimatorState'{if($ref.PropertyPath-ceq'm_Motion'){if($target.subjectKind-ceq'BlendTree'){AddProposal $source $target 'StateUsesMotion' $ref.PropertyPath 'Controller' $info.Evidence @{}}else{$virtualCounter++;$origins=Get-CergOriginsForKind $obligations 'Motion' '';$motion=New-CergParsedSubject $candidateId 'Motion' "StateMotion:$($doc.Guid):$($doc.FileId):$virtualCounter" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins;$subjects.Add($motion);AddProposal $source $motion 'StateUsesMotion' $ref.PropertyPath 'Controller' $info.Evidence @{};AddProposal $motion $target 'MotionUsesClip' 'm_Motion' 'Controller' $info.Evidence @{}}}}
                 'AnimatorOverrideController'{}
-                'GameObject'{if($ref.PropertyPath-ceq'm_Component'-and$target.subjectKind-cin@('FXComponent','Renderer')){AddProposal $source $target 'FXObjectHasComponent' $ref.PropertyPath 'Prefab' $info.Evidence @{}}}
+                'GameObject'{if($fxPrefabGuids.ContainsKey($doc.Guid)-and$ref.PropertyPath-ceq'm_Component'-and$target.subjectKind-cin@('FXComponent','Renderer')){AddProposal $source $target 'FXObjectHasComponent' $ref.PropertyPath 'Prefab' $info.Evidence @{}}}
                 'SkinnedMeshRenderer'{if($ref.PropertyPath-ceq'm_Mesh'){AddProposal $source $target 'RendererUsesMesh' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}elseif($ref.PropertyPath-ceq'm_Materials'){AddProposal $source $target 'RendererUsesMaterial' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}elseif($ref.PropertyPath-ceq'm_RootBone'){AddProposal $source $target 'RendererUsesSkeleton' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
                 'MeshRenderer'{if($ref.PropertyPath-ceq'm_Materials'){AddProposal $source $target 'RendererUsesMaterial' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
                 'ParticleSystemRenderer'{if($ref.PropertyPath-ceq'm_Materials'){AddProposal $source $target 'RendererUsesMaterial' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
@@ -229,9 +306,9 @@ function New-CergUnityYamlGraph {
                 'TimelineAsset'{if($ref.PropertyPath-ceq'm_Action'){AddProposal $source $target 'TimelineUsesAction' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
                 'Weapon'{if($ref.PropertyPath-ceq'm_Action'){AddProposal $source $target 'WeaponUsesAction' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
                 'Combo'{if($ref.PropertyPath-ceq'm_Action'){AddProposal $source $target 'ComboUsesAction' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
+                'Transform'{}
                 default{if($source.subjectKind-ceq'FXComponent'-and$ref.PropertyPath-cne'm_GameObject'-and$ref.FileId-ne0){AddProposal $source $target 'FXComponentReferencesSubject' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}}
             }
-            $deferred=($doc.TypeName-ceq'AnimatorOverrideController'-and$ref.PropertyPath-cin@('m_OriginalClip','m_OverrideClip'))-or($doc.TypeName-ceq'BlendTree'-and$ref.PropertyPath-ceq'm_Motion')-or($doc.TypeName-ceq'AnimationClip'-and$ref.PropertyPath-ceq'objectReferenceParameter')-or($doc.TypeName-ceq'Transform'-and$ref.PropertyPath-ceq'm_Father')
             if($ref.FileId-ne0-and$proposals.Count-eq$proposalCountBefore-and-not$deferred){AddProposal $source $target 'SerializedObjectReference' $ref.PropertyPath 'SerializedObject' $info.Evidence @{}}
         }
     }
@@ -239,25 +316,31 @@ function New-CergUnityYamlGraph {
         $source=$subjectByKey["$($doc.Guid):$($doc.FileId)"];$info=$fileInfo[$doc.FullPath];$refs=@(Get-CergYamlReferences $doc);$originals=@($refs|Where-Object PropertyPath -CEQ 'm_OriginalClip');$overrides=@($refs|Where-Object PropertyPath -CEQ 'm_OverrideClip')
         if($originals.Count-ne$overrides.Count){continue};for($i=0;$i-lt$originals.Count;$i++){$original=$subjectByKey["$($originals[$i].Guid):$($originals[$i].FileId)"];$target=$subjectByKey["$($overrides[$i].Guid):$($overrides[$i].FileId)"];if($null-ne$original-and$null-ne$target){AddProposal $source $target 'OverrideMapsClip' "m_Clips[$i]" 'OverrideController' $info.Evidence @{OverrideSource=$original}}}
     }
+    $parameterByKey=@{}
     foreach($doc in @($documents|Where-Object TypeName -CEQ 'BlendTree')){
-        $tree=$subjectByKey["$($doc.Guid):$($doc.FileId)"];$info=$fileInfo[$doc.FullPath];$paramMatch=[regex]::Match($doc.Body,'(?m)^\s*m_BlendParameter:\s*(\S+)\s*$')
-        if($paramMatch.Success){$origins=Get-CergOriginsForKind $obligations 'BlendParameter' '';$parameter=New-CergParsedSubject $candidateId 'BlendParameter' "BlendParameter:$($doc.Guid):$($doc.FileId):$($paramMatch.Groups[1].Value)" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins $paramMatch.Groups[1].Value;$subjects.Add($parameter);AddProposal $tree $parameter 'BlendTreeUsesParameter' 'm_BlendParameter' 'Controller' $info.Evidence @{}}
-        $motions=@(Get-CergYamlReferences $doc|Where-Object PropertyPath -CEQ 'm_Motion');$child=0
-        foreach($ref in $motions){$target=$subjectByKey["$($ref.Guid):$($ref.FileId)"];$origins=Get-CergOriginsForKind $obligations 'BlendBranch' '';$branch=New-CergParsedSubject $candidateId 'BlendBranch' "BlendBranch:$($doc.Guid):$($doc.FileId):$child" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins;$subjects.Add($branch);AddProposal $tree $branch 'BlendTreeContainsBranch' "m_Childs[$child]" 'Controller' $info.Evidence @{BlendChildOrdinal=$child;BlendThreshold=[decimal]$child;BlendPositionX=$null;BlendPositionY=$null};if($target.subjectKind-ceq'ActionClip'){$virtualCounter++;$motion=New-CergParsedSubject $candidateId 'Motion' "BlendMotion:$($doc.Guid):$($doc.FileId):$child" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId) (Get-CergOriginsForKind $obligations 'Motion' '');$subjects.Add($motion);AddProposal $branch $motion 'BlendBranchUsesMotion' 'm_Motion' 'Controller' $info.Evidence @{};AddProposal $motion $target 'MotionUsesClip' 'm_Motion' 'Controller' $info.Evidence @{}}else{AddProposal $branch $target 'BlendBranchUsesMotion' 'm_Motion' 'Controller' $info.Evidence @{}};$child++}
+        $tree=$subjectByKey["$($doc.Guid):$($doc.FileId)"];$info=$fileInfo[$doc.FullPath];$blocks=@(Get-CergYamlListBlocks $doc.Body 'm_Childs');$type=[string]$tree.blendTreeType
+        function Get-OrCreateBlendParameter([string]$Name,[string]$PropertyPath){if([string]::IsNullOrWhiteSpace($Name)){throw 'Blend parameter identity is empty.'};$key="$($tree.subjectId)|$Name";if(-not$parameterByKey.ContainsKey($key)){$origins=Get-CergOriginsForKind $obligations 'BlendParameter' '';$parameter=New-CergParsedSubject $candidateId 'BlendParameter' "BlendParameter:$($doc.Guid):$($doc.FileId):$Name" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins $Name;$subjects.Add($parameter);$parameterByKey[$key]=$parameter;AddProposal $tree $parameter 'BlendTreeUsesParameter' $PropertyPath 'Controller' $info.Evidence @{}};return $parameterByKey[$key]}
+        $treeParameters=[System.Collections.Generic.List[object]]::new()
+        if($type-ceq'OneD'){$m=[regex]::Match($doc.Body,'(?m)^\s*m_BlendParameter:\s*(\S+)\s*$');if(-not$m.Success){throw 'OneD BlendTree lacks m_BlendParameter.'};$treeParameters.Add((Get-OrCreateBlendParameter $m.Groups[1].Value 'm_BlendParameter'))}
+        elseif($type-cin@('SimpleDirectional2D','FreeformDirectional2D','FreeformCartesian2D')){$mx=[regex]::Match($doc.Body,'(?m)^\s*m_BlendParameter:\s*(\S+)\s*$');$my=[regex]::Match($doc.Body,'(?m)^\s*m_BlendParameterY:\s*(\S+)\s*$');if(-not$mx.Success-or-not$my.Success){throw '2D BlendTree lacks X/Y parameters.'};$treeParameters.Add((Get-OrCreateBlendParameter $mx.Groups[1].Value 'm_BlendParameter'));$treeParameters.Add((Get-OrCreateBlendParameter $my.Groups[1].Value 'm_BlendParameterY'))}
+        elseif($type-ceq'Direct'){foreach($block in $blocks){if(-not$block.Contains('m_DirectBlendParameter')-or[string]::IsNullOrWhiteSpace([string]$block['m_DirectBlendParameter'])){throw 'Direct child lacks m_DirectBlendParameter.'};$treeParameters.Add((Get-OrCreateBlendParameter ([string]$block['m_DirectBlendParameter']) 'm_DirectBlendParameter'))};$treeParameters=@(Get-CergSortedRows @($treeParameters|Sort-Object subjectId -Unique) {param($x)$x.subjectId})}
+        for($child=0;$child-lt$blocks.Count;$child++){$block=$blocks[$child];$ref=Get-CergReferenceFromText ([string]$block['m_Motion']) $doc.Guid;$target=$subjectByKey["$($ref.Guid):$($ref.FileId)"];if($null-eq$target){throw 'Blend child motion target is unresolved.'};$threshold=$null;$x=$null;$y=$null;$direct=$null;$values=@()
+            if($type-ceq'OneD'){if(-not$block.Contains('m_Threshold')-or$block.Contains('m_Position')-or$block.Contains('m_DirectBlendParameter')){throw 'OneD child metadata partition is invalid.'};$threshold=ConvertTo-CergFiniteDecimal ([string]$block['m_Threshold']) "m_Childs[$child].m_Threshold";$values=@([pscustomobject][ordered]@{parameterSubjectId=$treeParameters[0].subjectId;value=$threshold})}
+            elseif($type-cin@('SimpleDirectional2D','FreeformDirectional2D','FreeformCartesian2D')){if(-not$block.Contains('m_Position')-or$block.Contains('m_Threshold')-or$block.Contains('m_DirectBlendParameter')){throw '2D child metadata partition is invalid.'};$pm=[regex]::Match([string]$block['m_Position'],'\{\s*x:\s*(?<x>[-+0-9.eE]+),\s*y:\s*(?<y>[-+0-9.eE]+)\s*\}');if(-not$pm.Success){throw '2D position is malformed.'};$x=ConvertTo-CergFiniteDecimal $pm.Groups['x'].Value 'm_Position.x';$y=ConvertTo-CergFiniteDecimal $pm.Groups['y'].Value 'm_Position.y';$values=@(Get-CergSortedRows @([pscustomobject][ordered]@{parameterSubjectId=$treeParameters[0].subjectId;value=$x},[pscustomobject][ordered]@{parameterSubjectId=$treeParameters[1].subjectId;value=$y}) {param($v)$v.parameterSubjectId})}
+            elseif($type-ceq'Direct'){if(-not$block.Contains('m_DirectBlendParameter')-or$block.Contains('m_Threshold')-or$block.Contains('m_Position')){throw 'Direct child metadata partition is invalid.'};$direct=Get-OrCreateBlendParameter ([string]$block['m_DirectBlendParameter']) "m_Childs[$child].m_DirectBlendParameter";$values=@($treeParameters|ForEach-Object{[pscustomobject][ordered]@{parameterSubjectId=$_.subjectId;value=[decimal]$(if($_.subjectId-ceq$direct.subjectId){1}else{0})}})}
+            $timeScale=if($block.Contains('m_TimeScale')){ConvertTo-CergFiniteDecimal ([string]$block['m_TimeScale']) 'm_TimeScale'}else{[decimal]1};$cycle=if($block.Contains('m_CycleOffset')){ConvertTo-CergFiniteDecimal ([string]$block['m_CycleOffset']) 'm_CycleOffset'}else{[decimal]0};$mirror=if($block.Contains('m_Mirror')){switch([string]$block['m_Mirror']){'0'{$false}'1'{$true}'false'{$false}'true'{$true}default{throw 'm_Mirror is invalid.'}}}else{$false};$defaults=@();if(-not$block.Contains('m_TimeScale')){$defaults+='m_TimeScale:AbsentUsesUnityDefault/v1'};if(-not$block.Contains('m_CycleOffset')){$defaults+='m_CycleOffset:AbsentUsesUnityDefault/v1'};if(-not$block.Contains('m_Mirror')){$defaults+='m_Mirror:AbsentUsesUnityDefault/v1'};$path="m_Childs[$child]"+$(if($defaults.Count){'/'+($defaults-join '/')}else{''})
+            $origins=Get-CergOriginsForKind $obligations 'BlendBranch' '';$branch=New-CergParsedSubject $candidateId 'BlendBranch' "BlendBranch:$($doc.Guid):$($doc.FileId):$child" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins;$subjects.Add($branch);AddProposal $tree $branch 'BlendTreeContainsBranch' $path 'Controller' $info.Evidence @{BlendChildOrdinal=$child;BlendThreshold=$threshold;BlendPositionX=$x;BlendPositionY=$y;ChildTimeScale=$timeScale;ChildCycleOffset=$cycle;ChildMirror=$mirror;DirectBlendParameterSubjectId=$(if($null-ne$direct){$direct.subjectId}else{$null});BlendParameterValues=$values};if($target.subjectKind-ceq'ActionClip'){$virtualCounter++;$motion=New-CergParsedSubject $candidateId 'Motion' "BlendMotion:$($doc.Guid):$($doc.FileId):$child" $null $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) (Get-CergOriginsForKind $obligations 'Motion' '');$subjects.Add($motion);AddProposal $branch $motion 'BlendBranchUsesMotion' "m_Childs[$child].m_Motion" 'Controller' $info.Evidence @{};AddProposal $motion $target 'MotionUsesClip' "m_Childs[$child].m_Motion" 'Controller' $info.Evidence @{}}else{AddProposal $branch $target 'BlendBranchUsesMotion' "m_Childs[$child].m_Motion" 'Controller' $info.Evidence @{}}}
     }
-    foreach($group in @($documents|Where-Object Extension -CEQ '.prefab'|Group-Object Guid)){
+    foreach($group in @($documents|Where-Object{$_.Extension-ceq'.prefab'-and$fxPrefabGuids.ContainsKey($_.Guid)}|Group-Object Guid)){
         $prefab=$prefabByGuid[$group.Name];$gameObjects=@($group.Group|Where-Object TypeName -CEQ 'GameObject');$info=$fileInfo[$group.Group[0].FullPath]
         foreach($goDoc in $gameObjects){$go=$subjectByKey["$($goDoc.Guid):$($goDoc.FileId)"];AddProposal $prefab $go 'FXPrefabContainsObject' 'm_RootObjects' 'Prefab' $info.Evidence @{}}
         $transformToObject=@{}
         foreach($transformDoc in @($group.Group|Where-Object TypeName -CEQ 'Transform')){$objectRef=@(Get-CergYamlReferences $transformDoc|Where-Object PropertyPath -CEQ 'm_GameObject'|Select-Object -First 1);if($objectRef.Count-ne0){$transformToObject["$($transformDoc.Guid):$($transformDoc.FileId)"]=$subjectByKey["$($objectRef[0].Guid):$($objectRef[0].FileId)"]}}
         foreach($transformDoc in @($group.Group|Where-Object TypeName -CEQ 'Transform')){$parentRef=@(Get-CergYamlReferences $transformDoc|Where-Object{$_.PropertyPath-ceq'm_Father'-and$_.FileId-ne0}|Select-Object -First 1);if($parentRef.Count-eq0){continue};$child=$transformToObject["$($transformDoc.Guid):$($transformDoc.FileId)"];$parent=$transformToObject["$($parentRef[0].Guid):$($parentRef[0].FileId)"];if($null-ne$child-and$null-ne$parent){AddProposal $parent $child 'FXObjectContainsObject' 'm_Father' 'Prefab' $info.Evidence @{}}}
     }
-    $attackStates=@($subjects|Where-Object subjectKind -CEQ 'AttackAction')
+    $attackStates=@($subjects|Where-Object subjectKind -CEQ 'AttackAction');$eventSubjectByKey=@{}
     foreach($attack in $attackStates){
-        $stateMotion=@($proposals|Where-Object{$_.Source.subjectId-ceq$attack.subjectId-and$_.Kind-ceq'StateUsesMotion'}|Select-Object -First 1)
-        if($stateMotion.Count-eq0){continue};$clipProposal=@($proposals|Where-Object{$_.Source.subjectId-ceq$stateMotion[0].Target.subjectId-and$_.Kind-ceq'MotionUsesClip'}|Select-Object -First 1);if($clipProposal.Count-eq0){continue};$clip=$clipProposal[0].Target;$clipDoc=$docBySubjectId[$clip.subjectId];if($null-eq$clipDoc){continue};$info=$fileInfo[$clipDoc.FullPath]
-        $eventRefs=@(Get-CergYamlReferences $clipDoc|Where-Object PropertyPath -CEQ 'objectReferenceParameter');$eventIndex=0
-        foreach($ref in $eventRefs){$fx=$prefabByGuid[$ref.Guid];if($null-eq$fx){continue};$origins=Get-CergOriginsForKind $obligations 'AnimationEvent' '';$event=New-CergParsedSubject $candidateId 'AnimationEvent' "AnimationEvent:$($clipDoc.Guid):$($clipDoc.FileId):$eventIndex" $null $clipDoc.RelativePath $info.Sha @($info.Evidence.evidenceId) $origins;$subjects.Add($event);$function=[regex]::Match($clipDoc.Body,'(?m)^\s*functionName:\s*(\S+)').Groups[1].Value;AddProposal $attack $event 'ActionHasAnimationEvent' "m_Events[$eventIndex]" 'AnimationEvent' $info.Evidence @{EventTime=[decimal]0;EventFunctionName=$function};AddProposal $attack $fx 'AttackTriggersFX' "m_Events[$eventIndex].objectReferenceParameter" 'AnimationEvent' $info.Evidence @{};$eventIndex++}
+        $stateDoc=$docBySubjectId[$attack.subjectId];foreach($clipDoc in @($stateLeaves["$($stateDoc.Guid):$($stateDoc.FileId)"])){$clipKey="$($clipDoc.Guid):$($clipDoc.FileId)";$info=$fileInfo[$clipDoc.FullPath];foreach($block in @($eventBlocksByClip[$clipKey])){$fx=$prefabByGuid[$block.Reference.Guid];if($null-eq$fx){throw 'Attack event FX target is unresolved.'};$eventKey="${clipKey}:$($block.Ordinal)";if(-not$eventSubjectByKey.ContainsKey($eventKey)){$origins=Get-CergOriginsForKind $obligations 'AnimationEvent' '';$event=New-CergParsedSubject $candidateId 'AnimationEvent' "AnimationEvent:${clipKey}:$($block.Ordinal)" $null $clipDoc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins;$subjects.Add($event);$eventSubjectByKey[$eventKey]=$event};$event=$eventSubjectByKey[$eventKey];AddProposal $attack $event 'ActionHasAnimationEvent' "m_Events[$($block.Ordinal)]" 'AnimationEvent' $info.Evidence @{EventTime=$block.Time;EventFunctionName=$block.FunctionName};AddProposal $attack $fx 'AttackTriggersFX' "m_Events[$($block.Ordinal)].objectReferenceParameter" 'AnimationEvent' $info.Evidence @{}}}
     }
     $scopes=[System.Collections.Generic.List[object]]::new();$relationships=[System.Collections.Generic.List[object]]::new()
     foreach($group in ($proposals|Group-Object {"$($_.Source.subjectId)|$($_.AuthorityKind)"})){
@@ -265,7 +348,8 @@ function New-CergUnityYamlGraph {
     }
     $results=[System.Collections.Generic.List[object]]::new()
     foreach($obligation in $obligations){$id=[string]$obligation.obligationId;$s=@($subjects|Where-Object{$id-cin@($_.originObligationIds)}|ForEach-Object subjectId);$r=@($relationships|Where-Object{$id-cin@($_.originObligationIds)}|ForEach-Object relationshipId);$e=@($evidence|Where-Object{$id-cin@($_.originObligationIds)}|ForEach-Object evidenceId);$a=@($scopes|Where-Object{$id-cin@($_.originObligationIds)}|ForEach-Object authorityScopeId);$resolved=(@($obligation.requiredSubjectKinds|Where-Object{$_-cnotin@($subjects|ForEach-Object subjectKind)}).Count-eq0-and@($obligation.requiredRelationshipKinds|Where-Object{$_-cnotin@($relationships|ForEach-Object relationshipKind)}).Count-eq0-and$s.Count-gt0-and$r.Count-gt0-and$e.Count-gt0);$results.Add([pscustomobject][ordered]@{obligationId=$id;status=$(if($resolved){'Resolved'}else{'MissingDependency'});subjectRefIds=@(Get-CergSortedStrings $s);relationshipRefIds=@(Get-CergSortedStrings $r);evidenceRefIds=@(Get-CergSortedStrings $e);authorityScopeRefIds=@(Get-CergSortedStrings $a)})}
-    $bindings=@{};foreach($file in $fileInfo.Values){$path=$file.RelativePath;$bindings[$path]=[pscustomobject]@{subjectRefIds=@(Get-CergSortedStrings @($subjects|Where-Object portableRelativePath -CEQ $path|ForEach-Object subjectId));obligationRefIds=@(Get-CergSortedStrings @($obligations|ForEach-Object obligationId))}}
+    $bindings=@{};$evidenceById=@{};foreach($row in $evidence){$evidenceById[$row.evidenceId]=$row};$subjectById=@{};foreach($row in $subjects){$subjectById[$row.subjectId]=$row}
+    foreach($file in $fileInfo.Values){foreach($path in @($file.RelativePath,$file.MetaRelativePath)){$related=@($file.RelativePath,$file.MetaRelativePath);$ownedSubjects=@($subjects|Where-Object{$_.portableRelativePath-cin$related});$ownedEvidence=@($evidence|Where-Object{$_.portableRelativePath-cin$related});$ownedScopes=@($scopes|Where-Object{$subjectById[$_.ownerSubjectId].portableRelativePath-cin$related});$ownedRelationships=@($relationships|Where-Object{($subjectById[$_.sourceSubjectId].portableRelativePath-cin$related)-or@($_.evidenceRefIds|Where-Object{$evidenceById[$_].portableRelativePath-cin$related}).Count-gt0});$originIds=@($ownedEvidence|ForEach-Object{@($_.originObligationIds)})+@($ownedSubjects|ForEach-Object{@($_.originObligationIds)})+@($ownedScopes|ForEach-Object{@($_.originObligationIds)})+@($ownedRelationships|ForEach-Object{@($_.originObligationIds)});$bindings[$path]=[pscustomobject]@{subjectRefIds=@(Get-CergSortedStrings @($ownedSubjects|ForEach-Object subjectId));obligationRefIds=@(Get-CergSortedStrings @($originIds|Select-Object -Unique))}}}
     return [pscustomobject]@{EvidenceItems=@($evidence);AuthorityScopes=@($scopes);Subjects=@($subjects);Relationships=@($relationships);ObligationResults=@($results);Bindings=$bindings}
 }
 
@@ -375,6 +459,8 @@ function Test-CergGraphModel {
             if ($row.state -in @('EvidenceUnavailableBeforeExtraction','Contradictory')) { throw 'Closed discovery graph may not retain unavailable or contradictory relationships.' }
             if ($row.relationshipKind -ceq 'BlendTreeContainsBranch') {
                 if ($null -eq $row.blendChildOrdinal -or $null -eq $row.childTimeScale -or $null -eq $row.childCycleOffset -or $null -eq $row.childMirror) { throw 'Blend child fields are incomplete.' }
+                $parameterIds=[System.Collections.Generic.List[string]]::new();foreach($valueRow in @($row.blendParameterValues)){Assert-CergExactProperties $valueRow @('parameterSubjectId','value') 'BlendParameterValue';if(-not$subjectById.ContainsKey([string]$valueRow.parameterSubjectId)-or$subjectById[[string]$valueRow.parameterSubjectId].subjectKind-cne'BlendParameter'){throw 'Blend parameter value identity is unresolved.'};[void](ConvertTo-CergFiniteDecimal ([string]$valueRow.value) 'BlendParameterValue.value');$parameterIds.Add([string]$valueRow.parameterSubjectId)};if((ConvertTo-CergCanonicalJsonValue @(Get-CergSortedStrings $parameterIds))-cne(ConvertTo-CergCanonicalJsonValue @($parameterIds))){throw 'Blend parameter values are not an Ordinal identity set.'}
+                $tree=$subjectById[[string]$row.sourceSubjectId];if($tree.blendTreeType-ceq'OneD' -and ($null-eq$row.blendThreshold-or$null-ne$row.blendPositionX-or$null-ne$row.blendPositionY-or$null-ne$row.directBlendParameterSubjectId-or$parameterIds.Count-ne1)){throw 'OneD relationship field partition is invalid.'};if($tree.blendTreeType-cin@('SimpleDirectional2D','FreeformDirectional2D','FreeformCartesian2D') -and ($null-ne$row.blendThreshold-or$null-eq$row.blendPositionX-or$null-eq$row.blendPositionY-or$null-ne$row.directBlendParameterSubjectId-or$parameterIds.Count-ne2)){throw '2D relationship field partition is invalid.'};if($tree.blendTreeType-ceq'Direct' -and ($null-ne$row.blendThreshold-or$null-ne$row.blendPositionX-or$null-ne$row.blendPositionY-or[string]::IsNullOrWhiteSpace([string]$row.directBlendParameterSubjectId)-or$parameterIds.Count-eq0)){throw 'Direct relationship field partition is invalid.'}
             }
             if ($row.relationshipKind -eq 'FXComponentReferencesSubject' -and [string]::IsNullOrWhiteSpace([string]$row.serializedPropertyPath)) { throw 'FX reference property path is required.' }
         } catch { $Errors.Add('InvalidRelationship:' + [string]$row.relationshipId) }
@@ -484,6 +570,17 @@ function Test-CergGraphModel {
     foreach ($member in $OutputMembers) {
         foreach ($id in @($member.subjectRefIds)) { if (-not $subjectById.ContainsKey([string]$id)) { $Errors.Add('OutputSubjectReferenceMissing') } }
         foreach ($id in @($member.obligationRefIds)) { if (-not $obligationById.ContainsKey([string]$id)) { $Errors.Add('OutputObligationReferenceMissing') } }
+        try {
+            $storedSubjects=@(Get-CergSortedStrings @($member.subjectRefIds));$storedObligations=@(Get-CergSortedStrings @($member.obligationRefIds))
+            if((ConvertTo-CergCanonicalJsonValue $storedSubjects)-cne(ConvertTo-CergCanonicalJsonValue @($member.subjectRefIds))){throw 'Output subject IDs are not a canonical set.'}
+            if((ConvertTo-CergCanonicalJsonValue $storedObligations)-cne(ConvertTo-CergCanonicalJsonValue @($member.obligationRefIds))){throw 'Output obligation IDs are not a canonical set.'}
+            $path=[string]$member.portableRelativePath;$paired=if($path.EndsWith('.meta',[StringComparison]::Ordinal)){$path.Substring(0,$path.Length-5)}else{$path+'.meta'};$related=@($path,$paired)
+            $ownedSubjects=@($Subjects|Where-Object{$_.portableRelativePath-cin$related-and@($_.originObligationIds).Count-gt0});$ownedEvidence=@($EvidenceItems|Where-Object{$_.portableRelativePath-cin$related-and@($_.originObligationIds).Count-gt0});$ownedScopes=@($AuthorityScopes|Where-Object{$subjectById[$_.ownerSubjectId].portableRelativePath-cin$related-and@($_.originObligationIds).Count-gt0});$ownedRelationships=@($Relationships|Where-Object{@($_.originObligationIds).Count-gt0-and(($subjectById[$_.sourceSubjectId].portableRelativePath-cin$related)-or@($_.evidenceRefIds|Where-Object{$evidenceById[$_].portableRelativePath-cin$related}).Count-gt0)})
+            $expectedSubjects=@(Get-CergSortedStrings @($ownedSubjects|ForEach-Object subjectId));$originIds=@($ownedEvidence|ForEach-Object{@($_.originObligationIds)})+@($ownedSubjects|ForEach-Object{@($_.originObligationIds)})+@($ownedScopes|ForEach-Object{@($_.originObligationIds)})+@($ownedRelationships|ForEach-Object{@($_.originObligationIds)});$expectedObligations=@(Get-CergSortedStrings @($originIds|Select-Object -Unique))
+            if((ConvertTo-CergCanonicalJsonValue $storedSubjects)-cne(ConvertTo-CergCanonicalJsonValue $expectedSubjects)){throw 'Output subject attribution differs from the derived union.'}
+            if((ConvertTo-CergCanonicalJsonValue $storedObligations)-cne(ConvertTo-CergCanonicalJsonValue $expectedObligations)){throw 'Output obligation attribution differs from the derived union.'}
+            if($ownedEvidence.Count+$ownedSubjects.Count+$ownedScopes.Count+$ownedRelationships.Count-eq0){throw 'Output member has no authoritative locator.'}
+        } catch { $Errors.Add('OutputAttributionFailure:' + [string]$member.portableRelativePath + ':' + $_.Exception.Message) }
     }
 }
 
