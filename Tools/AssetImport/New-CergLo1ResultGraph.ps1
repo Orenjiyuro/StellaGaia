@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/4'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/5'
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
 $script:CergEvidenceStates = @('ProvenPresent','ProvenAbsent','EvidenceUnavailableBeforeExtraction','Contradictory')
@@ -67,13 +67,15 @@ function Assert-CergRequiredProperties {
 }
 
 function Assert-CergUpstreamBindings {
-    param([object]$Candidate,[object]$Preflight,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath)
+    param([object]$Candidate,[object]$Preflight,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$StagingInventoryPath,[string]$OutputRoot)
     Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','attackAnchors','sourceMembers','discoveryObligations') 'Candidate lock'
     Assert-CergRequiredProperties $Preflight @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','operation','stagingPlan','status') 'Preflight'
     Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'
     Assert-CergRequiredProperties $Staging @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','selectedCandidateId','memberRows','memberCount','byteCount','memberSetFingerprint','status') 'Staging inventory'
     if ($Candidate.schemaVersion -cne 'cerg-t1-candidate-lock/2.2.0' -or $Candidate.artifactId -cne 'CERG-T1V22-O01' -or $Candidate.status -cne 'Passed') { throw 'Candidate lock schema, artifact ID, or status is invalid.' }
-    if ($Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.3.0' -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or $Preflight.status -cne 'Green') { throw 'Preflight schema, artifact ID, or status is invalid.' }
+    $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -StagingInventoryPath $StagingInventoryPath
+    if ($Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.4.0' -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or $Preflight.status -cne 'Green') { throw 'Preflight schema, artifact ID, or status is invalid.' }
+    if ((Get-CergFullPath $OutputRoot) -cne (Get-CergFullPath ([string]$Preflight.stagingPlan.outputPrivateAbsolutePath))) { throw 'ResultGraph output root differs from the v1.4 P01 private output binding.' }
     if ($Attempt.schemaVersion -cne 'cerg-lo-cerg1-attempt-state/1.1.0' -or $Attempt.artifactId -cne 'LO-CERG1-A01' -or $Attempt.status -cne 'StartedNoResult' -or [int64]$Attempt.attemptCount -ne 1) { throw 'Attempt-state schema, artifact ID, attempt count, or status is invalid.' }
     if ($Staging.schemaVersion -cne 'cerg-lo-cerg1-staging-inventory/1.0.0' -or $Staging.artifactId -cne 'LO-CERG1-SI01' -or $Staging.status -cne 'Complete') { throw 'Staging-inventory schema, artifact ID, or status is invalid.' }
     $candidateHash=Get-CergSha256Hex $CandidatePath;$preflightHash=Get-CergSha256Hex $PreflightPath
@@ -613,7 +615,7 @@ function New-CergLo1ResultGraph {
     $preflight = Read-CergJsonFile $PreflightPath
     $attempt = Read-CergJsonFile $AttemptStatePath
     $staging = Read-CergJsonFile $StagingInventoryPath
-    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath
+    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
 
     $outputFull = Get-CergFullPath $OutputRoot
     if (-not [System.IO.Directory]::Exists($outputFull)) { [System.IO.Directory]::CreateDirectory($outputFull) | Out-Null }
@@ -693,7 +695,7 @@ function New-CergLo1ResultGraph {
     $statusCounts = [ordered]@{}; foreach ($kind in $script:CergObligationStatuses) { $statusCounts[$kind] = @($obligationSorted | Where-Object status -CEQ $kind).Count }
     $graphFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/exact-universe/2' -Payload @($stagingMembers, $evidenceSorted, $scopesSorted, $subjectsSorted, $relationshipsSorted, $obligationSorted, @($outputMembers))
     $result = [pscustomobject][ordered]@{
-        schemaVersion = 'cerg-lo-cerg1-result/1.2.0'
+        schemaVersion = 'cerg-lo-cerg1-result/1.3.0'
         artifactId = 'LO-CERG1-R01'
         candidateLockSha256 = Get-CergSha256Hex $CandidateLockPath
         preflightSha256 = Get-CergSha256Hex $PreflightPath
@@ -745,8 +747,8 @@ function New-CergLo1ResultGraph {
             outputMemberCount = $outputMembers.Count
             outputBytes = [int64](($outputMembers | Measure-Object -Property byteCount -Sum).Sum)
             attemptCount = 1
-            ordinaryTaskUsed = 3
-            ordinaryTaskBudget = 6
+            ordinaryTaskUsed = 4
+            ordinaryTaskBudget = 7
             LOUsed = 1
             LOBudget = 3
         }

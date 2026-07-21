@@ -159,7 +159,7 @@ function Get-CergOrdinalSet {
 function Read-CergJsonFile {
     param([Parameter(Mandatory = $true)][string]$LiteralPath)
     if (-not [System.IO.File]::Exists($LiteralPath)) { throw "Required JSON leaf is missing: $LiteralPath" }
-    return [System.IO.File]::ReadAllText((Get-CergFullPath $LiteralPath), $script:CergUtf8NoBom) | ConvertFrom-Json -Depth 100
+    return [System.IO.File]::ReadAllText((Get-CergFullPath $LiteralPath), $script:CergUtf8NoBom) | ConvertFrom-Json -Depth 100 -DateKind String
 }
 
 function Copy-CergLeafWithHash {

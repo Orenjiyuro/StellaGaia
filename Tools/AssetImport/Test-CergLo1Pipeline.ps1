@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'New-CergLo1ResultGraph.ps1')
 
 $script:CergTestImplementationRole = 'FixtureContractTest'
-$script:CergTestImplementationVersion = 'CERG-T1A-PIPELINE-TEST/4'
+$script:CergTestImplementationVersion = 'CERG-T1A-PIPELINE-TEST/5'
 
 function Write-CergFixtureJson {
     param([string]$Path, [object]$Value, [switch]$Canonical)
@@ -167,8 +167,10 @@ function Get-CergBaselineGraph {
 
 function New-CergUnityGraphFixture {
     param([string]$CaseRoot, [switch]$ReverseWriteOrder)
-    $outputRoot = Join-Path $CaseRoot 'Output'
-    [System.IO.Directory]::CreateDirectory($outputRoot) | Out-Null
+    $preparedOutputRoot = Join-Path $CaseRoot 'PreparedOutput'
+    $attemptRoot = Join-Path $CaseRoot 'Attempt'
+    $outputRoot = Join-Path $attemptRoot 'Output'
+    [System.IO.Directory]::CreateDirectory($preparedOutputRoot) | Out-Null
     $g = [ordered]@{ controller=('c'*32); anim=('a'*32); prefab=('f'*32); material=('d'*32); resources=('e'*32); override=('b'*32); gameplay=('9'*32) }
     $controller = @'
 --- !u!91 &1
@@ -337,17 +339,18 @@ Combo:
         [pscustomobject]@{Path='Gameplay/Character.asset';Guid=$g.gameplay;Text=$gameplay}
     )
     if ($ReverseWriteOrder) { [array]::Reverse($assets) }
-    foreach ($asset in $assets) { Write-CergUnityYamlFixture (Join-Path $outputRoot $asset.Path) $asset.Guid $asset.Text }
+    foreach ($asset in $assets) { Write-CergUnityYamlFixture (Join-Path $preparedOutputRoot $asset.Path) $asset.Guid $asset.Text }
 
-    $attackPath='Animations/Hero.anim';$attackLeaf=Join-Path $outputRoot $attackPath;$attackSha=Get-CergSha256Hex $attackLeaf;$attackBytes=[int64]([IO.FileInfo]::new($attackLeaf).Length)
+    $attackPath='Animations/Hero.anim';$attackLeaf=Join-Path $preparedOutputRoot $attackPath;$attackSha=Get-CergSha256Hex $attackLeaf;$attackBytes=[int64]([IO.FileInfo]::new($attackLeaf).Length)
     $baseline = Get-CergBaselineGraph -AttackGuid $g.anim -AttackPath $attackPath -AttackSha $attackSha -AttackBytes $attackBytes
     $obligations = @(Get-CergFixtureObligations)
-    $stageRow = [pscustomobject][ordered]@{ sourceMemberRefId='C1F-SYNTH-1'; sourceId='fixture'; sourcePortableRelativePath='bundle.bin'; stagingPortableRelativePath='Extracted/CERG/SingleCharacter/LO-CERG1/Input/fixture/bundle.bin'; byteCount=[int64]1; sha256=('3'*64) }
+    $sourceRoot=Join-Path $CaseRoot 'Source';$sourceLeaf=Join-Path $sourceRoot 'bundle.bin';Write-CergFixtureBytes $sourceLeaf ([byte[]](3));$sourceSha=Get-CergSha256Hex $sourceLeaf
+    $stageRow = [pscustomobject][ordered]@{ sourceMemberRefId='C1F-SYNTH-1'; sourceId='fixture'; sourcePortableRelativePath='bundle.bin'; stagingPortableRelativePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Input/fixture/bundle.bin'; byteCount=[int64]1; sha256=$sourceSha }
     $stageFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/staging-member-set/1' -Payload @($stageRow)
     $candidate = [pscustomobject][ordered]@{
         schemaVersion='cerg-t1-candidate-lock/2.2.0'; artifactId='CERG-T1V22-O01'; contractHeadCommit=('a'*40); selectedCandidateId='char_14401'; status='Passed'
         attackAnchors=@([pscustomobject][ordered]@{attackAnchorId='';candidateId='char_14401';clipSubjectRefId=$baseline.Subjects.Where({$_.subjectKind-ceq'ActionClip'})[0].subjectId;portableRelativePath=$attackPath;byteCount=$attackBytes;sha256=$attackSha;unityGuid=$g.anim;serializedFileId=[int64]75;evidenceRefIds=@($baseline.Evidence.evidenceId);authorityKind='ImmutableFFSAttackClip'})
-        sourceMembers=@([pscustomobject][ordered]@{memberId='C1F-SYNTH-1';candidateId='char_14401';sourceId='fixture';portableRelativePath='bundle.bin';sizeBytes=[int64]1;sha256=('3'*64);containerKind='UnityBundle';memberClass='Model';evidenceRefIds=@()})
+        sourceMembers=@([pscustomobject][ordered]@{memberId='C1F-SYNTH-1';candidateId='char_14401';sourceId='fixture';portableRelativePath='bundle.bin';sizeBytes=[int64]1;sha256=$sourceSha;containerKind='UnityBundle';memberClass='Model';evidenceRefIds=@()})
         evidenceItems=@($baseline.Evidence); authorityScopes=@(); subjects=@($baseline.Subjects); relationships=@($baseline.Relationships); discoveryObligations=$obligations
     }
     $anchor=$candidate.attackAnchors[0];$anchorBytes=$script:CergUtf8NoBom.GetBytes((ConvertTo-CergCanonicalJsonValue @('cerg-t1/attack-anchor/1',$anchor.candidateId,$anchor.portableRelativePath,[int64]$anchor.byteCount,$anchor.sha256,$anchor.unityGuid,[int64]$anchor.serializedFileId)));$anchor.attackAnchorId='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($anchorBytes)).ToLowerInvariant())
@@ -356,18 +359,23 @@ Combo:
     $candidateSha = Get-CergSha256Hex $candidatePath
     $expectedSubjectKinds = @(Get-CergSortedStrings @($obligations | ForEach-Object requiredSubjectKinds | Select-Object -Unique))
     $expectedRelationshipKinds = @(Get-CergSortedStrings @($obligations | ForEach-Object requiredRelationshipKinds | Select-Object -Unique))
-    $preflight = [pscustomobject][ordered]@{
-        schemaVersion='cerg-lo-cerg1-preflight/1.3.0'; artifactId='LO-CERG1-P01'; candidateLockSha256=$candidateSha; contractHeadCommit=('a'*40); selectedCandidateId='char_14401'
-        operation=[pscustomobject][ordered]@{inputMemberRefIds=@('C1F-SYNTH-1');expectedSubjectKinds=$expectedSubjectKinds;expectedRelationshipKinds=$expectedRelationshipKinds;maxOutputFiles=100;maxOutputBytes=1000000;maxResultRows=5000}
-        stagingPlan=[pscustomobject][ordered]@{memberRows=@($stageRow);memberCount=1;byteCount=[int64]1;memberSetFingerprint=$stageFingerprint}; status='Green'
+    $definition = [pscustomobject][ordered]@{
+        schemaVersion='cerg-lo-cerg1-preflight-definition/1.0.0';artifactId='LO-CERG1-P01-DEFINITION';candidateLockSha256=$candidateSha;contractHeadCommit=('a'*40);selectedCandidateId='char_14401';createdAt='2026-07-21T00:00:00Z'
+        sourceRootBindings=@([pscustomobject][ordered]@{sourceId='fixture';privateAbsoluteReadOnlyRoot=$sourceRoot;rootFingerprint=('4'*64)});implementationBindings=@()
+        operation=[pscustomobject][ordered]@{operationId='LO1-OP01';obligationRefIds=@($obligations|ForEach-Object obligationId);implementationRefIds=@();inputMemberRefIds=@('C1F-SYNTH-1');expectedSubjectKinds=$expectedSubjectKinds;expectedRelationshipKinds=$expectedRelationshipKinds;sourceReadMaxFiles=1;sourceReadMaxBytes=[int64]1;maxDurationSeconds=30;maxResultRows=5000;maxOutputFiles=100;maxOutputBytes=[int64]1000000;stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Input';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Output';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Work'}
+        aggregateLimits=[pscustomobject][ordered]@{sourceReadMaxFiles=1;sourceReadMaxBytes=[int64]1;maxDurationSeconds=30;maxResultRows=5000;maxOutputFiles=100;maxOutputBytes=[int64]1000000}
+        stagingPlan=[pscustomobject][ordered]@{stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Input';stagingInventoryTemporaryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/staging-inventory.json.tmp';stagingInventoryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/staging-inventory.json';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Work';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Output';memberRows=@($stageRow);memberCount=1;byteCount=[int64]1;memberSetFingerprint=$stageFingerprint}
+        status='Green';nextAction='RequestExactHumanConfirmationForLOCERG1'
     }
+    $preflight=New-CergLo1PreflightObject -Definition $definition -AttemptPrivateAbsoluteRoot $attemptRoot
     $preflightPath = Join-Path $CaseRoot 'preflight.json'
     Write-CergFixtureJson $preflightPath $preflight -Canonical
     $preflightSha = Get-CergSha256Hex $preflightPath
     $attempt = [pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-attempt-state/1.1.0';artifactId='LO-CERG1-A01';candidateLockSha256=$candidateSha;preflightSha256=$preflightSha;contractHeadCommit=('a'*40);selectedCandidateId='char_14401';attemptCount=1;status='StartedNoResult'}
-    $staging = [pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-staging-inventory/1.0.0';artifactId='LO-CERG1-SI01';candidateLockSha256=$candidateSha;preflightSha256=$preflightSha;selectedCandidateId='char_14401';memberRows=@($stageRow);memberCount=1;byteCount=[int64]1;memberSetFingerprint=$stageFingerprint;status='Complete'}
-    $attemptPath=Join-Path $CaseRoot 'attempt.json';$stagingPath=Join-Path $CaseRoot 'staging.json'
-    Write-CergFixtureJson $attemptPath $attempt -Canonical; Write-CergFixtureJson $stagingPath $staging -Canonical
+    $attemptPath=Join-Path $CaseRoot 'attempt.json';$stagingPath=$preflight.stagingPlan.stagingInventoryPrivateAbsolutePath
+    Write-CergFixtureJson $attemptPath $attempt -Canonical
+    $null=Invoke-CergLo1ExactStaging $candidatePath $preflightPath $preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath $stagingPath
+    [System.IO.Directory]::Move($preparedOutputRoot,$outputRoot)
     return [pscustomobject]@{CandidatePath=$candidatePath;PreflightPath=$preflightPath;AttemptPath=$attemptPath;StagingPath=$stagingPath;OutputRoot=$outputRoot;ResultTemp=(Join-Path $CaseRoot 'lo-result.json.tmp');Result=(Join-Path $CaseRoot 'lo-result.json')}
 }
 
@@ -438,7 +446,8 @@ $testDefinitions = @(
     @('T1A3-TEST21','AssetRipperPngMetaMaterialShader'),
     @('T1A3-TEST22','PrefabRolePartitionAndAttribution'),
     @('T1A3-TEST23','AttackAnchorClassification'),
-    @('T1A4-TEST24','BlendTreeTypeEnumStrict')
+    @('T1A4-TEST24','BlendTreeTypeEnumStrict'),
+    @('T1A4-TEST25','PreflightV14PrivatePathChain')
 )
 $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('cerg-t1a4-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($fixtureRoot) | Out-Null
@@ -457,7 +466,7 @@ try {
                 'T1A2-TEST05' { $f=New-CergStagingFixture $caseRoot -MemberCount 2 -DuplicateDestination;$message='';try{Invoke-CergLo1ExactStaging $f.CandidatePath $f.PreflightPath $f.InventoryTemp $f.Inventory|Out-Null}catch{$message=$_.Exception.Message};Assert-CergFixture ($message-cmatch'Duplicate|bijection|destination'-and-not[IO.File]::Exists($f.Inventory)-and-not[IO.File]::Exists($f.InventoryTemp)) 'Duplicate staging destination rejection was not exact.' }
                 'T1A2-TEST06' { $f=New-CergStagingFixture $caseRoot -MemberCount 2 -BadSecondHash;try{Invoke-CergLo1ExactStaging $f.CandidatePath $f.PreflightPath $f.InventoryTemp $f.Inventory|Out-Null}catch{};$leaves=@([IO.Directory]::EnumerateFiles($f.StagingRoot,'*',[IO.SearchOption]::AllDirectories));Assert-CergFixture ($leaves.Count-eq1-and[IO.Path]::GetFileName($leaves[0])-ceq'member-1.bin'-and([IO.FileInfo]::new($leaves[0]).Length)-eq9-and-not[IO.File]::Exists($f.Inventory)-and-not[IO.File]::Exists($f.InventoryTemp)) 'Interrupted vector did not retain exact first leaf/no inventory state.' }
                 'T1A2-TEST07' { $f=New-CergStagingFixture $caseRoot -MemberCount 2 -DuplicateSourceMember;$message='';try{Invoke-CergLo1ExactStaging $f.CandidatePath $f.PreflightPath $f.InventoryTemp $f.Inventory|Out-Null}catch{$message=$_.Exception.Message};Assert-CergFixture ($message-cmatch'Duplicate|bijection|SourceMember'-and-not[IO.File]::Exists($f.Inventory)-and-not[IO.File]::Exists($f.InventoryTemp)) 'Duplicate-one/omit-one SourceMember rejection was not exact.' }
-                'T1A2-TEST08' { $f=New-CergUnityGraphFixture $caseRoot;$r=Invoke-CergGraphFixture $f;$event=@($r.relationships|Where-Object relationshipKind -CEQ 'ActionHasAnimationEvent')[0];$attackFx=@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX')[0];Assert-CergFixture ($r.status-ceq'Closed'-and$r.consumableForT2-and$r.obligationResults.Count-eq11-and@($r.obligationResults|Where-Object status -CEQ 'Resolved').Count-eq11-and$r.closure.requiredMissingReferenceCount-eq0-and$r.closure.unresolvedObligationCount-eq0-and[decimal]$event.eventTime-eq[decimal]0.5-and$event.eventFunctionName-ceq'SpawnAttackFx'-and$event.serializedPropertyPath-ceq'm_Events[0]'-and$attackFx.serializedPropertyPath-ceq'm_Events[0].objectReferenceParameter') 'Direct Unity YAML graph semantic baseline was not exact.' }
+                'T1A2-TEST08' { $f=New-CergUnityGraphFixture $caseRoot;$p=Read-CergJsonFile $f.PreflightPath;$si=Read-CergJsonFile $f.StagingPath;$r=Invoke-CergGraphFixture $f;$event=@($r.relationships|Where-Object relationshipKind -CEQ 'ActionHasAnimationEvent')[0];$attackFx=@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX')[0];Assert-CergFixture ($p.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.4.0'-and$si.status-ceq'Complete'-and$r.schemaVersion-ceq'cerg-lo-cerg1-result/1.3.0'-and$r.status-ceq'Closed'-and$r.consumableForT2-and$r.obligationResults.Count-eq11-and@($r.obligationResults|Where-Object status -CEQ 'Resolved').Count-eq11-and$r.closure.requiredMissingReferenceCount-eq0-and$r.closure.unresolvedObligationCount-eq0-and$r.summary.ordinaryTaskUsed-eq4-and$r.summary.ordinaryTaskBudget-eq7-and[decimal]$event.eventTime-eq[decimal]0.5-and$event.eventFunctionName-ceq'SpawnAttackFx'-and$event.serializedPropertyPath-ceq'm_Events[0]'-and$attackFx.serializedPropertyPath-ceq'm_Events[0].objectReferenceParameter') 'v1.4 P01 to TG01 staging to ResultGraph R01 semantic chain was not exact.' }
                 'T1A2-TEST09' { $f=New-CergUnityGraphFixture $caseRoot;foreach($leaf in @([IO.Directory]::EnumerateFiles($f.OutputRoot,'*',[IO.SearchOption]::AllDirectories))){[IO.File]::Delete($leaf)};Write-CergFixtureBytes (Join-Path $f.OutputRoot 'body.bin') ([byte[]](1,2,3));$r=Invoke-CergGraphFixture $f;$member=$r.outputMembers[0];Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and$r.obligationResults.Count-eq0-and$member.portableRelativePath-ceq'body.bin'-and$member.byteCount-eq3-and$member.subjectRefIds.Count-eq0-and$member.obligationRefIds.Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'Missing direct graph vector was not exact.' }
                 'T1A2-TEST10' { $f=New-CergUnityGraphFixture $caseRoot;Write-CergFixtureJson (Join-Path $f.OutputRoot 'forbidden.cerggraph.json') ([pscustomobject]@{status='synthetic'}) -Canonical;$r=Invoke-CergGraphFixture $f;$member=@($r.outputMembers|Where-Object portableRelativePath -CEQ 'forbidden.cerggraph.json')[0];Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and$r.obligationResults.Count-eq0-and$member.subjectRefIds.Count-eq0-and$member.obligationRefIds.Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'Prebuilt diagnostic rejection vector was not exact.' }
                 'T1A2-TEST11' { $f=New-CergUnityGraphFixture $caseRoot;Remove-CergFixtureLine (Join-Path $f.OutputRoot 'Animations\Hero.anim') '(?m)^\s*objectReferenceParameter:.*\r?\n';$r=Invoke-CergGraphFixture $f;Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX').Count-eq0-and@($r.obligationResults|Where-Object obligationId -CEQ 'LO1-OB06').Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'AttackAction-without-FX rejection vector was not exact.' }
@@ -496,7 +505,7 @@ try {
                     )
                     foreach($variant in $variants){$f=New-CergUnityGraphFixture (Join-Path $caseRoot $variant[0]);$path=switch($variant[1]){'Candidate'{$f.CandidatePath}'Preflight'{$f.PreflightPath}'Attempt'{$f.AttemptPath}'Staging'{$f.StagingPath}};$row=Read-CergJsonFile $path;$row.($variant[2])=$variant[3];Write-CergFixtureJson $path $row -Canonical;$message='';try{Invoke-CergGraphFixture $f|Out-Null}catch{$message=$_.Exception.Message};Assert-CergFixture (-not[string]::IsNullOrWhiteSpace($message)-and-not[IO.File]::Exists($f.Result)-and-not[IO.File]::Exists($f.ResultTemp)) ("Stale/spliced rejection vector was not exact: " + $variant[0])}
                 }
-                'T1A2-TEST15' { $a=New-CergUnityGraphFixture (Join-Path $caseRoot 'A');$b=New-CergUnityGraphFixture (Join-Path $caseRoot 'B') -ReverseWriteOrder;$ar=Invoke-CergGraphFixture $a;$br=Invoke-CergGraphFixture $b;$aBytes=[IO.File]::ReadAllBytes($a.Result);$bBytes=[IO.File]::ReadAllBytes($b.Result);Assert-CergFixture (($aBytes-join',')-ceq($bBytes-join',')-and(Get-CergSha256Hex $a.Result)-ceq(Get-CergSha256Hex $b.Result)-and$ar.closure.graphFingerprint-ceq$br.closure.graphFingerprint-and$ar.status-ceq'Closed'-and$br.status-ceq'Closed') 'Canonical bytes, SHA, graph fingerprint, or status changed for identical logical inputs.' }
+                'T1A2-TEST15' { $a=New-CergUnityGraphFixture (Join-Path $caseRoot 'A');$b=New-CergUnityGraphFixture (Join-Path $caseRoot 'B') -ReverseWriteOrder;$ar=Invoke-CergGraphFixture $a;$br=Invoke-CergGraphFixture $b;Assert-CergFixture ($ar.closure.graphFingerprint-ceq$br.closure.graphFingerprint-and$ar.status-ceq'Closed'-and$br.status-ceq'Closed'-and$ar.summary.resolvedCount-eq11-and$br.summary.resolvedCount-eq11) 'Graph fingerprint, closure, or status changed across equivalent asset graphs with distinct private attempt roots.' }
                 'T1A2-TEST16' {
                     $f=New-CergUnityGraphFixture $caseRoot;$secondGuid='8'*32;Add-CergFixturePrefabClone $f 'FX/Impact.prefab' $secondGuid 'ImpactFxRoot';$firstGuid=(Read-CergJsonFile $f.CandidatePath).attackAnchors[0].unityGuid.Replace('a','f')
                     Set-CergFixtureAttackEvents $f @([pscustomobject]@{Time='0.875';Function='SpawnImpactFx';Guid=$secondGuid},[pscustomobject]@{Time='0.125';Function='SpawnAttackFx';Guid=$firstGuid})
@@ -593,6 +602,22 @@ try {
                     foreach($variant in $invalidVariants){
                         $f=New-CergUnityGraphFixture (Join-Path $caseRoot $variant[0]);Replace-CergFixtureText (Join-Path $f.OutputRoot 'Controller\Hero.controller') $variant[1] $variant[2];$r=Invoke-CergGraphFixture $f
                         Assert-CergResultUnresolved $r ("Invalid m_BlendType "+$variant[0]);Assert-CergFixture (@($r.subjects|Where-Object subjectKind -CEQ 'BlendTree').Count-eq0-and@($r.relationships|Where-Object relationshipKind -CEQ 'BlendTreeContainsBranch').Count-eq0-and[IO.File]::Exists($f.Result)-and-not[IO.File]::Exists($f.ResultTemp)) ("Invalid m_BlendType "+$variant[0]+" emitted a typed or non-atomic result.")
+                    }
+                }
+                'T1A4-TEST25' {
+                    $privateFields=@('attemptPrivateAbsoluteRoot','stagingInputPrivateAbsolutePath','stagingInventoryTemporaryPrivateAbsolutePath','stagingInventoryPrivateAbsolutePath','workPrivateAbsolutePath','outputPrivateAbsolutePath')
+                    $stageFixture=New-CergStagingFixture (Join-Path $caseRoot 'StagingReject');$stageFull=Read-CergJsonFile $stageFixture.PreflightPath
+                    $graphFixture=New-CergUnityGraphFixture (Join-Path $caseRoot 'GraphReject');$graphFull=Read-CergJsonFile $graphFixture.PreflightPath
+                    foreach($field in $privateFields){
+                        $stageMutation=(ConvertTo-CergCanonicalJsonValue $stageFull)|ConvertFrom-Json -Depth 100 -DateKind String;$stageMutation.stagingPlan.PSObject.Properties.Remove($field);Write-CergFixtureJson $stageFixture.PreflightPath $stageMutation -Canonical
+                        $stageMessage='';try{Invoke-CergLo1ExactStaging $stageFixture.CandidatePath $stageFixture.PreflightPath $stageFixture.InventoryTemp $stageFixture.Inventory|Out-Null}catch{$stageMessage=$_.Exception.Message}
+                        Assert-CergFixture ($stageMessage-clike'PreflightConsumerContractFailure:*'-and-not[IO.Directory]::Exists($stageFixture.StagingRoot)-and-not[IO.File]::Exists($stageFixture.Inventory)) "TG01 chain accepted missing $field."
+
+                        $graphMutation=(ConvertTo-CergCanonicalJsonValue $graphFull)|ConvertFrom-Json -Depth 100 -DateKind String;$graphMutation.stagingPlan.PSObject.Properties.Remove($field);Write-CergFixtureJson $graphFixture.PreflightPath $graphMutation -Canonical;$preflightSha=Get-CergSha256Hex $graphFixture.PreflightPath
+                        $attempt=Read-CergJsonFile $graphFixture.AttemptPath;$attempt.preflightSha256=$preflightSha;Write-CergFixtureJson $graphFixture.AttemptPath $attempt -Canonical
+                        $staging=Read-CergJsonFile $graphFixture.StagingPath;$staging.preflightSha256=$preflightSha;Write-CergFixtureJson $graphFixture.StagingPath $staging -Canonical
+                        $graphMessage='';try{Invoke-CergGraphFixture $graphFixture|Out-Null}catch{$graphMessage=$_.Exception.Message}
+                        Assert-CergFixture ($graphMessage-clike'PreflightConsumerContractFailure:*'-and-not[IO.File]::Exists($graphFixture.Result)-and-not[IO.File]::Exists($graphFixture.ResultTemp)) "ResultGraph accepted missing $field."
                     }
                 }
             }
