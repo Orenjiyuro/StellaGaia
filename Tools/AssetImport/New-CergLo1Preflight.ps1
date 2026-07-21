@@ -89,11 +89,14 @@ function Assert-CergLo1PreflightConsumerContract {
     param(
         [Parameter(Mandatory = $true)][object]$Candidate,
         [Parameter(Mandatory = $true)][object]$Preflight,
+        [AllowNull()][object]$Freshness,
+        [string]$FreshnessEvidencePath,
         [string]$StagingInventoryTemporaryPath,
         [string]$StagingInventoryPath
     )
 
-    $topFields = @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')
+    $isR2 = $Preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.5.0'
+    $topFields = if($isR2){@('schemaVersion','artifactId','candidateLockSha256','freshnessEvidenceSha256','freshnessCheckRunId','freshnessValidatorFinishedAtUtc','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')}else{@('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')}
     $stagingFields = @('attemptPrivateAbsoluteRoot','stagingInputPortablePath','stagingInputPrivateAbsolutePath','stagingInventoryTemporaryPath','stagingInventoryTemporaryPrivateAbsolutePath','stagingInventoryPath','stagingInventoryPrivateAbsolutePath','workPortablePath','workPrivateAbsolutePath','outputPortablePath','outputPrivateAbsolutePath','memberRows','memberCount','byteCount','memberSetFingerprint')
     $operationFields = @('operationId','obligationRefIds','implementationRefIds','inputMemberRefIds','expectedSubjectKinds','expectedRelationshipKinds','sourceReadMaxFiles','sourceReadMaxBytes','maxDurationSeconds','maxResultRows','maxOutputFiles','maxOutputBytes','stagingInputPortablePath','outputPortablePath','workPortablePath')
     $aggregateFields = @('sourceReadMaxFiles','sourceReadMaxBytes','maxDurationSeconds','maxResultRows','maxOutputFiles','maxOutputBytes')
@@ -109,7 +112,7 @@ function Assert-CergLo1PreflightConsumerContract {
     foreach ($row in @($Preflight.sourceRootBindings)) { Assert-CergPreflightExactProperties $row $rootBindingFields 'P01.sourceRootBindings[]' }
     foreach ($row in @($Preflight.implementationBindings)) { Assert-CergPreflightExactProperties $row $implementationFields 'P01.implementationBindings[]' }
 
-    if ($Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.4.0' -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or
+    if ($Preflight.schemaVersion -notin @('cerg-lo-cerg1-preflight/1.4.0','cerg-lo-cerg1-preflight/1.5.0') -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or
         $Preflight.status -cne 'Green' -or $Preflight.nextAction -cne 'RequestExactHumanConfirmationForLOCERG1') {
         throw 'PreflightConsumerContractFailure: P01 fixed identity/status fields are invalid.'
     }
@@ -164,7 +167,20 @@ function Assert-CergLo1PreflightConsumerContract {
     foreach ($pair in $portablePairs) { if ([string]$pair[0] -cne [string]$pair[1]) { throw 'PreflightConsumerContractFailure: operation/staging portable path mapping differs.' } }
     foreach ($name in $aggregateFields) { if ([int64]$Preflight.operation.$name -ne [int64]$Preflight.aggregateLimits.$name) { throw "PreflightConsumerContractFailure: operation/aggregate limit $name differs." } }
 
-    $members = @($Candidate.sourceMembers)
+    if($isR2){
+        if($null-eq$Freshness-or$Freshness.schemaVersion-cne'cerg-lo-cerg1-r2-freshness/1.0.0'-or$Freshness.artifactId-cne'LO-CERG1-R2-F01'-or$Freshness.status-cne'Green'){throw'PreflightConsumerContractFailure: R2 freshness artifact is missing or non-Green.'}
+        if($Preflight.freshnessCheckRunId-cne$Freshness.checkRunId-or$Preflight.freshnessValidatorFinishedAtUtc-cne$Freshness.validatorFinishedAtUtc){throw'PreflightConsumerContractFailure: R2 freshness binding fields differ.'}
+        if($Preflight.candidateLockSha256-cne$Freshness.candidateLockSha256-or$Preflight.contractHeadCommit-cne$Freshness.contractHeadCommit){throw'PreflightConsumerContractFailure: R2 freshness candidate/contract binding differs.'}
+        if([string]::IsNullOrWhiteSpace($FreshnessEvidencePath)-or-not[IO.File]::Exists($FreshnessEvidencePath)){throw'PreflightConsumerContractFailure: R2 freshness artifact path is required.'}
+        $freshHash=(Get-FileHash -Algorithm SHA256 -LiteralPath $FreshnessEvidencePath).Hash.ToLowerInvariant()
+        if($Preflight.freshnessEvidenceSha256-cne$freshHash){throw'PreflightConsumerContractFailure: R2 freshness raw SHA differs.'}
+        $candidateSelectors=@($Candidate.sourceMembers|ForEach-Object{"$($_.sourceId)$([char]31)$($_.portableRelativePath)"}|Sort-Object -CaseSensitive)
+        $freshSelectors=@($Freshness.currentMembers|ForEach-Object{"$($_.sourceId)$([char]31)$($_.portableRelativePath)"}|Sort-Object -CaseSensitive)
+        if(($candidateSelectors-join'|')-cne($freshSelectors-join'|')){throw'PreflightConsumerContractFailure: R2 freshness selectors differ from the locked candidate.'}
+        $members=@($Freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})
+    } else {
+        $members = @($Candidate.sourceMembers)
+    }
     $rows = @($Preflight.stagingPlan.memberRows)
     if ($members.Count -eq 0 -or $rows.Count -ne $members.Count -or [int64]$Preflight.stagingPlan.memberCount -ne $members.Count) {
         throw 'PreflightConsumerContractFailure: SourceMember/staging row cardinality differs.'
@@ -198,6 +214,31 @@ function Assert-CergLo1PreflightConsumerContract {
         throw 'PreflightConsumerContractFailure: staging member-set fingerprint differs.'
     }
     return $true
+}
+
+function New-CergLo1R2PreflightObject {
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)][object]$Definition,[Parameter(Mandatory=$true)][object]$Freshness,[Parameter(Mandatory=$true)][string]$FreshnessEvidencePath,[Parameter(Mandatory=$true)][string]$AttemptPrivateAbsoluteRoot)
+    $fields=@('schemaVersion','artifactId','candidateLockSha256','freshnessEvidenceSha256','freshnessCheckRunId','freshnessValidatorFinishedAtUtc','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')
+    Assert-CergPreflightExactProperties $Definition $fields 'R2 P01 definition'
+    if($Definition.schemaVersion-cne'cerg-lo-cerg1-preflight-definition/1.1.0'-or$Definition.artifactId-cne'LO-CERG1-P01-DEFINITION'){throw'PreflightConsumerContractFailure: R2 definition identity invalid.'}
+    if($Definition.candidateLockSha256-cne$Freshness.candidateLockSha256-or$Definition.contractHeadCommit-cne$Freshness.contractHeadCommit){throw'PreflightConsumerContractFailure: R2 definition is spliced from its freshness evidence.'}
+    $root=Get-CergPreflightAbsolutePath $AttemptPrivateAbsoluteRoot 'AttemptPrivateAbsoluteRoot'
+    $p=[pscustomobject][ordered]@{
+        schemaVersion='cerg-lo-cerg1-preflight/1.5.0';artifactId='LO-CERG1-P01';candidateLockSha256=$Definition.candidateLockSha256
+        freshnessEvidenceSha256=$Definition.freshnessEvidenceSha256;freshnessCheckRunId=$Definition.freshnessCheckRunId;freshnessValidatorFinishedAtUtc=$Definition.freshnessValidatorFinishedAtUtc
+        contractHeadCommit=$Definition.contractHeadCommit;selectedCandidateId=$Definition.selectedCandidateId;createdAt=$Definition.createdAt
+        sourceRootBindings=@($Definition.sourceRootBindings);implementationBindings=@($Definition.implementationBindings);operation=$Definition.operation;aggregateLimits=$Definition.aggregateLimits
+        stagingPlan=[pscustomobject][ordered]@{
+            attemptPrivateAbsoluteRoot=$root;stagingInputPortablePath=$Definition.stagingPlan.stagingInputPortablePath;stagingInputPrivateAbsolutePath=[IO.Path]::Combine($root,'Input')
+            stagingInventoryTemporaryPath=$Definition.stagingPlan.stagingInventoryTemporaryPath;stagingInventoryTemporaryPrivateAbsolutePath=[IO.Path]::Combine($root,'staging-inventory.json.tmp')
+            stagingInventoryPath=$Definition.stagingPlan.stagingInventoryPath;stagingInventoryPrivateAbsolutePath=[IO.Path]::Combine($root,'staging-inventory.json')
+            workPortablePath=$Definition.stagingPlan.workPortablePath;workPrivateAbsolutePath=[IO.Path]::Combine($root,'Work');outputPortablePath=$Definition.stagingPlan.outputPortablePath;outputPrivateAbsolutePath=[IO.Path]::Combine($root,'Output')
+            memberRows=@($Definition.stagingPlan.memberRows);memberCount=[int64]$Definition.stagingPlan.memberCount;byteCount=[int64]$Definition.stagingPlan.byteCount;memberSetFingerprint=$Definition.stagingPlan.memberSetFingerprint
+        }
+        status=$Definition.status;nextAction=$Definition.nextAction
+    }
+    return $p
 }
 
 function New-CergLo1PreflightObject {

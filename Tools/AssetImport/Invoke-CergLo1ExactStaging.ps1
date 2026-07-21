@@ -3,7 +3,8 @@ param(
     [string]$CandidateLockPath,
     [string]$PreflightPath,
     [string]$StagingInventoryTemporaryPath,
-    [string]$StagingInventoryPath
+    [string]$StagingInventoryPath,
+    [string]$FreshnessEvidencePath
 )
 
 Set-StrictMode -Version Latest
@@ -216,7 +217,8 @@ function Invoke-CergLo1ExactStaging {
         [Parameter(Mandatory = $true)][string]$CandidateLockPath,
         [Parameter(Mandatory = $true)][string]$PreflightPath,
         [Parameter(Mandatory = $true)][string]$StagingInventoryTemporaryPath,
-        [Parameter(Mandatory = $true)][string]$StagingInventoryPath
+        [Parameter(Mandatory = $true)][string]$StagingInventoryPath,
+        [string]$FreshnessEvidencePath
     )
 
     if ([System.IO.File]::Exists($StagingInventoryTemporaryPath) -or [System.IO.File]::Exists($StagingInventoryPath)) {
@@ -224,12 +226,13 @@ function Invoke-CergLo1ExactStaging {
     }
     $candidate = Read-CergJsonFile -LiteralPath $CandidateLockPath
     $preflight = Read-CergJsonFile -LiteralPath $PreflightPath
-    $null = Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $preflight `
-        -StagingInventoryTemporaryPath $StagingInventoryTemporaryPath -StagingInventoryPath $StagingInventoryPath
+    if ($preflight.candidateLockSha256 -cne (Get-CergSha256Hex -LiteralPath $CandidateLockPath)) { throw 'PreflightConsumerContractFailure: P01 candidate lock raw SHA is stale or spliced.' }
+    $freshness = if(-not[string]::IsNullOrWhiteSpace($FreshnessEvidencePath)){Read-CergJsonFile -LiteralPath $FreshnessEvidencePath}else{$null}
+    $null = Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryTemporaryPath $StagingInventoryTemporaryPath -StagingInventoryPath $StagingInventoryPath
     if ($candidate.status -cne 'Passed' -or $preflight.status -cne 'Green') { throw 'Candidate lock and preflight must be consumable.' }
     if ($candidate.selectedCandidateId -cne $preflight.selectedCandidateId) { throw 'Candidate identity mismatch.' }
 
-    $sourceMembers = @($candidate.sourceMembers)
+    $sourceMembers = if($preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.5.0'){@($freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})}else{@($candidate.sourceMembers)}
     $rootBindings = @($preflight.sourceRootBindings)
     $planRows = @($preflight.stagingPlan.memberRows)
     if ($sourceMembers.Count -eq 0 -or $sourceMembers.Count -ne $planRows.Count) { throw 'Source-member/staging-plan cardinality mismatch.' }

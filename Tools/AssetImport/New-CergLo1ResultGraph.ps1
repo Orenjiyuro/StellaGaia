@@ -6,7 +6,8 @@ param(
     [string]$StagingInventoryPath,
     [string]$OutputRoot,
     [string]$ResultTemporaryPath,
-    [string]$ResultPath
+    [string]$ResultPath,
+    [string]$FreshnessEvidencePath
 )
 
 Set-StrictMode -Version Latest
@@ -67,14 +68,14 @@ function Assert-CergRequiredProperties {
 }
 
 function Assert-CergUpstreamBindings {
-    param([object]$Candidate,[object]$Preflight,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$StagingInventoryPath,[string]$OutputRoot)
+    param([object]$Candidate,[object]$Preflight,[AllowNull()][object]$Freshness,[string]$FreshnessEvidencePath,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$StagingInventoryPath,[string]$OutputRoot)
     Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','attackAnchors','sourceMembers','discoveryObligations') 'Candidate lock'
     Assert-CergRequiredProperties $Preflight @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','operation','stagingPlan','status') 'Preflight'
     Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'
     Assert-CergRequiredProperties $Staging @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','selectedCandidateId','memberRows','memberCount','byteCount','memberSetFingerprint','status') 'Staging inventory'
     if ($Candidate.schemaVersion -cne 'cerg-t1-candidate-lock/2.2.0' -or $Candidate.artifactId -cne 'CERG-T1V22-O01' -or $Candidate.status -cne 'Passed') { throw 'Candidate lock schema, artifact ID, or status is invalid.' }
-    $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -StagingInventoryPath $StagingInventoryPath
-    if ($Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.4.0' -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or $Preflight.status -cne 'Green') { throw 'Preflight schema, artifact ID, or status is invalid.' }
+    $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -Freshness $Freshness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryPath $StagingInventoryPath
+    if ($Preflight.schemaVersion -notin @('cerg-lo-cerg1-preflight/1.4.0','cerg-lo-cerg1-preflight/1.5.0') -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or $Preflight.status -cne 'Green') { throw 'Preflight schema, artifact ID, or status is invalid.' }
     if ((Get-CergFullPath $OutputRoot) -cne (Get-CergFullPath ([string]$Preflight.stagingPlan.outputPrivateAbsolutePath))) { throw 'ResultGraph output root differs from the v1.4 P01 private output binding.' }
     if ($Attempt.schemaVersion -cne 'cerg-lo-cerg1-attempt-state/1.1.0' -or $Attempt.artifactId -cne 'LO-CERG1-A01' -or $Attempt.status -cne 'StartedNoResult' -or [int64]$Attempt.attemptCount -ne 1) { throw 'Attempt-state schema, artifact ID, attempt count, or status is invalid.' }
     if ($Staging.schemaVersion -cne 'cerg-lo-cerg1-staging-inventory/1.0.0' -or $Staging.artifactId -cne 'LO-CERG1-SI01' -or $Staging.status -cne 'Complete') { throw 'Staging-inventory schema, artifact ID, or status is invalid.' }
@@ -83,7 +84,7 @@ function Assert-CergUpstreamBindings {
     if ($Attempt.preflightSha256 -cne $preflightHash -or $Staging.preflightSha256 -cne $preflightHash) { throw 'Preflight freshness binding is stale or spliced.' }
     if ($Candidate.contractHeadCommit -cne $Preflight.contractHeadCommit -or $Candidate.contractHeadCommit -cne $Attempt.contractHeadCommit) { throw 'Contract HEAD binding is stale or spliced.' }
     if ($Candidate.selectedCandidateId -cne $Preflight.selectedCandidateId -or $Candidate.selectedCandidateId -cne $Attempt.selectedCandidateId -or $Candidate.selectedCandidateId -cne $Staging.selectedCandidateId) { throw 'Selected-candidate binding is stale or spliced.' }
-    $candidateRows=@($Candidate.sourceMembers);$planRows=@($Preflight.stagingPlan.memberRows);$stagingRows=@($Staging.memberRows)
+    $candidateRows=if($Preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.5.0'){@($Freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})}else{@($Candidate.sourceMembers)};$planRows=@($Preflight.stagingPlan.memberRows);$stagingRows=@($Staging.memberRows)
     $candidateIds=@(Get-CergSortedStrings @($candidateRows|ForEach-Object memberId));$planIds=@(Get-CergSortedStrings @($planRows|ForEach-Object sourceMemberRefId));$stagingIds=@(Get-CergSortedStrings @($stagingRows|ForEach-Object sourceMemberRefId));$operationIds=@(Get-CergSortedStrings @($Preflight.operation.inputMemberRefIds))
     $expected=ConvertTo-CergCanonicalJsonValue $candidateIds
     if((ConvertTo-CergCanonicalJsonValue $planIds)-cne$expected -or (ConvertTo-CergCanonicalJsonValue $stagingIds)-cne$expected -or (ConvertTo-CergCanonicalJsonValue $operationIds)-cne$expected){throw 'Upstream SourceMember bijection is stale or spliced.'}
@@ -607,15 +608,17 @@ function New-CergLo1ResultGraph {
         [Parameter(Mandatory = $true)][string]$StagingInventoryPath,
         [Parameter(Mandatory = $true)][string]$OutputRoot,
         [Parameter(Mandatory = $true)][string]$ResultTemporaryPath,
-        [Parameter(Mandatory = $true)][string]$ResultPath
+        [Parameter(Mandatory = $true)][string]$ResultPath,
+        [string]$FreshnessEvidencePath
     )
 
     if ([System.IO.File]::Exists($ResultTemporaryPath) -or [System.IO.File]::Exists($ResultPath)) { throw 'R01 temporary/final paths must be initially absent.' }
     $candidate = Read-CergJsonFile $CandidateLockPath
     $preflight = Read-CergJsonFile $PreflightPath
+    $freshness = if(-not[string]::IsNullOrWhiteSpace($FreshnessEvidencePath)){Read-CergJsonFile $FreshnessEvidencePath}else{$null}
     $attempt = Read-CergJsonFile $AttemptStatePath
     $staging = Read-CergJsonFile $StagingInventoryPath
-    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
+    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
 
     $outputFull = Get-CergFullPath $OutputRoot
     if (-not [System.IO.Directory]::Exists($outputFull)) { [System.IO.Directory]::CreateDirectory($outputFull) | Out-Null }
@@ -680,7 +683,7 @@ function New-CergLo1ResultGraph {
     Test-CergGraphModel -Candidate $candidate -Preflight $preflight -EvidenceItems $evidenceSorted -AuthorityScopes $scopesSorted -Subjects $subjectsSorted -Relationships $relationshipsSorted -ObligationResults $obligationSorted -OutputMembers @($outputMembers) -Errors $errors
 
     $stagingMembers = @($staging.memberRows)
-    if ($stagingMembers.Count -ne @($candidate.sourceMembers).Count -or [int64]$staging.memberCount -ne $stagingMembers.Count) { $errors.Add('StagingConservationMismatch') }
+    if ($stagingMembers.Count -ne [int64]$preflight.stagingPlan.memberCount -or [int64]$staging.memberCount -ne $stagingMembers.Count) { $errors.Add('StagingConservationMismatch') }
     $unresolved = @($obligationSorted | Where-Object { $_.status -cne 'Resolved' }).Count
     $contradictory = @($relationshipsSorted | Where-Object { $_.state -ceq 'Contradictory' }).Count
     $unavailable = @($relationshipsSorted | Where-Object { $_.state -ceq 'EvidenceUnavailableBeforeExtraction' }).Count
