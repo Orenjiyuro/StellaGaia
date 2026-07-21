@@ -282,6 +282,56 @@ This newest subsection is the sole authority for the consumed replacement attemp
 
 Fixed counterexamples are authoritative: changing the terminal reason to source mutation after confirmation; reporting the first mismatch as `_animations`; treating five staged leaves as SI01; refunding LOUsed; starting another replacement, T2, AssetRipper, TG02, Unity, or cleanup; or claiming the character is intrinsically unrestorable invalidates T4-O01. This T4 result is solely the fixed-route statement that success was not proven before extraction because the replacement preflight was false Green.
 
+#### 2026-07-21 real-world freshness recovery admission gate
+
+This subsection records a recovery gate only. It does not invalidate, overwrite, or reinterpret T4-O01; it grants no R2 implementation, source read, preflight execution, A01, LO, AssetRipper, TG02, Unity, cleanup, or budget change. `StopCERG` remains in force until the user explicitly authorizes a named recovery Task.
+
+**Normative invariant.** Every field whose value is `Green` must reference at least one check row produced by a just-completed real check whose inputs, implementation identity, observed values, time, and result can be independently recomputed. A Green field with an empty, stale, synthetic-only, producer-self-attested, or non-resolving evidence reference is invalid and fails closed.
+
+**Executable schema.** A future R2 freshness artifact is `cerg-lo-cerg1-r2-freshness/1.0.0` / `LO-CERG1-R2-F01` at `Extracted/CERG/SingleCharacter/LO-CERG1-R2/freshness.json`; its temporary leaf is the same path plus `.tmp`. Both are initially absent. Its top-level shape is exactly:
+
+~~~text
+{schemaVersion,artifactId,contractHeadCommit,candidateLockSha256,checkRunId,
+ producerImplementation,validatorImplementation,startedAtUtc,producerFinishedAtUtc,
+ validatorFinishedAtUtc,sourceSelectors,producerRows,validatorRows,currentMembers,
+ currentMemberSetFingerprint,fixedCounterexamples,successPathChecks,postSuccessAttackChecks,
+ greenClaims,status,nextAction}
+Implementation={implementationId,role,portableRelativePath,byteCount,sha256}
+SourceSelector={selectorId,sourceId,portableRelativePath}
+LeafCheck={checkId,implementationId,selectorId,checkedAtUtc,exists,fileKind,isReparsePoint,
+ observedByteCount,observedSha256,status}
+CurrentMember={memberId,selectorId,sourceId,portableRelativePath,byteCount,sha256}
+TestRow={testId,status,evidenceRefIds}
+GreenClaim={claimId,status,evidenceRefIds}
+~~~
+
+Only `fileKind=RegularFile`, `isReparsePoint=false`, lowercase 64-hex `observedSha256`, and JSON integer byte counts are valid. `producerImplementation.role=Producer`; `validatorImplementation.role=IndependentValidator`; paths and SHA-256 values must differ, and the implementations may not share leaf enumeration/stat/reparse/hash decision code. The validator must open and hash the real leaf independently; reading producer JSON, trusting producer exit zero, or reusing a producer helper is not validation.
+
+**Sets, identity, and conservation.** `sourceSelectors` is exactly the duplicate-free 17-row projection of audited T1V22-O01 `sourceMembers[*].{sourceId,portableRelativePath}`; no old size or hash is a success predicate. `selectorId="R2S-"+sha256(CJ(["cerg-r2/source-selector-id/1",sourceId,portableRelativePath]))`; `implementationId="R2I-"+sha256(CJ(["cerg-r2/implementation-id/1",role,portableRelativePath,byteCount,sha256]))`; `checkRunId="R2RUN-"+sha256(CJ(["cerg-r2/check-run-id/1",contractHeadCommit,candidateLockSha256,startedAtUtc]))`; and `checkId="R2C-"+sha256(CJ(["cerg-r2/leaf-check-id/1",checkRunId,implementationId,selectorId]))`. Each selector has exactly one Producer row and one IndependentValidator row, so `|producerRows|=|validatorRows|=17`, both selector-ID sets equal `sourceSelectors`, and every row performs all five real checks: existence, regular file, non-reparse, byte count, and SHA-256. Producer and validator observed tuples must be byte-identical per selector. A current member ID is `"R2M-"+sha256(CJ(["cerg-r2/current-member-id/1",sourceId,portableRelativePath,byteCount,sha256]))`; the set fingerprint is `sha256(CJ(["cerg-r2/current-source-member-set/1", sorted Ordinal [memberId,sourceId,portableRelativePath,byteCount,sha256] rows]))`. All formulas use the already frozen v2.2 `CJ`: UTF-8 without BOM, NFC strings, JSON integers, explicit nulls, array order as written, Ordinal sorting where stated, no insignificant whitespace, and lowercase SHA-256. Changed identity at the same selector creates a new CurrentMember and is not candidate failure. Missing, non-regular, reparse, unreadable, unstable-during-hash, duplicate, omitted, extra, or producer/validator-disagreeing selectors fail closed and suppress CurrentMembers, the fingerprint, Green, P01, and A01.
+
+**Freshness adjacency.** The validator run is the final operation before A01 construction: no source-dependent operation, artifact reuse, tool rotation, sleep, or unrelated check may intervene. A01 may be atomically installed only when all 17 validator rows were completed in the same foreground `checkRunId`, `A01.createdAtUtc-validatorFinishedAtUtc <= 10 seconds`, the freshness artifact raw SHA-256 is bound by A01, and an immediate final reopen confirms all 17 selector paths still resolve as regular non-reparse leaves with the recorded byte counts. Any violation discards authorization, leaves A01 absent, and requires a newly authorized freshness run; hours-old or prior-attempt evidence is never reusable.
+
+**Mandatory execution order.**
+
+1. Fixed counterexamples first: missing leaf, directory, reparse point, byte drift, hash drift with equal size, duplicate/omitted selector, producer/validator disagreement, stale `checkRunId`, fixture-only hidden field, and producer output splice.
+2. Successful path second: the production constructor creates the complete object, the independent validator consumes it, and the future staging consumer consumes those exact bytes; fixtures may not add a field absent from the production schema.
+3. Audit-style attack last: independently mutate one selector, one observed tuple, one evidence reference, one timestamp, and one implementation binding in turn; every mutation must turn the result into failed-closed before publication.
+
+The ordered test IDs are exact: `fixedCounterexamples=[R2-CE01-Missing,R2-CE02-Directory,R2-CE03-Reparse,R2-CE04-ByteDrift,R2-CE05-EqualSizeHashDrift,R2-CE06-SelectorConservation,R2-CE07-IndependentDisagreement,R2-CE08-StaleRun,R2-CE09-HiddenField,R2-CE10-ProducerSplice]`; `successPathChecks=[R2-SP01-ProductionConstructor,R2-SP02-IndependentValidator,R2-SP03-StagingConsumer]`; and `postSuccessAttackChecks=[R2-AT01-SelectorMutation,R2-AT02-TupleMutation,R2-AT03-EvidenceMutation,R2-AT04-TimeMutation,R2-AT05-ImplementationMutation]`. Every TestRow is `Passed` only when its direct evidence refs resolve to the actual run. Every `evidenceRefId` resolves exactly once to an implementation, leaf-check, or TestRow identity, and reverse reference sets must match. `greenClaims` is exactly `[All17LeavesExist,All17LeavesRegular,All17LeavesNonReparse,All17SizesObserved,All17HashesObserved,ProducerValidatorAgree,FreshnessAdjacent,ConstructorConsumerSchemaExact,CounterexamplesPassed,PostSuccessAttackPassed]`; every row has `status=Green` and at least two direct refs where both implementations are relevant. Green is valid only when all check/test/claim references resolve bidirectionally and all equations hold.
+
+**State table.**
+
+| State | Required evidence | Output vector | Only next action |
+|---|---|---|---|
+| `RecoveryGateRecorded` | This synchronized contract commit | R2 tools/F01/P01/A01 absent; T4/R1 unchanged | `StopCERGUntilExplicitRecoveryAuthorization` |
+| `RecoveryImplementationRejected` | Any tool, schema, independence, counterexample, production-chain, or self-attack failure | No committed recovery tools; R2 F01/P01/A01 absent | `ReturnToTotalControlAudit` |
+| `RecoveryImplementationReady` | Independent producer/validator plus all synthetic and adversarial tests Green | Tool-readiness artifact only; source unread; R2 F01/P01/A01 absent | `AwaitTotalControlAuditBeforeR2FreshnessRun` |
+| `R2FreshnessFailedClosed` | Any real leaf/check/freshness/evidence/conservation failure | Diagnostic F01 allowed; P01/A01/staging absent; R1 isolated | `ReturnToTotalControlAudit_NoLO` |
+| `R2FreshnessGreen` | All 17 current rows, independent agreement, fixed counterexamples, success chain, post-success attack, and direct Green evidence | Immutable F01 plus current-set fingerprint; A01/staging absent | `RequestExactHumanConfirmationForR2` |
+| `R2AttemptStarted` | Exact confirmation plus the same-run 10-second adjacency and final reopen | New R2 A01 before first source copy; R1 remains isolated | `ExecuteOnlyTheSeparatelyAuthorizedR2LO` |
+
+No state in this subsection itself authorizes the final row. A future R2 must use the new namespace only; R1 and its five retained staged leaves remain permanently isolated and may never be read as R2 input or copied into R2.
+
 #### V2.2 Artifact Registry
 
 | ID | Exact path or byte range | Complete role and schema | Success/failure vector |
