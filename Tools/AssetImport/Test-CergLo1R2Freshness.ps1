@@ -23,6 +23,18 @@ function Get-CergR2ValidatorImplementation {
     return [pscustomobject][ordered]@{implementationId=$id;role='IndependentValidator';portableRelativePath='Tools/AssetImport/Test-CergLo1R2Freshness.ps1';byteCount=[int64]$i.Length;sha256=$sha}
 }
 function Get-CergR2ValidatorRootMap {param([object[]]$Bindings);$m=@{};foreach($b in $Bindings){$id=[string]$b.sourceId;$r=[IO.Path]::GetFullPath([string]$b.privateAbsoluteReadOnlyRoot).TrimEnd('\','/');if(-not[IO.Directory]::Exists($r)-or$m.ContainsKey($id)){throw'Validator source binding invalid.'};$m[$id]=$r};return $m}
+function Test-CergR2ValidatorAncestorChain {
+    param([string]$Root,[string]$Leaf)
+    $normalizedRoot=[IO.Path]::GetFullPath($Root).TrimEnd('\','/');$cursor=[IO.DirectoryInfo]::new($normalizedRoot)
+    if(-not$cursor.Exists-or($cursor.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){return $false}
+    $parent=[IO.DirectoryInfo]::new([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Leaf)));$stack=[Collections.Generic.Stack[IO.DirectoryInfo]]::new()
+    while($parent.FullName-cne$normalizedRoot){
+        if(-not$parent.FullName.StartsWith($normalizedRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){return $false}
+        $stack.Push($parent);$parent=$parent.Parent;if($null-eq$parent){return $false}
+    }
+    while($stack.Count){$entry=$stack.Pop();$entry.Refresh();if(-not$entry.Exists-or($entry.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){return $false}}
+    return $true
+}
 function Invoke-CergLo1R2FreshnessValidator {
     [CmdletBinding()]
     param([Parameter(Mandatory=$true)][object]$ProducerPacket,[Parameter(Mandatory=$true)][object[]]$SourceRootBindings,[Parameter(Mandatory=$true)][object[]]$FixedCounterexamples,[Parameter(Mandatory=$true)][object[]]$SuccessPathChecks,[Parameter(Mandatory=$true)][object[]]$PostSuccessAttackChecks)
@@ -34,7 +46,7 @@ function Invoke-CergLo1R2FreshnessValidator {
         $exists=$false;$kind='Missing';$reparse=$null;$count=$null;$hash=$null;$green=$false
         if($roots.ContainsKey([string]$selector.sourceId)){
             $root=$roots[[string]$selector.sourceId];$leaf=[IO.Path]::GetFullPath([IO.Path]::Combine($root,([string]$selector.portableRelativePath).Replace('/',[IO.Path]::DirectorySeparatorChar)))
-            if($leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){
+            if($leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)-and(Test-CergR2ValidatorAncestorChain -Root $root -Leaf $leaf)){
                 $exists=[IO.File]::Exists($leaf)
                 if($exists){$before=[IO.FileInfo]::new($leaf);$attr=$before.Attributes;$kind=$(if(($attr-band[IO.FileAttributes]::Directory)-eq0){'RegularFile'}else{'Other'});$reparse=(($attr-band[IO.FileAttributes]::ReparsePoint)-ne0)
                     if($kind-ceq'RegularFile'-and-not$reparse){$count=[int64]$before.Length;$stamp=$before.LastWriteTimeUtc;$stream=[IO.File]::Open($leaf,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);try{$sha=[Security.Cryptography.SHA256]::Create();try{$hash=([Convert]::ToHexString($sha.ComputeHash($stream))).ToLowerInvariant()}finally{$sha.Dispose()}}finally{$stream.Dispose()};$after=[IO.FileInfo]::new($leaf);$green=($after.Length-eq$count-and$after.LastWriteTimeUtc-eq$stamp)}
@@ -46,7 +58,7 @@ function Invoke-CergLo1R2FreshnessValidator {
     $producerBy=@{};foreach($r in @($ProducerPacket.producerRows)){$producerBy[[string]$r.selectorId]=$r}
     $agree=$true;$members=[Collections.Generic.List[object]]::new()
     foreach($r in @($rows)){$p=$producerBy[[string]$r.selectorId];if($null -eq $p -or $p.status -cne 'Green' -or $r.status -cne 'Green' -or $p.exists -ne $r.exists -or $p.fileKind -cne $r.fileKind -or $p.isReparsePoint -ne $r.isReparsePoint -or ([int64]$p.observedByteCount) -ne ([int64]$r.observedByteCount) -or $p.observedSha256 -cne $r.observedSha256){$agree=$false;continue};$s=@($ProducerPacket.sourceSelectors|Where-Object selectorId -CEQ $r.selectorId)[0];$mid='R2M-'+(Get-CergR2ValidatorSha 'cerg-r2/current-member-id/1' @($s.sourceId,$s.portableRelativePath,[int64]$r.observedByteCount,$r.observedSha256));$members.Add([pscustomobject][ordered]@{memberId=$mid;selectorId=$s.selectorId;sourceId=$s.sourceId;portableRelativePath=$s.portableRelativePath;byteCount=[int64]$r.observedByteCount;sha256=$r.observedSha256})}
-    $testRows=@($FixedCounterexamples)+@($SuccessPathChecks)+@($PostSuccessAttackChecks);$testsGreen=($testRows.Count -eq 18 -and @($testRows|Where-Object status -cne 'Passed').Count -eq 0)
+    $testRows=@($FixedCounterexamples)+@($SuccessPathChecks)+@($PostSuccessAttackChecks);$testsGreen=($testRows.Count -eq 19 -and @($testRows|Where-Object status -cne 'Passed').Count -eq 0)
     $green=($agree -and $members.Count -eq 17 -and $testsGreen)
     $sorted=[object[]]@($members);[Array]::Sort($sorted,[Collections.Generic.Comparer[object]]::Create([System.Comparison[object]]{param($a,$b)[string]::CompareOrdinal([string]$a.memberId,[string]$b.memberId)}))
     $fingerprint=$(if($green){Get-CergR2ValidatorSha 'cerg-r2/current-source-member-set/1' @($sorted)}else{$null})
@@ -80,7 +92,7 @@ function Assert-CergLo1R2FreshnessArtifact {
     $validIds=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $null=$validIds.Add([string]$Artifact.producerImplementation.implementationId);$null=$validIds.Add([string]$Artifact.validatorImplementation.implementationId)
     foreach($r in @($Artifact.producerRows)+@($Artifact.validatorRows)){if($r.status -cne 'Green' -or -not $validIds.Add([string]$r.checkId)){throw'Freshness check row invalid or duplicate.'}}
-    $expectedFixed=@('R2-CE01-Missing','R2-CE02-Directory','R2-CE03-Reparse','R2-CE04-ByteDrift','R2-CE05-EqualSizeHashDrift','R2-CE06-SelectorConservation','R2-CE07-IndependentDisagreement','R2-CE08-StaleRun','R2-CE09-HiddenField','R2-CE10-ProducerSplice')
+    $expectedFixed=@('R2-CE01-Missing','R2-CE02-Directory','R2-CE03-Reparse','R2-CE04-ByteDrift','R2-CE05-EqualSizeHashDrift','R2-CE06-SelectorConservation','R2-CE07-IndependentDisagreement','R2-CE08-StaleRun','R2-CE09-HiddenField','R2-CE10-ProducerSplice','R2-CE11-AncestorReparse')
     $expectedSuccess=@('R2-SP01-ProductionConstructor','R2-SP02-IndependentValidator','R2-SP03-StagingConsumer')
     $expectedAttack=@('R2-AT01-SelectorMutation','R2-AT02-TupleMutation','R2-AT03-EvidenceMutation','R2-AT04-TimeMutation','R2-AT05-ImplementationMutation')
     foreach($pair in @(@($Artifact.fixedCounterexamples,$expectedFixed),@($Artifact.successPathChecks,$expectedSuccess),@($Artifact.postSuccessAttackChecks,$expectedAttack))){
@@ -95,7 +107,7 @@ function Assert-CergLo1R2FreshnessArtifact {
         if(-not$selectorById.ContainsKey([string]$member.selectorId)){throw'Current member selector reference missing.'};$selector=$selectorById[[string]$member.selectorId];if($member.sourceId-cne$selector.sourceId-or$member.portableRelativePath-cne$selector.portableRelativePath){throw'Current member selector tuple differs.'}
         if(-not$roots.ContainsKey([string]$member.sourceId)){throw'Current member source binding missing.'}
         $root=$roots[[string]$member.sourceId];$leaf=[IO.Path]::GetFullPath([IO.Path]::Combine($root,([string]$member.portableRelativePath).Replace('/',[IO.Path]::DirectorySeparatorChar)))
-        if(-not $leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($leaf)){throw'Current member leaf missing.'}
+        if(-not $leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-CergR2ValidatorAncestorChain -Root $root -Leaf $leaf) -or -not [IO.File]::Exists($leaf)){throw'Current member leaf or non-reparse ancestor chain is missing.'}
         $attr=[IO.File]::GetAttributes($leaf);if(($attr-band[IO.FileAttributes]::Directory)-ne0-or($attr-band[IO.FileAttributes]::ReparsePoint)-ne0){throw'Current member is not a regular non-reparse leaf.'}
         $sha=Get-CergR2ValidatorFileHash $leaf;$len=[IO.FileInfo]::new($leaf).Length
         if(([int64]$member.byteCount) -ne $len -or $member.sha256 -cne $sha){throw'Current member identity changed.'}

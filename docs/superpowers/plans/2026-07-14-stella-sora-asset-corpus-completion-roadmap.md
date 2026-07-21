@@ -336,6 +336,18 @@ The ordered test IDs are exact: `fixedCounterexamples=[R2-CE01-Missing,R2-CE02-D
 
 No state in this subsection itself authorizes the final row. A future R2 must use the new namespace only; R1 and its five retained staged leaves remain permanently isolated and may never be read as R2 input or copied into R2.
 
+#### 2026-07-21 R2 readiness audit correction
+
+This correction is inside the same already-consumed recovery implementation Task and changes no CERG terminal counter or LO counter. It supersedes only the prior R2 readiness-generation, test-count, and next-action statements. It authorizes no real source read, F01, P01, A01, staging, R2 LO, AssetRipper, TG02 runtime extraction, or Unity.
+
+`R2-TO01` remains immutable rejected history at `Extracted/CERG/SingleCharacter/Recovery-R2/tooling-readiness.json`: `3864` bytes, raw SHA-256 `ae88d9868972092d9806bbb52f5525f4ec57c5f07030adc19058298e78410d15`, bound commit `241f4d4da9bff58f3e49b36de91e86ff6fbd93c1`, `auditDisposition=RejectedByTotalControlAudit`, `consumableForR2FreshnessRun=false`, and Ordinal `auditReasonCodes=[AncestorReparseUnchecked,V14RegressionIncomplete]`. It is never deleted, overwritten, refreshed, or used as Green authority.
+
+`R2-TOT02` is the initially absent temporary leaf `Extracted/CERG/SingleCharacter/Recovery-R2/tooling-readiness-v2.json.tmp`. `R2-TO02` is the initially absent immutable final leaf `Extracted/CERG/SingleCharacter/Recovery-R2/tooling-readiness-v2.json`, schema/ID `cerg-r2-tooling-readiness/1.1.0` / `R2-TO02`. Its exact top-level shape is `{schemaVersion,artifactId,contractHeadCommit,priorReadiness,toolRows,testRows,status,failures,nextAction}`; `priorReadiness={artifactId,portableRelativePath,byteCount,sha256,auditDisposition,auditReasonCodes}` binds the frozen R2-TO01 tuple above. `toolRows` contains the six prior R2/integration tools plus `Tools/AssetImport/Test-CergLo1Pipeline.ps1`, sorted Ordinal by `artifactId`, and binds post-correction committed bytes.
+
+The R2 matrix is exactly 19 rows: the prior ordered 18 IDs plus `R2-CE11-AncestorReparse` immediately after `R2-CE10-ProducerSplice`. CE11 must independently prove producer rejection, validator rejection, and final-reopen rejection when a lexical root-contained parent directory is replaced by a junction to outside the registered root. The v1.4 compatibility matrix is exactly 25 further rows in this order: `T1A3-TEST01` through `T1A3-TEST23`, then `T1A4-TEST24`, `T1A4-TEST25`. R2-TO02 therefore has exactly 44 `testRows={testId,status,evidenceLocator}`, all Passed with nonempty direct locators; omitting either matrix, accepting a fixed candidate SHA placeholder, checking only the leaf reparse bit, or relying on a prior process result suppresses Green.
+
+Green R2-TO02 fixes `status=Green`, `failures=[]`, and `nextAction=AwaitTotalControlAuditBeforeR2FreshnessRun`. It is created only after the correction commit, reopened, independently rechecks all seven tool identities plus the exact 19/19 and 25/25 matrices, and is atomically installed by same-directory no-overwrite rename. Any failure leaves R2-TO02 absent and returns to total control. `recoveryImplementationTaskUsed=1/1`, `ordinaryTaskUsed=5/7`, and `LOUsed=1/3` remain unchanged.
+
 #### V2.2 Artifact Registry
 
 | ID | Exact path or byte range | Complete role and schema | Success/failure vector |

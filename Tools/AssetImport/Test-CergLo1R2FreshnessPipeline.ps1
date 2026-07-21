@@ -8,7 +8,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 . (Join-Path $PSScriptRoot 'New-CergLo1ResultGraph.ps1')
 
-$ids=@('R2-CE01-Missing','R2-CE02-Directory','R2-CE03-Reparse','R2-CE04-ByteDrift','R2-CE05-EqualSizeHashDrift','R2-CE06-SelectorConservation','R2-CE07-IndependentDisagreement','R2-CE08-StaleRun','R2-CE09-HiddenField','R2-CE10-ProducerSplice','R2-SP01-ProductionConstructor','R2-SP02-IndependentValidator','R2-SP03-StagingConsumer','R2-AT01-SelectorMutation','R2-AT02-TupleMutation','R2-AT03-EvidenceMutation','R2-AT04-TimeMutation','R2-AT05-ImplementationMutation')
+$ids=@('R2-CE01-Missing','R2-CE02-Directory','R2-CE03-Reparse','R2-CE04-ByteDrift','R2-CE05-EqualSizeHashDrift','R2-CE06-SelectorConservation','R2-CE07-IndependentDisagreement','R2-CE08-StaleRun','R2-CE09-HiddenField','R2-CE10-ProducerSplice','R2-CE11-AncestorReparse','R2-SP01-ProductionConstructor','R2-SP02-IndependentValidator','R2-SP03-StagingConsumer','R2-AT01-SelectorMutation','R2-AT02-TupleMutation','R2-AT03-EvidenceMutation','R2-AT04-TimeMutation','R2-AT05-ImplementationMutation')
 $results=[Collections.Generic.List[object]]::new()
 function Add-R2Result {param([string]$Id,[scriptblock]$Body);try{&$Body;$results.Add([pscustomobject][ordered]@{testId=$Id;status='Passed';evidenceLocator="SyntheticFixture/$Id/Assertions"})}catch{throw ($Id+' failed: '+$_.Exception.Message+' STACK '+$_.ScriptStackTrace)}}
 function Test-R2Throws {param([scriptblock]$Body);$threw=$false;try{&$Body|Out-Null}catch{$threw=$true};if(-not $threw){throw 'Expected failed-closed exception.'}}
@@ -31,11 +31,11 @@ try{
     $candidatePath=Join-Path $fixtureRoot 'candidate.json'
     [IO.File]::WriteAllText($candidatePath,($candidate|ConvertTo-Json -Depth 100 -Compress),[Text.UTF8Encoding]::new($false))
     $lockSha=Get-CergR2ValidatorFileHash $candidatePath
-    function New-Packet {param([object]$C=$candidate,[string]$Started=[DateTimeOffset]::UtcNow.ToString('O'));Invoke-CergLo1R2FreshnessProducer -Candidate $C -CandidateLockPath $candidatePath -SourceRootBindings $bindings -ContractHeadCommit $head -CandidateLockSha256 $lockSha -StartedAtUtc $Started}
+    function New-Packet {param([object]$C=$candidate,[string]$Started=[DateTimeOffset]::UtcNow.ToString('O'),[string]$Path=$candidatePath,[string]$CandidateSha=$lockSha);Invoke-CergLo1R2FreshnessProducer -Candidate $C -CandidateLockPath $Path -SourceRootBindings $bindings -ContractHeadCommit $head -CandidateLockSha256 $CandidateSha -StartedAtUtc $Started}
     $validPacket=New-Packet
     $validatorImpl=Get-CergR2ValidatorImplementation
     function New-TestRows {param([string[]]$Names);return @($Names|ForEach-Object{[pscustomobject][ordered]@{testId=$_;status='Passed';evidenceRefIds=@($validPacket.producerImplementation.implementationId,$validatorImpl.implementationId)}})}
-    $fixedRows=New-TestRows $ids[0..9];$successRows=New-TestRows $ids[10..12];$attackRows=New-TestRows $ids[13..17]
+    $fixedRows=New-TestRows $ids[0..10];$successRows=New-TestRows $ids[11..13];$attackRows=New-TestRows $ids[14..18]
 
     Add-R2Result $ids[0] {
         $p=Join-Path $root 'leaf\00.bin';$bytes=[IO.File]::ReadAllBytes($p);[IO.File]::Delete($p);try{if((New-Packet).status-cne'FailedClosed'){throw'Missing leaf was accepted.'}}finally{[IO.File]::WriteAllBytes($p,$bytes)}
@@ -81,29 +81,42 @@ try{
     Add-R2Result $ids[7] {$x=Copy-R2Object $validArtifact;$x.validatorFinishedAtUtc=[DateTimeOffset]::UtcNow.AddHours(-1).ToString('O');Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[8] {$x=Copy-R2Object $validArtifact;$x|Add-Member -NotePropertyName fixtureHidden -NotePropertyValue $true;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[9] {$x=Copy-R2Object (New-Packet);$x.sourceSelectors[0].selectorId='R2S-spliced';$a=Invoke-CergLo1R2FreshnessValidator $x $bindings $fixedRows $successRows $attackRows;if($a.status-cne'FailedClosed'){throw'Producer splice accepted.'}}
-    Add-R2Result $ids[10] {if((New-Packet).status-cne'ProducerGreen'){throw'Production constructor not Green.'}}
-    Add-R2Result $ids[11] {if($validArtifact.status-cne'Green'-or@($validArtifact.currentMembers).Count-ne17){throw'Independent validator not Green.'}}
-    Add-R2Result $ids[12] {
+    Add-R2Result $ids[10] {
+        $chain=Join-Path $root 'chain';$outside=Join-Path $fixtureRoot 'outside-chain';[IO.Directory]::CreateDirectory($chain)|Out-Null
+        $chainLeaf=Join-Path $chain '05.bin';[IO.File]::WriteAllBytes($chainLeaf,[IO.File]::ReadAllBytes((Join-Path $root 'leaf\05.bin')))
+        $chainCandidate=Copy-R2Object $candidate;$chainCandidate.sourceMembers[5].portableRelativePath='chain/05.bin';$chainCandidate.sourceMembers[5].sizeBytes=[int64]([IO.FileInfo]::new($chainLeaf).Length);$chainCandidate.sourceMembers[5].sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $chainLeaf).Hash.ToLowerInvariant()
+        $chainCandidatePath=Join-Path $fixtureRoot 'ancestor-candidate.json';[IO.File]::WriteAllText($chainCandidatePath,($chainCandidate|ConvertTo-Json -Depth 100 -Compress),[Text.UTF8Encoding]::new($false));$chainSha=Get-CergR2ValidatorFileHash $chainCandidatePath
+        $greenPacket=New-Packet -C $chainCandidate -Path $chainCandidatePath -CandidateSha $chainSha;$greenArtifact=Invoke-CergLo1R2FreshnessValidator $greenPacket $bindings $fixedRows $successRows $attackRows
+        [IO.Directory]::CreateDirectory($outside)|Out-Null;[IO.File]::WriteAllBytes((Join-Path $outside '05.bin'),[IO.File]::ReadAllBytes($chainLeaf));[IO.File]::Delete($chainLeaf);[IO.Directory]::Delete($chain);New-Item -ItemType Junction -Path $chain -Target $outside|Out-Null
+        try{
+            if((New-Packet -C $chainCandidate -Path $chainCandidatePath -CandidateSha $chainSha).status-cne'FailedClosed'){throw'Producer accepted an ancestor junction.'}
+            $validatorPacket=New-Packet -C $chainCandidate -Path $chainCandidatePath -CandidateSha $chainSha;$validatorArtifact=Invoke-CergLo1R2FreshnessValidator $validatorPacket $bindings $fixedRows $successRows $attackRows;if($validatorArtifact.status-cne'FailedClosed'){throw'Independent validator accepted an ancestor junction.'}
+            Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $greenArtifact $bindings}
+        }finally{if([IO.Directory]::Exists($chain)){(Get-Item -LiteralPath $chain -Force).Delete()};if([IO.Directory]::Exists($outside)){Remove-Item -LiteralPath $outside -Recurse -Force}}
+    }
+    Add-R2Result $ids[11] {if((New-Packet).status-cne'ProducerGreen'){throw'Production constructor not Green.'}}
+    Add-R2Result $ids[12] {if($validArtifact.status-cne'Green'-or@($validArtifact.currentMembers).Count-ne17){throw'Independent validator not Green.'}}
+    Add-R2Result $ids[13] {
         $inventoryTemp=$r2Preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath;$inventory=$r2Preflight.stagingPlan.stagingInventoryPrivateAbsolutePath
         $result=Invoke-CergLo1ExactStaging -CandidateLockPath $candidatePath -PreflightPath $preflightPath -FreshnessEvidencePath $freshPath -StagingInventoryTemporaryPath $inventoryTemp -StagingInventoryPath $inventory
         $attempt=[pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-attempt-state/1.1.0';artifactId='LO-CERG1-A01';candidateLockSha256=$lockSha;preflightSha256=(Get-CergR2ValidatorFileHash $preflightPath);contractHeadCommit=$head;selectedCandidateId='char_14401';attemptCount=1;status='StartedNoResult'}
         $null=Assert-CergUpstreamBindings -Candidate $candidate -Preflight $r2Preflight -Freshness $validArtifact -FreshnessEvidencePath $freshPath -Attempt $attempt -Staging $result -CandidatePath $candidatePath -PreflightPath $preflightPath -StagingInventoryPath $inventory -OutputRoot $r2Preflight.stagingPlan.outputPrivateAbsolutePath
         if($result.status-cne'Complete'-or$result.memberCount-ne17-or-not(Assert-CergLo1R2FreshnessArtifact $validArtifact $bindings)){throw'Production staging/result-graph consumers rejected valid R2 chain.'}
     }
-    Add-R2Result $ids[13] {$x=Copy-R2Object $validArtifact;$x.sourceSelectors[0].portableRelativePath='leaf/mutated.bin';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
-    Add-R2Result $ids[14] {$x=Copy-R2Object $validArtifact;$x.currentMembers[0].byteCount=[int64]$x.currentMembers[0].byteCount+1;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
-    Add-R2Result $ids[15] {
+    Add-R2Result $ids[14] {$x=Copy-R2Object $validArtifact;$x.sourceSelectors[0].portableRelativePath='leaf/mutated.bin';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
+    Add-R2Result $ids[15] {$x=Copy-R2Object $validArtifact;$x.currentMembers[0].byteCount=[int64]$x.currentMembers[0].byteCount+1;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
+    Add-R2Result $ids[16] {
         $claimMutation=Copy-R2Object $validArtifact;$claimMutation.greenClaims[0].evidenceRefIds=@('missing');Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $claimMutation $bindings}
         $testMutation=Copy-R2Object $validArtifact;$testMutation.fixedCounterexamples[0].evidenceRefIds=@('missing');Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $testMutation $bindings}
     }
-    Add-R2Result $ids[16] {$x=Copy-R2Object $validArtifact;$x.validatorFinishedAtUtc='2000-01-01T00:00:00.0000000Z';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
-    Add-R2Result $ids[17] {
+    Add-R2Result $ids[17] {$x=Copy-R2Object $validArtifact;$x.validatorFinishedAtUtc='2000-01-01T00:00:00.0000000Z';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
+    Add-R2Result $ids[18] {
         $implementationMutation=Copy-R2Object $validArtifact;$implementationMutation.validatorImplementation.sha256=$implementationMutation.producerImplementation.sha256;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $implementationMutation $bindings}
         $candidateBindingMutation=Copy-R2Object $r2Preflight;$candidateBindingMutation.candidateLockSha256=('0'*64);Test-R2Throws {Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $candidateBindingMutation -Freshness $validArtifact -FreshnessEvidencePath $freshPath}
         $contractBindingMutation=Copy-R2Object $r2Preflight;$contractBindingMutation.contractHeadCommit=('f'*40);Test-R2Throws {Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $contractBindingMutation -Freshness $validArtifact -FreshnessEvidencePath $freshPath}
     }
-    if($results.Count -ne 18 -or @($results|Where-Object status -cne 'Passed').Count -ne 0){throw 'R2 test conservation failed.'}
-    [pscustomobject][ordered]@{total=18;passed=18;failed=0;testRows=@($results)}|ConvertTo-Json -Depth 8
+    if($results.Count -ne 19 -or @($results|Where-Object status -cne 'Passed').Count -ne 0){throw 'R2 test conservation failed.'}
+    [pscustomobject][ordered]@{total=19;passed=19;failed=0;testRows=@($results)}|ConvertTo-Json -Depth 8
 }
 finally{
     $full=[IO.Path]::GetFullPath($fixtureRoot)

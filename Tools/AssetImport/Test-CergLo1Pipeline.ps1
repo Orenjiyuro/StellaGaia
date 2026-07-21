@@ -93,10 +93,13 @@ function New-CergStagingFixture {
     $stagingRoot = Join-Path $CaseRoot 'Run\Input'
     $planFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/staging-member-set/1' -Payload @($planRows)
     $candidate = [pscustomobject][ordered]@{ status='Passed'; selectedCandidateId='char_14401'; contractHeadCommit=('a'*40); sourceMembers=@($members); evidenceItems=@(); authorityScopes=@(); subjects=@(); relationships=@(); discoveryObligations=@() }
+    $candidatePath = Join-Path $CaseRoot 'candidate.json'
+    Write-CergFixtureJson $candidatePath $candidate -Canonical
+    $candidateSha = Get-CergSha256Hex $candidatePath
     $memberBytes = [int64](($members|Measure-Object sizeBytes -Sum).Sum)
     $definition = [pscustomobject][ordered]@{
         schemaVersion='cerg-lo-cerg1-preflight-definition/1.0.0'; artifactId='LO-CERG1-P01-DEFINITION'
-        candidateLockSha256=('2'*64); contractHeadCommit=('a'*40); selectedCandidateId='char_14401'; createdAt='2026-07-21T00:00:00Z'
+        candidateLockSha256=$candidateSha; contractHeadCommit=('a'*40); selectedCandidateId='char_14401'; createdAt='2026-07-21T00:00:00Z'
         sourceRootBindings=@([pscustomobject][ordered]@{ sourceId='fixture-source'; privateAbsoluteReadOnlyRoot=$sourceRoot; rootFingerprint=('3'*64) })
         implementationBindings=@()
         operation=[pscustomobject][ordered]@{
@@ -114,8 +117,8 @@ function New-CergStagingFixture {
         status='Green'; nextAction='RequestExactHumanConfirmationForLOCERG1'
     }
     $preflight = New-CergLo1PreflightObject -Definition $definition -AttemptPrivateAbsoluteRoot (Join-Path $CaseRoot 'Run')
-    $candidatePath = Join-Path $CaseRoot 'candidate.json'; $preflightPath = Join-Path $CaseRoot 'preflight.json'
-    Write-CergFixtureJson $candidatePath $candidate -Canonical; Write-CergFixtureJson $preflightPath $preflight -Canonical
+    $preflightPath = Join-Path $CaseRoot 'preflight.json'
+    Write-CergFixtureJson $preflightPath $preflight -Canonical
     return [pscustomobject]@{ CandidatePath=$candidatePath; PreflightPath=$preflightPath; StagingRoot=$stagingRoot; InventoryTemp=$preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath; Inventory=$preflight.stagingPlan.stagingInventoryPrivateAbsolutePath }
 }
 

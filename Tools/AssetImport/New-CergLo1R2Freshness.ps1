@@ -62,6 +62,23 @@ function Get-CergR2ProducerRootMap {
     return $map
 }
 
+function Test-CergR2ProducerAncestorChain {
+    param([Parameter(Mandatory=$true)][string]$Root,[Parameter(Mandatory=$true)][string]$Leaf)
+    $rootFull=[IO.Path]::GetFullPath($Root).TrimEnd('\','/');$parent=[IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Leaf))
+    $rootAttributes=[IO.File]::GetAttributes($rootFull)
+    if(($rootAttributes-band[IO.FileAttributes]::Directory)-eq0-or($rootAttributes-band[IO.FileAttributes]::ReparsePoint)-ne0){return $false}
+    $relative=[IO.Path]::GetRelativePath($rootFull,$parent)
+    if($relative-ceq'.'){return $true}
+    $current=$rootFull
+    foreach($segment in $relative.Split([char[]]@([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar),[StringSplitOptions]::RemoveEmptyEntries)){
+        $current=[IO.Path]::Combine($current,$segment)
+        if(-not[IO.Directory]::Exists($current)){return $false}
+        $attributes=[IO.File]::GetAttributes($current)
+        if(($attributes-band[IO.FileAttributes]::Directory)-eq0-or($attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){return $false}
+    }
+    return $true
+}
+
 function Invoke-CergLo1R2FreshnessProducer {
     [CmdletBinding()]
     param(
@@ -87,7 +104,7 @@ function Invoke-CergLo1R2FreshnessProducer {
         if($roots.ContainsKey([string]$selector.sourceId)){
             $root=[string]$roots[[string]$selector.sourceId]
             $leaf=[IO.Path]::GetFullPath([IO.Path]::Combine($root,([string]$selector.portableRelativePath).Replace('/',[IO.Path]::DirectorySeparatorChar)))
-            if($leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){
+            if($leaf.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)-and(Test-CergR2ProducerAncestorChain -Root $root -Leaf $leaf)){
                 $exists=[IO.File]::Exists($leaf)
                 if($exists){
                     $before=[IO.FileInfo]::new($leaf);$kind=$(if(($before.Attributes-band[IO.FileAttributes]::Directory)-eq0){'RegularFile'}else{'Other'})
