@@ -10,9 +10,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:CergStagingImplementationRole = 'ExactLeafStagingWrapper'
-$script:CergStagingImplementationVersion = 'CERG-LO1-EXACT-STAGING/2'
+$script:CergStagingImplementationVersion = 'CERG-LO1-EXACT-STAGING/3'
 $script:CergUtf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:CergOrdinal = [System.StringComparer]::Ordinal
+. (Join-Path $PSScriptRoot 'New-CergLo1Preflight.ps1')
 
 function ConvertTo-CergPortablePath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -223,6 +224,8 @@ function Invoke-CergLo1ExactStaging {
     }
     $candidate = Read-CergJsonFile -LiteralPath $CandidateLockPath
     $preflight = Read-CergJsonFile -LiteralPath $PreflightPath
+    $null = Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $preflight `
+        -StagingInventoryTemporaryPath $StagingInventoryTemporaryPath -StagingInventoryPath $StagingInventoryPath
     if ($candidate.status -cne 'Passed' -or $preflight.status -cne 'Green') { throw 'Candidate lock and preflight must be consumable.' }
     if ($candidate.selectedCandidateId -cne $preflight.selectedCandidateId) { throw 'Candidate identity mismatch.' }
 

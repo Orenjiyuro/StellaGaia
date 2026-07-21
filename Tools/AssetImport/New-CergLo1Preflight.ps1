@@ -1,0 +1,247 @@
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$script:CergPreflightUtf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+function ConvertTo-CergPreflightCanonicalJson {
+    param([AllowNull()][object]$Value)
+
+    if ($null -eq $Value) { return 'null' }
+    if ($Value -is [string]) {
+        $normalized = $Value.Normalize([System.Text.NormalizationForm]::FormC)
+        if ($normalized.Contains([char]0)) { throw 'Canonical strings must not contain U+0000.' }
+        return [System.Text.Json.JsonSerializer]::Serialize([object]$normalized, [string], [System.Text.Json.JsonSerializerOptions]::new())
+    }
+    if ($Value -is [bool]) { return $(if ($Value) { 'true' } else { 'false' }) }
+    if ($Value -is [byte] -or $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
+        $Value -is [uint16] -or $Value -is [uint32] -or $Value -is [uint64]) {
+        return [System.Convert]::ToString($Value, [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    if ($Value -is [decimal] -or $Value -is [double] -or $Value -is [single]) {
+        $number = [double]$Value
+        if ([double]::IsNaN($number) -or [double]::IsInfinity($number)) { throw 'Canonical numbers must be finite.' }
+        return $number.ToString('R', [System.Globalization.CultureInfo]::InvariantCulture).ToLowerInvariant()
+    }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $parts = [System.Collections.Generic.List[string]]::new()
+        foreach ($key in $Value.Keys) { $parts.Add((ConvertTo-CergPreflightCanonicalJson ([string]$key)) + ':' + (ConvertTo-CergPreflightCanonicalJson $Value[$key])) }
+        return '{' + ($parts -join ',') + '}'
+    }
+    if ($Value -is [pscustomobject]) {
+        $parts = [System.Collections.Generic.List[string]]::new()
+        foreach ($property in $Value.PSObject.Properties) { $parts.Add((ConvertTo-CergPreflightCanonicalJson $property.Name) + ':' + (ConvertTo-CergPreflightCanonicalJson $property.Value)) }
+        return '{' + ($parts -join ',') + '}'
+    }
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $parts = [System.Collections.Generic.List[string]]::new()
+        foreach ($item in $Value) { $parts.Add((ConvertTo-CergPreflightCanonicalJson $item)) }
+        return '[' + ($parts -join ',') + ']'
+    }
+    throw "Unsupported canonical JSON value type: $($Value.GetType().FullName)"
+}
+
+function Get-CergPreflightStructuredSha256 {
+    param([Parameter(Mandatory = $true)][string]$DomainTag, [Parameter(Mandatory = $true)][object]$Payload)
+    $bytes = $script:CergPreflightUtf8NoBom.GetBytes((ConvertTo-CergPreflightCanonicalJson @($DomainTag, $Payload)))
+    return ([System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes))).ToLowerInvariant()
+}
+
+function Assert-CergPreflightExactProperties {
+    param([AllowNull()][object]$Value, [string[]]$Names, [string]$Label)
+    if ($null -eq $Value) { throw "PreflightConsumerContractFailure: $Label is null." }
+    $actual = @($Value.PSObject.Properties.Name)
+    if (($actual -join '|') -cne ($Names -join '|')) {
+        throw "PreflightConsumerContractFailure: $Label fields/order differ; expected $($Names -join ',')."
+    }
+}
+
+function Get-CergPreflightAbsolutePath {
+    param([AllowNull()][object]$Value, [string]$Label)
+    $path = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($path) -or -not [System.IO.Path]::IsPathRooted($path) -or $path.IndexOfAny([char[]]'*?[]{}') -ge 0) {
+        throw "PreflightConsumerContractFailure: $Label must be one selector-free private absolute path."
+    }
+    return [System.IO.Path]::GetFullPath($path).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+}
+
+function Test-CergPreflightContainedPath {
+    param([string]$Leaf, [string]$Root)
+    return $Leaf.StartsWith($Root + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-CergPreflightSortedIds {
+    param([object[]]$Values, [string]$Label)
+    $ids = [string[]]@($Values | ForEach-Object { ([string]$_).Normalize([System.Text.NormalizationForm]::FormC) })
+    [System.Array]::Sort($ids, [System.StringComparer]::Ordinal)
+    for ($i = 0; $i -lt $ids.Count; $i++) {
+        if ([string]::IsNullOrWhiteSpace($ids[$i]) -or ($i -gt 0 -and $ids[$i] -ceq $ids[$i - 1])) {
+            throw "PreflightConsumerContractFailure: $Label contains an empty or Duplicate identity."
+        }
+    }
+    return $ids
+}
+
+function Assert-CergLo1PreflightConsumerContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object]$Candidate,
+        [Parameter(Mandatory = $true)][object]$Preflight,
+        [string]$StagingInventoryTemporaryPath,
+        [string]$StagingInventoryPath
+    )
+
+    $topFields = @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')
+    $stagingFields = @('attemptPrivateAbsoluteRoot','stagingInputPortablePath','stagingInputPrivateAbsolutePath','stagingInventoryTemporaryPath','stagingInventoryTemporaryPrivateAbsolutePath','stagingInventoryPath','stagingInventoryPrivateAbsolutePath','workPortablePath','workPrivateAbsolutePath','outputPortablePath','outputPrivateAbsolutePath','memberRows','memberCount','byteCount','memberSetFingerprint')
+    $operationFields = @('operationId','obligationRefIds','implementationRefIds','inputMemberRefIds','expectedSubjectKinds','expectedRelationshipKinds','sourceReadMaxFiles','sourceReadMaxBytes','maxDurationSeconds','maxResultRows','maxOutputFiles','maxOutputBytes','stagingInputPortablePath','outputPortablePath','workPortablePath')
+    $aggregateFields = @('sourceReadMaxFiles','sourceReadMaxBytes','maxDurationSeconds','maxResultRows','maxOutputFiles','maxOutputBytes')
+    $memberFields = @('sourceMemberRefId','sourceId','sourcePortableRelativePath','stagingPortableRelativePath','byteCount','sha256')
+    $rootBindingFields = @('sourceId','privateAbsoluteReadOnlyRoot','rootFingerprint')
+    $implementationFields = @('artifactId','implementationId','implementationRole','implementationVersion','pathKind','portableTrackedPath','privateAbsoluteLeafPath','implementationByteCount','implementationSha256','runtimePrivateAbsoluteLeafPath','runtimeByteCount','runtimeSha256','orderedArgumentTokens')
+
+    Assert-CergPreflightExactProperties $Preflight $topFields 'P01'
+    Assert-CergPreflightExactProperties $Preflight.stagingPlan $stagingFields 'P01.stagingPlan'
+    Assert-CergPreflightExactProperties $Preflight.operation $operationFields 'P01.operation'
+    Assert-CergPreflightExactProperties $Preflight.aggregateLimits $aggregateFields 'P01.aggregateLimits'
+    foreach ($row in @($Preflight.stagingPlan.memberRows)) { Assert-CergPreflightExactProperties $row $memberFields 'P01.stagingPlan.memberRows[]' }
+    foreach ($row in @($Preflight.sourceRootBindings)) { Assert-CergPreflightExactProperties $row $rootBindingFields 'P01.sourceRootBindings[]' }
+    foreach ($row in @($Preflight.implementationBindings)) { Assert-CergPreflightExactProperties $row $implementationFields 'P01.implementationBindings[]' }
+
+    if ($Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.4.0' -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or
+        $Preflight.status -cne 'Green' -or $Preflight.nextAction -cne 'RequestExactHumanConfirmationForLOCERG1') {
+        throw 'PreflightConsumerContractFailure: P01 fixed identity/status fields are invalid.'
+    }
+    if ($Candidate.status -cne 'Passed' -or $Candidate.selectedCandidateId -cne $Preflight.selectedCandidateId) {
+        throw 'PreflightConsumerContractFailure: candidate/P01 status or identity does not match.'
+    }
+
+    $attemptRoot = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.attemptPrivateAbsoluteRoot 'attemptPrivateAbsoluteRoot'
+    $privatePaths = [ordered]@{
+        stagingInput = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.stagingInputPrivateAbsolutePath 'stagingInputPrivateAbsolutePath'
+        inventoryTemporary = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath 'stagingInventoryTemporaryPrivateAbsolutePath'
+        inventory = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.stagingInventoryPrivateAbsolutePath 'stagingInventoryPrivateAbsolutePath'
+        work = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.workPrivateAbsolutePath 'workPrivateAbsolutePath'
+        output = Get-CergPreflightAbsolutePath $Preflight.stagingPlan.outputPrivateAbsolutePath 'outputPrivateAbsolutePath'
+    }
+    $distinct = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($entry in $privatePaths.GetEnumerator()) {
+        if (-not (Test-CergPreflightContainedPath $entry.Value $attemptRoot) -or -not $distinct.Add($entry.Value)) {
+            throw 'PreflightConsumerContractFailure: private staging paths must be distinct descendants of attemptPrivateAbsoluteRoot.'
+        }
+    }
+    $derivedPrivatePaths = @{
+        stagingInput = [System.IO.Path]::Combine($attemptRoot, 'Input')
+        inventoryTemporary = [System.IO.Path]::Combine($attemptRoot, 'staging-inventory.json.tmp')
+        inventory = [System.IO.Path]::Combine($attemptRoot, 'staging-inventory.json')
+        work = [System.IO.Path]::Combine($attemptRoot, 'Work')
+        output = [System.IO.Path]::Combine($attemptRoot, 'Output')
+    }
+    foreach ($name in $privatePaths.Keys) {
+        if ($privatePaths[$name] -cne $derivedPrivatePaths[$name]) { throw "PreflightConsumerContractFailure: $name is not the constructor-derived private path." }
+    }
+    foreach ($binding in @($Preflight.sourceRootBindings)) {
+        $sourceRoot = Get-CergPreflightAbsolutePath $binding.privateAbsoluteReadOnlyRoot 'sourceRootBindings.privateAbsoluteReadOnlyRoot'
+        if ((Test-CergPreflightContainedPath $attemptRoot $sourceRoot) -or (Test-CergPreflightContainedPath $sourceRoot $attemptRoot) -or $sourceRoot -ceq $attemptRoot) {
+            throw 'PreflightConsumerContractFailure: attempt-owned staging and source roots overlap.'
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($StagingInventoryTemporaryPath) -and
+        (Get-CergPreflightAbsolutePath $StagingInventoryTemporaryPath 'StagingInventoryTemporaryPath') -cne $privatePaths.inventoryTemporary) {
+        throw 'PreflightConsumerContractFailure: TG01 temporary inventory argument differs from P01.'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($StagingInventoryPath) -and
+        (Get-CergPreflightAbsolutePath $StagingInventoryPath 'StagingInventoryPath') -cne $privatePaths.inventory) {
+        throw 'PreflightConsumerContractFailure: TG01 final inventory argument differs from P01.'
+    }
+
+    $portablePairs = @(
+        @($Preflight.operation.stagingInputPortablePath, $Preflight.stagingPlan.stagingInputPortablePath),
+        @($Preflight.operation.workPortablePath, $Preflight.stagingPlan.workPortablePath),
+        @($Preflight.operation.outputPortablePath, $Preflight.stagingPlan.outputPortablePath)
+    )
+    foreach ($pair in $portablePairs) { if ([string]$pair[0] -cne [string]$pair[1]) { throw 'PreflightConsumerContractFailure: operation/staging portable path mapping differs.' } }
+    foreach ($name in $aggregateFields) { if ([int64]$Preflight.operation.$name -ne [int64]$Preflight.aggregateLimits.$name) { throw "PreflightConsumerContractFailure: operation/aggregate limit $name differs." } }
+
+    $members = @($Candidate.sourceMembers)
+    $rows = @($Preflight.stagingPlan.memberRows)
+    if ($members.Count -eq 0 -or $rows.Count -ne $members.Count -or [int64]$Preflight.stagingPlan.memberCount -ne $members.Count) {
+        throw 'PreflightConsumerContractFailure: SourceMember/staging row cardinality differs.'
+    }
+    $memberIds = @(Get-CergPreflightSortedIds @($members | ForEach-Object memberId) 'candidate SourceMembers')
+    $rowIds = @(Get-CergPreflightSortedIds @($rows | ForEach-Object sourceMemberRefId) 'staging rows')
+    $operationIds = @(Get-CergPreflightSortedIds @($Preflight.operation.inputMemberRefIds) 'operation inputs')
+    if (($memberIds -join '|') -cne ($rowIds -join '|') -or ($memberIds -join '|') -cne ($operationIds -join '|')) {
+        throw 'PreflightConsumerContractFailure: SourceMember IDs are not conserved exactly once.'
+    }
+    $memberById = @{}
+    foreach ($member in $members) { $memberById[[string]$member.memberId] = $member }
+    $stagingDestinations = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($row in $rows) {
+        $member = $memberById[[string]$row.sourceMemberRefId]
+        if ($null -eq $member -or $member.sourceId -cne $row.sourceId -or $member.portableRelativePath -cne $row.sourcePortableRelativePath -or
+            [int64]$member.sizeBytes -ne [int64]$row.byteCount -or $member.sha256 -cne $row.sha256 -or
+            -not $stagingDestinations.Add([string]$row.stagingPortableRelativePath)) {
+            throw 'PreflightConsumerContractFailure: staging row does not bijectively conserve its SourceMember tuple/destination.'
+        }
+    }
+    $candidateSourceIds = @(Get-CergPreflightSortedIds @($members | ForEach-Object sourceId | Select-Object -Unique) 'candidate source IDs')
+    $bindingSourceIds = @(Get-CergPreflightSortedIds @($Preflight.sourceRootBindings | ForEach-Object sourceId) 'source-root binding IDs')
+    if (($candidateSourceIds -join '|') -cne ($bindingSourceIds -join '|')) { throw 'PreflightConsumerContractFailure: source-root bindings do not equal candidate source IDs.' }
+    $memberBytes = [int64](($members | Measure-Object sizeBytes -Sum).Sum)
+    if ([int64]$Preflight.stagingPlan.byteCount -ne $memberBytes -or [int64]$Preflight.operation.sourceReadMaxFiles -ne $members.Count -or
+        [int64]$Preflight.operation.sourceReadMaxBytes -ne $memberBytes) {
+        throw 'PreflightConsumerContractFailure: member count/bytes and read limits differ.'
+    }
+    if ($Preflight.stagingPlan.memberSetFingerprint -cne (Get-CergPreflightStructuredSha256 'cerg-lo1/staging-member-set/1' @($rows))) {
+        throw 'PreflightConsumerContractFailure: staging member-set fingerprint differs.'
+    }
+    return $true
+}
+
+function New-CergLo1PreflightObject {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][object]$Definition, [Parameter(Mandatory = $true)][string]$AttemptPrivateAbsoluteRoot)
+
+    $definitionFields = @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','createdAt','sourceRootBindings','implementationBindings','operation','aggregateLimits','stagingPlan','status','nextAction')
+    $definitionStagingFields = @('stagingInputPortablePath','stagingInventoryTemporaryPath','stagingInventoryPath','workPortablePath','outputPortablePath','memberRows','memberCount','byteCount','memberSetFingerprint')
+    Assert-CergPreflightExactProperties $Definition $definitionFields 'P01 definition'
+    Assert-CergPreflightExactProperties $Definition.stagingPlan $definitionStagingFields 'P01 definition stagingPlan'
+    if ($Definition.schemaVersion -cne 'cerg-lo-cerg1-preflight-definition/1.0.0' -or $Definition.artifactId -cne 'LO-CERG1-P01-DEFINITION') {
+        throw 'PreflightConsumerContractFailure: production P01 definition identity is invalid.'
+    }
+    $attemptRoot = Get-CergPreflightAbsolutePath $AttemptPrivateAbsoluteRoot 'AttemptPrivateAbsoluteRoot'
+    $preflight = [pscustomobject][ordered]@{
+        schemaVersion = 'cerg-lo-cerg1-preflight/1.4.0'
+        artifactId = 'LO-CERG1-P01'
+        candidateLockSha256 = $Definition.candidateLockSha256
+        contractHeadCommit = $Definition.contractHeadCommit
+        selectedCandidateId = $Definition.selectedCandidateId
+        createdAt = $Definition.createdAt
+        sourceRootBindings = @($Definition.sourceRootBindings)
+        implementationBindings = @($Definition.implementationBindings)
+        operation = $Definition.operation
+        aggregateLimits = $Definition.aggregateLimits
+        stagingPlan = [pscustomobject][ordered]@{
+            attemptPrivateAbsoluteRoot = $attemptRoot
+            stagingInputPortablePath = $Definition.stagingPlan.stagingInputPortablePath
+            stagingInputPrivateAbsolutePath = [System.IO.Path]::Combine($attemptRoot, 'Input')
+            stagingInventoryTemporaryPath = $Definition.stagingPlan.stagingInventoryTemporaryPath
+            stagingInventoryTemporaryPrivateAbsolutePath = [System.IO.Path]::Combine($attemptRoot, 'staging-inventory.json.tmp')
+            stagingInventoryPath = $Definition.stagingPlan.stagingInventoryPath
+            stagingInventoryPrivateAbsolutePath = [System.IO.Path]::Combine($attemptRoot, 'staging-inventory.json')
+            workPortablePath = $Definition.stagingPlan.workPortablePath
+            workPrivateAbsolutePath = [System.IO.Path]::Combine($attemptRoot, 'Work')
+            outputPortablePath = $Definition.stagingPlan.outputPortablePath
+            outputPrivateAbsolutePath = [System.IO.Path]::Combine($attemptRoot, 'Output')
+            memberRows = @($Definition.stagingPlan.memberRows)
+            memberCount = [int64]$Definition.stagingPlan.memberCount
+            byteCount = [int64]$Definition.stagingPlan.byteCount
+            memberSetFingerprint = $Definition.stagingPlan.memberSetFingerprint
+        }
+        status = $Definition.status
+        nextAction = $Definition.nextAction
+    }
+    return $preflight
+}

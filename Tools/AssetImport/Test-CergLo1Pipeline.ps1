@@ -93,15 +93,30 @@ function New-CergStagingFixture {
     $stagingRoot = Join-Path $CaseRoot 'Run\Input'
     $planFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/staging-member-set/1' -Payload @($planRows)
     $candidate = [pscustomobject][ordered]@{ status='Passed'; selectedCandidateId='char_14401'; contractHeadCommit=('a'*40); sourceMembers=@($members); evidenceItems=@(); authorityScopes=@(); subjects=@(); relationships=@(); discoveryObligations=@() }
-    $preflight = [pscustomobject][ordered]@{
-        status='Green'; selectedCandidateId='char_14401'
-        sourceRootBindings=@([pscustomobject][ordered]@{ sourceId='fixture-source'; privateAbsoluteReadOnlyRoot=$sourceRoot; rootFingerprint='synthetic' })
-        operation=[pscustomobject][ordered]@{ inputMemberRefIds=@($members | ForEach-Object memberId); sourceReadMaxFiles=$MemberCount; sourceReadMaxBytes=[int64](($members|Measure-Object sizeBytes -Sum).Sum); expectedSubjectKinds=@(); expectedRelationshipKinds=@() }
-        stagingPlan=[pscustomobject][ordered]@{ stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Input'; stagingInputPrivateAbsolutePath=$stagingRoot; memberRows=@($planRows); memberCount=$MemberCount; byteCount=[int64](($members|Measure-Object sizeBytes -Sum).Sum); memberSetFingerprint=$planFingerprint }
+    $memberBytes = [int64](($members|Measure-Object sizeBytes -Sum).Sum)
+    $definition = [pscustomobject][ordered]@{
+        schemaVersion='cerg-lo-cerg1-preflight-definition/1.0.0'; artifactId='LO-CERG1-P01-DEFINITION'
+        candidateLockSha256=('2'*64); contractHeadCommit=('a'*40); selectedCandidateId='char_14401'; createdAt='2026-07-21T00:00:00Z'
+        sourceRootBindings=@([pscustomobject][ordered]@{ sourceId='fixture-source'; privateAbsoluteReadOnlyRoot=$sourceRoot; rootFingerprint=('3'*64) })
+        implementationBindings=@()
+        operation=[pscustomobject][ordered]@{
+            operationId='LO1-OP01'; obligationRefIds=@(); implementationRefIds=@(); inputMemberRefIds=@($members | ForEach-Object memberId)
+            expectedSubjectKinds=@(); expectedRelationshipKinds=@(); sourceReadMaxFiles=$MemberCount; sourceReadMaxBytes=$memberBytes
+            maxDurationSeconds=1; maxResultRows=1; maxOutputFiles=1; maxOutputBytes=$memberBytes
+            stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Input'; outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Output'; workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Work'
+        }
+        aggregateLimits=[pscustomobject][ordered]@{ sourceReadMaxFiles=$MemberCount; sourceReadMaxBytes=$memberBytes; maxDurationSeconds=1; maxResultRows=1; maxOutputFiles=1; maxOutputBytes=$memberBytes }
+        stagingPlan=[pscustomobject][ordered]@{
+            stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Input'; stagingInventoryTemporaryPath='Extracted/CERG/SingleCharacter/LO-CERG1/staging-inventory.json.tmp'
+            stagingInventoryPath='Extracted/CERG/SingleCharacter/LO-CERG1/staging-inventory.json'; workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Work'; outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1/Output'
+            memberRows=@($planRows); memberCount=$MemberCount; byteCount=$memberBytes; memberSetFingerprint=$planFingerprint
+        }
+        status='Green'; nextAction='RequestExactHumanConfirmationForLOCERG1'
     }
+    $preflight = New-CergLo1PreflightObject -Definition $definition -AttemptPrivateAbsoluteRoot (Join-Path $CaseRoot 'Run')
     $candidatePath = Join-Path $CaseRoot 'candidate.json'; $preflightPath = Join-Path $CaseRoot 'preflight.json'
     Write-CergFixtureJson $candidatePath $candidate -Canonical; Write-CergFixtureJson $preflightPath $preflight -Canonical
-    return [pscustomobject]@{ CandidatePath=$candidatePath; PreflightPath=$preflightPath; StagingRoot=$stagingRoot; InventoryTemp=(Join-Path $CaseRoot 'Run\staging-inventory.json.tmp'); Inventory=(Join-Path $CaseRoot 'Run\staging-inventory.json') }
+    return [pscustomobject]@{ CandidatePath=$candidatePath; PreflightPath=$preflightPath; StagingRoot=$stagingRoot; InventoryTemp=$preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath; Inventory=$preflight.stagingPlan.stagingInventoryPrivateAbsolutePath }
 }
 
 function Write-CergUnityYamlFixture {
