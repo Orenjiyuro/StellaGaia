@@ -5,6 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:CergPreflightUtf8NoBom = [System.Text.UTF8Encoding]::new($false)
+$script:CergPreflightRepositoryRoot = [System.IO.Directory]::GetParent([System.IO.Directory]::GetParent($PSScriptRoot).FullName).FullName
 
 function ConvertTo-CergPreflightCanonicalJson {
     param([AllowNull()][object]$Value)
@@ -129,12 +130,58 @@ function Assert-CergPreflightP02Ordering {
     Assert-CergPreflightOrdinalStringList @($Value.operation.expectedRelationshipKinds) "$Label.operation.expectedRelationshipKinds"
 }
 
+function Assert-CergP02ImplementationBindings {
+    param([object]$Value, [AllowNull()][object]$Readiness)
+    $bindingFields=@('artifactId','implementationId','implementationRole','implementationVersion','pathKind','portableTrackedPath','privateAbsoluteLeafPath','implementationByteCount','implementationSha256','runtimePrivateAbsoluteLeafPath','runtimeByteCount','runtimeSha256','orderedArgumentTokens')
+    $expected=[ordered]@{
+        'LO1-IA01'=[pscustomobject]@{role='AssetRipperExecutable';version='1.3.14.0';pathKind='Private';portablePath=$null}
+        'LO1-IF01'=[pscustomobject]@{role='AssetRipperFolderInvoker';version='CERG-LO1-ASSETRIPPER-FOLDER-INVOKER/1';pathKind='Tracked';portablePath='Tools/AssetImport/Invoke-AssetRipperFolderExport.ps1'}
+        'T1V22-TG01'=[pscustomobject]@{role='ExactLeafStagingWrapper';version='CERG-LO1-EXACT-STAGING/3';pathKind='Tracked';portablePath='Tools/AssetImport/Invoke-CergLo1ExactStaging.ps1'}
+        'T1V22-TG02'=[pscustomobject]@{role='R01GraphProducer';version='CERG-LO1-R01-PRODUCER/5';pathKind='Tracked';portablePath='Tools/AssetImport/New-CergLo1ResultGraph.ps1'}
+    }
+    $bindings=@($Value.implementationBindings)
+    if($bindings.Count-ne4){throw 'PreflightConsumerContractFailure: P02 requires exactly four implementation bindings.'}
+    $ids=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $artifacts=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach($binding in $bindings){
+        Assert-CergPreflightExactProperties $binding $bindingFields 'P02.implementationBindings[]'
+        $artifactId=[string]$binding.artifactId
+        if(@($expected.Keys)-cnotcontains$artifactId-or-not$artifacts.Add($artifactId)-or-not$ids.Add([string]$binding.implementationId)){throw 'PreflightConsumerContractFailure: P02 implementation artifact/ID is missing, duplicate, or unknown.'}
+        $rule=$expected[$artifactId]
+        if($binding.implementationRole-cne$rule.role-or$binding.implementationVersion-cne$rule.version-or$binding.pathKind-cne$rule.pathKind-or@($binding.orderedArgumentTokens).Count-ne0){throw 'PreflightConsumerContractFailure: P02 implementation role/version/path kind/arguments differ.'}
+        if($rule.pathKind-ceq'Tracked'){
+            if($binding.portableTrackedPath-cne$rule.portablePath-or$null-ne$binding.privateAbsoluteLeafPath){throw 'PreflightConsumerContractFailure: tracked P02 implementation path differs.'}
+            $implementationPath=[System.IO.Path]::Combine($script:CergPreflightRepositoryRoot,$rule.portablePath.Replace('/',[System.IO.Path]::DirectorySeparatorChar))
+        }else{
+            if($null-ne$binding.portableTrackedPath-or[string]::IsNullOrWhiteSpace([string]$binding.privateAbsoluteLeafPath)){throw 'PreflightConsumerContractFailure: private P02 implementation path differs.'}
+            $implementationPath=Get-CergPreflightAbsolutePath $binding.privateAbsoluteLeafPath 'P02 private implementation path'
+        }
+        $runtimePath=Get-CergPreflightAbsolutePath $binding.runtimePrivateAbsoluteLeafPath 'P02 runtime path'
+        if(-not[System.IO.File]::Exists($implementationPath)-or-not[System.IO.File]::Exists($runtimePath)){throw 'PreflightConsumerContractFailure: P02 implementation/runtime leaf is absent.'}
+        $implementationItem=[System.IO.FileInfo]::new($implementationPath);$runtimeItem=[System.IO.FileInfo]::new($runtimePath)
+        $implementationSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $implementationPath).Hash.ToLowerInvariant();$runtimeSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $runtimePath).Hash.ToLowerInvariant()
+        if([int64]$binding.implementationByteCount-ne[long]$implementationItem.Length-or$binding.implementationSha256-cne$implementationSha-or[int64]$binding.runtimeByteCount-ne[long]$runtimeItem.Length-or$binding.runtimeSha256-cne$runtimeSha){throw 'PreflightConsumerContractFailure: P02 implementation/runtime byte identity differs.'}
+        if($artifactId-ceq'LO1-IA01'-and($implementationPath-cne$runtimePath-or[long]$implementationItem.Length-ne[long]$runtimeItem.Length-or$implementationSha-cne$runtimeSha)){throw 'PreflightConsumerContractFailure: AssetRipper executable must be its own runtime leaf.'}
+        $expectedId='IMP-'+(Get-CergPreflightStructuredSha256 'cerg-lo1/implementation-id/1' @([string]$binding.implementationRole,[string]$binding.implementationVersion,[int64]$binding.implementationByteCount,[string]$binding.implementationSha256,[int64]$binding.runtimeByteCount,[string]$binding.runtimeSha256,@($binding.orderedArgumentTokens)))
+        if($binding.implementationId-cne$expectedId){throw 'PreflightConsumerContractFailure: P02 implementation structured ID differs.'}
+        if($null-ne$Readiness-and$rule.pathKind-ceq'Tracked'){
+            $readyRows=@($Readiness.toolRows|Where-Object portableRelativePath -CEQ $rule.portablePath)
+            if($readyRows.Count-ne1-or[long]$readyRows[0].byteCount-ne[long]$implementationItem.Length-or$readyRows[0].sha256-cne$implementationSha){throw 'PreflightConsumerContractFailure: P02 tracked implementation differs from readiness.'}
+        }
+    }
+    if($artifacts.Count-ne4){throw 'PreflightConsumerContractFailure: P02 implementation artifact set is incomplete.'}
+    $bindingIds=[string[]]@($bindings|ForEach-Object implementationId);[System.Array]::Sort($bindingIds,[System.StringComparer]::Ordinal)
+    $refIds=[string[]]@($Value.operation.implementationRefIds);[System.Array]::Sort($refIds,[System.StringComparer]::Ordinal)
+    if(($bindingIds-join'|')-cne($refIds-join'|')){throw 'PreflightConsumerContractFailure: P02 implementation bindings and operation refs are not bijective.'}
+}
+
 function Assert-CergLo1PreflightConsumerContract {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][object]$Candidate,
         [Parameter(Mandatory = $true)][object]$Preflight,
         [AllowNull()][object]$Freshness,
+        [AllowNull()][object]$Readiness,
         [string]$FreshnessEvidencePath,
         [string]$StagingInventoryTemporaryPath,
         [string]$StagingInventoryPath
@@ -214,6 +261,7 @@ function Assert-CergLo1PreflightConsumerContract {
     foreach ($name in $aggregateFields) { if ([int64]$Preflight.operation.$name -ne [int64]$Preflight.aggregateLimits.$name) { throw "PreflightConsumerContractFailure: operation/aggregate limit $name differs." } }
 
     if($isR2P02){
+        Assert-CergP02ImplementationBindings $Preflight $Readiness
         if($null-eq$Freshness-or$Freshness.schemaVersion-cne'cerg-lo-cerg1-r2-freshness/1.0.0'-or$Freshness.artifactId-cne'LO-CERG1-R2-F01'-or$Freshness.status-cne'Green'){throw'PreflightConsumerContractFailure: R2 freshness artifact is missing or non-Green.'}
         if($Preflight.freshnessCheckRunId-cne$Freshness.checkRunId-or$Preflight.freshnessValidatorFinishedAtUtc-cne$Freshness.validatorFinishedAtUtc){throw'PreflightConsumerContractFailure: R2 freshness binding fields differ.'}
         if($Preflight.candidateLockSha256-cne$Freshness.candidateLockSha256-or$Preflight.candidateContractHeadCommit-cne$Candidate.contractHeadCommit-or$Preflight.freshnessContractHeadCommit-cne$Freshness.contractHeadCommit){throw 'PreflightConsumerContractFailure: R2 candidate/freshness HEAD domains or candidate binding differ.'}
@@ -271,13 +319,14 @@ function New-CergLo1R2OrdinalPreflightObject {
     if($Definition.schemaVersion-cne'cerg-lo-cerg1-preflight-definition/1.2.0'-or$Definition.artifactId-cne'LO-CERG1-P02-DEFINITION'){throw 'PreflightConsumerContractFailure: R2 P02 definition identity invalid.'}
     if($Candidate.schemaVersion-cne'cerg-t1-candidate-lock/2.2.0'-or$Candidate.artifactId-cne'CERG-T1V22-O01'-or$Candidate.status-cne'Passed'){throw 'PreflightConsumerContractFailure: R2 candidate identity invalid.'}
     if($Freshness.schemaVersion-cne'cerg-lo-cerg1-r2-freshness/1.0.0'-or$Freshness.artifactId-cne'LO-CERG1-R2-F01'-or$Freshness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 freshness identity invalid.'}
-    if($Readiness.schemaVersion-cne'cerg-r2-aplus-readiness/1.2.0'-or$Readiness.artifactId-cne'R2-TO05'-or$Readiness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 readiness identity invalid.'}
+    if($Readiness.schemaVersion-cne'cerg-r2-aplus-readiness/1.3.0'-or$Readiness.artifactId-cne'R2-TO06'-or$Readiness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 readiness identity invalid.'}
     if($Definition.candidateLockSha256-cne$Freshness.candidateLockSha256-or$Definition.candidateContractHeadCommit-cne$Candidate.contractHeadCommit-or$Definition.freshnessContractHeadCommit-cne$Freshness.contractHeadCommit-or$Definition.contractHeadCommit-cne$Readiness.contractHeadCommit){throw 'PreflightConsumerContractFailure: R2 definition HEAD domain is stale or spliced.'}
     foreach($headValue in @($Definition.candidateContractHeadCommit,$Definition.freshnessContractHeadCommit,$Definition.contractHeadCommit)){if([string]$headValue-cnotmatch'^[0-9a-f]{40}$'){throw 'PreflightConsumerContractFailure: R2 HEAD domain must be lowercase 40-hex.'}}
     $freshnessRawSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $FreshnessEvidencePath).Hash.ToLowerInvariant()
     if($Definition.selectedCandidateId-cne$Candidate.selectedCandidateId-or$Definition.freshnessCheckRunId-cne$Freshness.checkRunId-or$Definition.freshnessValidatorFinishedAtUtc-cne$Freshness.validatorFinishedAtUtc-or[string]::IsNullOrWhiteSpace($FreshnessEvidencePath)-or-not[IO.File]::Exists($FreshnessEvidencePath)-or$Definition.freshnessEvidenceSha256-cne$freshnessRawSha){throw 'PreflightConsumerContractFailure: R2 candidate or raw freshness evidence binding is stale or spliced.'}
     $root=Get-CergPreflightAbsolutePath $AttemptPrivateAbsoluteRoot 'AttemptPrivateAbsoluteRoot'
     Assert-CergPreflightP02Ordering $Definition 'P02 definition'
+    Assert-CergP02ImplementationBindings $Definition $Readiness
     if($Definition.stagingPlan.memberSetFingerprint-cne(Get-CergPreflightStructuredSha256 'cerg-lo1/staging-member-set/1' @($Definition.stagingPlan.memberRows))){throw 'PreflightConsumerContractFailure: P02 definition member fingerprint invalid.'}
     $p=[pscustomobject][ordered]@{
         schemaVersion='cerg-lo-cerg1-preflight/1.6.0';artifactId='LO-CERG1-P02';candidateLockSha256=$Definition.candidateLockSha256
