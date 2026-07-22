@@ -69,14 +69,15 @@ try{
     $definition=[pscustomobject][ordered]@{
         schemaVersion='cerg-lo-cerg1-preflight-definition/1.1.0';artifactId='LO-CERG1-P01-DEFINITION';candidateLockSha256=$lockSha
         freshnessEvidenceSha256=$freshSha;freshnessCheckRunId=$validArtifact.checkRunId;freshnessValidatorFinishedAtUtc=$validArtifact.validatorFinishedAtUtc
-        contractHeadCommit=$head;selectedCandidateId='char_14401';createdAt=[DateTimeOffset]::UtcNow.ToString('O')
+        candidateContractHeadCommit=$candidate.contractHeadCommit;freshnessContractHeadCommit=$validArtifact.contractHeadCommit;contractHeadCommit=$head;selectedCandidateId='char_14401';createdAt=[DateTimeOffset]::UtcNow.ToString('O')
         sourceRootBindings=@([pscustomobject][ordered]@{sourceId='synthetic';privateAbsoluteReadOnlyRoot=$root;rootFingerprint=('f'*64)});implementationBindings=@()
         operation=[pscustomobject][ordered]@{operationId='R2-OP01';obligationRefIds=@('R2-OB01');implementationRefIds=@();inputMemberRefIds=$memberIds;expectedSubjectKinds=@();expectedRelationshipKinds=@();sourceReadMaxFiles=17;sourceReadMaxBytes=$totalBytes;maxDurationSeconds=60;maxResultRows=1;maxOutputFiles=100;maxOutputBytes=$totalBytes;stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Output';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Work'}
         aggregateLimits=[pscustomobject][ordered]@{sourceReadMaxFiles=17;sourceReadMaxBytes=$totalBytes;maxDurationSeconds=60;maxResultRows=1;maxOutputFiles=100;maxOutputBytes=$totalBytes}
         stagingPlan=[pscustomobject][ordered]@{stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input';stagingInventoryTemporaryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/staging-inventory.json.tmp';stagingInventoryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/staging-inventory.json';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Work';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Output';memberRows=$planRows;memberCount=17;byteCount=$totalBytes;memberSetFingerprint=(Get-CergPreflightStructuredSha256 'cerg-lo1/staging-member-set/1' @($planRows))}
         status='Green';nextAction='RequestExactHumanConfirmationForLOCERG1'
     }
-    $r2Preflight=New-CergLo1R2PreflightObject -Definition $definition -Freshness $validArtifact -FreshnessEvidencePath $freshPath -AttemptPrivateAbsoluteRoot $attemptRoot
+    $readiness=[pscustomobject][ordered]@{schemaVersion='cerg-r2-aplus-readiness/1.1.0';artifactId='R2-TO04';contractHeadCommit=$head;status='Green'}
+    $r2Preflight=New-CergLo1R2PreflightObject -Definition $definition -Candidate $candidate -Freshness $validArtifact -Readiness $readiness -FreshnessEvidencePath $freshPath -AttemptPrivateAbsoluteRoot $attemptRoot
     [IO.File]::WriteAllText($preflightPath,(ConvertTo-CergPreflightCanonicalJson $r2Preflight),[Text.UTF8Encoding]::new($false))
     Add-R2Result $ids[7] {$x=Copy-R2Object $validArtifact;$x.validatorFinishedAtUtc=[DateTimeOffset]::UtcNow.AddHours(-1).ToString('O');Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[8] {$x=Copy-R2Object $validArtifact;$x|Add-Member -NotePropertyName fixtureHidden -NotePropertyValue $true;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
@@ -116,7 +117,7 @@ try{
     Add-R2Result $ids[18] {
         $implementationMutation=Copy-R2Object $validArtifact;$implementationMutation.validatorImplementation.sha256=$implementationMutation.producerImplementation.sha256;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $implementationMutation $bindings}
         $candidateBindingMutation=Copy-R2Object $r2Preflight;$candidateBindingMutation.candidateLockSha256=('0'*64);Test-R2Throws {Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $candidateBindingMutation -Freshness $validArtifact -FreshnessEvidencePath $freshPath}
-        $contractBindingMutation=Copy-R2Object $r2Preflight;$contractBindingMutation.contractHeadCommit=('f'*40);Test-R2Throws {Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $contractBindingMutation -Freshness $validArtifact -FreshnessEvidencePath $freshPath}
+        $contractBindingMutation=Copy-R2Object $r2Preflight;$contractBindingMutation.freshnessContractHeadCommit=('f'*40);Test-R2Throws {Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $contractBindingMutation -Freshness $validArtifact -FreshnessEvidencePath $freshPath}
     }
     if($results.Count -ne 19 -or @($results|Where-Object status -cne 'Passed').Count -ne 0){throw 'R2 test conservation failed.'}
     [pscustomobject][ordered]@{total=19;passed=19;failed=0;testRows=@($results)}|ConvertTo-Json -Depth 8
