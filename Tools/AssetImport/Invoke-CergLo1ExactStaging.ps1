@@ -270,12 +270,14 @@ function Invoke-CergLo1ExactStaging {
     $null = Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryTemporaryPath $StagingInventoryTemporaryPath -StagingInventoryPath $StagingInventoryPath
     if ($candidate.status -cne 'Passed' -or $preflight.status -cne 'Green') { throw 'Candidate lock and preflight must be consumable.' }
     if ($candidate.selectedCandidateId -cne $preflight.selectedCandidateId) { throw 'Candidate identity mismatch.' }
-    if($preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.5.0'){
-        if($null-eq$AtomicHandoffToken){throw'AtomicHandoffFailure: P01 v1.5 is consumable only by the same foreground A+ runner.'}
+    if($preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.6.0'){
+        if($preflight.artifactId-cne'LO-CERG1-P02'-or$null-eq$AtomicHandoffToken){throw'AtomicHandoffFailure: P02 v1.6 is consumable only by the same foreground A+ runner.'}
         Assert-CergR2AtomicHandoffToken $AtomicHandoffToken
+    } elseif($null-ne$AtomicHandoffToken) {
+        throw 'AtomicHandoffFailure: the A+ runner accepts only P02 v1.6.'
     }
 
-    $sourceMembers = if($preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.5.0'){@($freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})}else{@($candidate.sourceMembers)}
+    $sourceMembers = if($preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.6.0'){@($freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})}else{@($candidate.sourceMembers)}
     $rootBindings = @($preflight.sourceRootBindings)
     $planRows = @($preflight.stagingPlan.memberRows)
     if ($sourceMembers.Count -eq 0 -or $sourceMembers.Count -ne $planRows.Count) { throw 'Source-member/staging-plan cardinality mismatch.' }

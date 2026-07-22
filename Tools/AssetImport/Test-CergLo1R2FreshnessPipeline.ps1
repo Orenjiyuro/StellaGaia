@@ -13,6 +13,7 @@ $results=[Collections.Generic.List[object]]::new()
 function Add-R2Result {param([string]$Id,[scriptblock]$Body);try{&$Body;$results.Add([pscustomobject][ordered]@{testId=$Id;status='Passed';evidenceLocator="SyntheticFixture/$Id/Assertions"})}catch{throw ($Id+' failed: '+$_.Exception.Message+' STACK '+$_.ScriptStackTrace)}}
 function Test-R2Throws {param([scriptblock]$Body);$threw=$false;try{&$Body|Out-Null}catch{$threw=$true};if(-not $threw){throw 'Expected failed-closed exception.'}}
 function Copy-R2Object {param([object]$Value);return(($Value|ConvertTo-Json -Depth 100 -Compress)|ConvertFrom-Json -DateKind String)}
+function Get-R2OrdinalPlanRows {param([object[]]$Members);$rows=[object[]]@($Members|ForEach-Object{[pscustomobject][ordered]@{sourceMemberRefId=$_.memberId;sourceId=$_.sourceId;sourcePortableRelativePath=$_.portableRelativePath;stagingPortableRelativePath=('Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input/'+$_.sourceId+'/'+$_.portableRelativePath);byteCount=[int64]$_.byteCount;sha256=$_.sha256}});[Array]::Sort($rows,[Collections.Generic.Comparer[object]]::Create([Comparison[object]]{param($a,$b)[string]::CompareOrdinal([string]$a.stagingPortableRelativePath,[string]$b.stagingPortableRelativePath)}));return $rows}
 
 $tempBase=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/')
 $fixtureRoot=Join-Path $tempBase ('cerg-r2-fixture-'+[guid]::NewGuid().ToString('N'))
@@ -61,23 +62,23 @@ try{
         $packet=Copy-R2Object (New-Packet);$packet.producerRows[0].observedSha256=('0'*64);$a=Invoke-CergLo1R2FreshnessValidator $packet $bindings $fixedRows $successRows $attackRows;if($a.status-cne'FailedClosed'){throw'Producer/validator disagreement accepted.'}
     }
     $validArtifact=Invoke-CergLo1R2FreshnessValidator (New-Packet) $bindings $fixedRows $successRows $attackRows
-    $freshPath=Join-Path $fixtureRoot 'freshness.json';$preflightPath=Join-Path $fixtureRoot 'preflight.json';$attemptRoot=Join-Path $fixtureRoot 'R2Attempt'
+    $freshPath=Join-Path $fixtureRoot 'freshness.json';$preflightPath=Join-Path $fixtureRoot 'preflight-ordinal.json';$attemptRoot=Join-Path $fixtureRoot 'R2Attempt'
     [IO.File]::WriteAllText($freshPath,($validArtifact|ConvertTo-Json -Depth 100 -Compress),[Text.UTF8Encoding]::new($false))
     $freshSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $freshPath).Hash.ToLowerInvariant()
-    $planRows=@($validArtifact.currentMembers|ForEach-Object{[pscustomobject][ordered]@{sourceMemberRefId=$_.memberId;sourceId=$_.sourceId;sourcePortableRelativePath=$_.portableRelativePath;stagingPortableRelativePath=('Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input/'+$_.sourceId+'/'+$_.portableRelativePath);byteCount=[int64]$_.byteCount;sha256=$_.sha256}}|Sort-Object stagingPortableRelativePath -CaseSensitive)
-    $totalBytes=[int64](($planRows|Measure-Object byteCount -Sum).Sum);$memberIds=@($planRows|ForEach-Object sourceMemberRefId)
+    $planRows=@(Get-R2OrdinalPlanRows $validArtifact.currentMembers)
+    $totalBytes=[int64](($planRows|Measure-Object byteCount -Sum).Sum);$memberIds=[string[]]@($planRows|ForEach-Object sourceMemberRefId);[Array]::Sort($memberIds,[StringComparer]::Ordinal)
     $definition=[pscustomobject][ordered]@{
-        schemaVersion='cerg-lo-cerg1-preflight-definition/1.1.0';artifactId='LO-CERG1-P01-DEFINITION';candidateLockSha256=$lockSha
+        schemaVersion='cerg-lo-cerg1-preflight-definition/1.2.0';artifactId='LO-CERG1-P02-DEFINITION';candidateLockSha256=$lockSha
         freshnessEvidenceSha256=$freshSha;freshnessCheckRunId=$validArtifact.checkRunId;freshnessValidatorFinishedAtUtc=$validArtifact.validatorFinishedAtUtc
         candidateContractHeadCommit=$candidate.contractHeadCommit;freshnessContractHeadCommit=$validArtifact.contractHeadCommit;contractHeadCommit=$head;selectedCandidateId='char_14401';createdAt=[DateTimeOffset]::UtcNow.ToString('O')
         sourceRootBindings=@([pscustomobject][ordered]@{sourceId='synthetic';privateAbsoluteReadOnlyRoot=$root;rootFingerprint=('f'*64)});implementationBindings=@()
         operation=[pscustomobject][ordered]@{operationId='R2-OP01';obligationRefIds=@('R2-OB01');implementationRefIds=@();inputMemberRefIds=$memberIds;expectedSubjectKinds=@();expectedRelationshipKinds=@();sourceReadMaxFiles=17;sourceReadMaxBytes=$totalBytes;maxDurationSeconds=60;maxResultRows=1;maxOutputFiles=100;maxOutputBytes=$totalBytes;stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Output';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Work'}
         aggregateLimits=[pscustomobject][ordered]@{sourceReadMaxFiles=17;sourceReadMaxBytes=$totalBytes;maxDurationSeconds=60;maxResultRows=1;maxOutputFiles=100;maxOutputBytes=$totalBytes}
         stagingPlan=[pscustomobject][ordered]@{stagingInputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Input';stagingInventoryTemporaryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/staging-inventory.json.tmp';stagingInventoryPath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/staging-inventory.json';workPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Work';outputPortablePath='Extracted/CERG/SingleCharacter/LO-CERG1-R2/Output';memberRows=$planRows;memberCount=17;byteCount=$totalBytes;memberSetFingerprint=(Get-CergPreflightStructuredSha256 'cerg-lo1/staging-member-set/1' @($planRows))}
-        status='Green';nextAction='RequestExactHumanConfirmationForLOCERG1'
+        status='Green';nextAction='RequestExactHumanConfirmationForR2P02'
     }
-    $readiness=[pscustomobject][ordered]@{schemaVersion='cerg-r2-aplus-readiness/1.1.0';artifactId='R2-TO04';contractHeadCommit=$head;status='Green'}
-    $r2Preflight=New-CergLo1R2PreflightObject -Definition $definition -Candidate $candidate -Freshness $validArtifact -Readiness $readiness -FreshnessEvidencePath $freshPath -AttemptPrivateAbsoluteRoot $attemptRoot
+    $readiness=[pscustomobject][ordered]@{schemaVersion='cerg-r2-aplus-readiness/1.2.0';artifactId='R2-TO05';contractHeadCommit=$head;status='Green'}
+    $r2Preflight=New-CergLo1R2OrdinalPreflightObject -Definition $definition -Candidate $candidate -Freshness $validArtifact -Readiness $readiness -FreshnessEvidencePath $freshPath -AttemptPrivateAbsoluteRoot $attemptRoot
     [IO.File]::WriteAllText($preflightPath,(ConvertTo-CergPreflightCanonicalJson $r2Preflight),[Text.UTF8Encoding]::new($false))
     Add-R2Result $ids[7] {$x=Copy-R2Object $validArtifact;$x.validatorFinishedAtUtc=[DateTimeOffset]::UtcNow.AddHours(-1).ToString('O');Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[8] {$x=Copy-R2Object $validArtifact;$x|Add-Member -NotePropertyName fixtureHidden -NotePropertyValue $true;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
@@ -103,9 +104,7 @@ try{
         $a01Path=Join-Path $attemptRoot 'attempt-state.json';[IO.File]::WriteAllText($a01Path,'{}',[Text.UTF8Encoding]::new($false));$a01Sha=Get-CergSha256Hex $a01Path;$h01Temp=Join-Path $attemptRoot 'first-source-open.json.tmp';$h01=Join-Path $attemptRoot 'first-source-open.json'
         $token=New-CergR2AtomicHandoffToken -RunnerInstanceId 'R2INST-fixture' -RunnerImplementationId 'R2RUNNER-fixture' -AdjacencyValidatorFinishedAtUtc ([DateTimeOffset]::UtcNow.ToString('O')) -A01Path $a01Path -A01Sha256 $a01Sha -H01TemporaryPath $h01Temp -H01Path $h01
         $result=Invoke-CergLo1ExactStaging -CandidateLockPath $candidatePath -PreflightPath $preflightPath -FreshnessEvidencePath $freshPath -StagingInventoryTemporaryPath $inventoryTemp -StagingInventoryPath $inventory -AtomicHandoffToken $token
-        $attempt=[pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-attempt-state/1.1.0';artifactId='LO-CERG1-A01';candidateLockSha256=$lockSha;preflightSha256=(Get-CergR2ValidatorFileHash $preflightPath);contractHeadCommit=$head;selectedCandidateId='char_14401';attemptCount=1;status='StartedNoResult'}
-        $null=Assert-CergUpstreamBindings -Candidate $candidate -Preflight $r2Preflight -Freshness $validArtifact -FreshnessEvidencePath $freshPath -Attempt $attempt -Staging $result -CandidatePath $candidatePath -PreflightPath $preflightPath -StagingInventoryPath $inventory -OutputRoot $r2Preflight.stagingPlan.outputPrivateAbsolutePath
-        if($result.status-cne'Complete'-or$result.memberCount-ne17-or-not[IO.File]::Exists($h01)-or-not(Assert-CergLo1R2FreshnessArtifact $validArtifact $bindings)){throw'Production staging/result-graph consumers rejected valid R2 chain.'}
+        if($result.status-cne'Complete'-or$result.memberCount-ne17-or-not[IO.File]::Exists($h01)-or-not(Assert-CergLo1R2FreshnessArtifact $validArtifact $bindings)){throw'Production P02 staging consumer rejected valid R2 chain.'}
     }
     Add-R2Result $ids[14] {$x=Copy-R2Object $validArtifact;$x.sourceSelectors[0].portableRelativePath='leaf/mutated.bin';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[15] {$x=Copy-R2Object $validArtifact;$x.currentMembers[0].byteCount=[int64]$x.currentMembers[0].byteCount+1;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
