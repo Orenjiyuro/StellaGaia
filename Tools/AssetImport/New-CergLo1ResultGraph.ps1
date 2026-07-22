@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/8'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/9'
 $script:CergGraphImplementationPath = $PSCommandPath
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
@@ -135,7 +135,10 @@ function Test-CergUnityInfrastructureRelativePath {
 function New-CergDiscoveryDiagnostic {
     param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord]$ErrorRecord)
     $message = [string]$ErrorRecord.Exception.Message
-    $category = if ($message -clike 'Unity serialized asset lacks matching .meta:*' -or $message -clike 'External Unity asset lacks matching .meta:*') {
+    $attackAnchorMatch = [regex]::Match($message, '^AttackAnchorResolutionFailure: (?<path>ExportedProject/.+?): ')
+    $category = if ($attackAnchorMatch.Success) {
+        'AttackAnchorResolutionFailure'
+    } elseif ($message -clike 'Unity serialized asset lacks matching .meta:*' -or $message -clike 'External Unity asset lacks matching .meta:*') {
         'MissingMeta'
     } elseif ($message -clike 'Unity serialized asset has no YAML object documents:*') {
         'MissingYamlDocuments'
@@ -146,7 +149,7 @@ function New-CergDiscoveryDiagnostic {
     } else {
         'UnitySerializedDiscoveryFailure'
     }
-    $pathMatch = [regex]::Match($message, ':[ ](?<path>[^:]+)$')
+    $pathMatch = if ($attackAnchorMatch.Success) { $attackAnchorMatch } else { [regex]::Match($message, ':[ ](?<path>[^:]+)$') }
     return [pscustomobject][ordered]@{
         stage = 'UnitySerializedDiscovery'
         portableRelativePath = $(if ($pathMatch.Success) { ConvertTo-CergPortablePath $pathMatch.Groups['path'].Value } else { $null })
@@ -449,8 +452,6 @@ function New-CergUnityYamlGraph {
     param([string]$OutputRoot,[object]$Candidate,[object]$Preflight)
     $candidateId=[string]$Candidate.selectedCandidateId;$obligations=@($Candidate.discoveryObligations);$documents=@(Get-CergUnityDocuments $OutputRoot)
     if($documents.Count-eq0){throw 'No direct Unity documents or external asset leaves were discovered.'}
-    $docByKey=@{};$externalDocByGuid=@{}
-    foreach($doc in $documents){$key="$($doc.Guid):$($doc.FileId)";if($docByKey.ContainsKey($key)){throw "Duplicate Unity object identity: $key"};$docByKey[$key]=$doc;if($doc.IsExternalLeaf){$externalDocByGuid[$doc.Guid]=$doc}}
 
     $anchors=@($Candidate.attackAnchors)
     if($anchors.Count-ne1){throw 'Candidate lock must contain exactly one attack anchor.'}
@@ -462,8 +463,22 @@ function New-CergUnityYamlGraph {
     if($anchor.attackAnchorId-cne$anchorExpected){throw 'Attack anchor identity is stale.'}
     $anchorSubject=@($Candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)
     if($anchorSubject.Count-ne1-or$anchorSubject[0].subjectKind-cne'ActionClip'-or$anchorSubject[0].unityGuid-cne$anchor.unityGuid-or[int64]$anchorSubject[0].serializedFileId-ne[int64]$anchor.serializedFileId-or$anchorSubject[0].portableRelativePath-cne$anchor.portableRelativePath-or$anchorSubject[0].contentSha256-cne$anchor.sha256){throw 'Attack anchor does not resolve its O01 ActionClip tuple.'}
-    $anchorDoc=$docByKey["$($anchor.unityGuid):$($anchor.serializedFileId)"]
-    if($null-eq$anchorDoc-or$anchorDoc.TypeName-cne'AnimationClip'-or$anchorDoc.RelativePath-cne$anchor.portableRelativePath-or[int64]([IO.FileInfo]::new($anchorDoc.FullPath).Length)-ne[int64]$anchor.byteCount-or(Get-CergSha256Hex $anchorDoc.FullPath)-cne$anchor.sha256){throw 'Attack anchor is missing, stale, or mismatched in D01.'}
+    $stableMarker='ExportedProject/';$stableOffset=([string]$anchor.portableRelativePath).IndexOf($stableMarker,[StringComparison]::Ordinal)
+    if($stableOffset-lt0){throw "AttackAnchorResolutionFailure: $stableMarker`: historical portableRelativePath has no stable ExportedProject suffix."}
+    $stableSuffix=([string]$anchor.portableRelativePath).Substring($stableOffset)
+    if([int64]$anchor.serializedFileId-ne7400000){throw "AttackAnchorResolutionFailure: $stableSuffix`: historical serializedFileId is not 7400000."}
+    $anchorMatches=@($documents|Where-Object{
+        $_.TypeName-ceq'AnimationClip' -and
+        [int64]$_.FileId-eq7400000 -and
+        $_.RelativePath-ceq$stableSuffix -and
+        [int64]([IO.FileInfo]::new($_.FullPath).Length)-eq[int64]$anchor.byteCount -and
+        (Get-CergSha256Hex $_.FullPath)-ceq$anchor.sha256
+    })
+    if($anchorMatches.Count-ne1){throw "AttackAnchorResolutionFailure: $stableSuffix`: exact TypeName/fileID/path/byteCount/content-SHA match count is $($anchorMatches.Count)."}
+    $anchorDoc=$anchorMatches[0]
+
+    $docByKey=@{};$externalDocByGuid=@{}
+    foreach($doc in $documents){$key="$($doc.Guid):$($doc.FileId)";if($docByKey.ContainsKey($key)){throw "Duplicate Unity object identity: $key"};$docByKey[$key]=$doc;if($doc.IsExternalLeaf){$externalDocByGuid[$doc.Guid]=$doc}}
 
     function Resolve-CergMotionLeaves([object]$Document,[hashtable]$Active){
         $key="$($Document.Guid):$($Document.FileId)";if($Active.ContainsKey($key)){throw "BlendTree cycle at $key"};$next=@{};foreach($k in $Active.Keys){$next[$k]=$true};$next[$key]=$true
@@ -475,7 +490,7 @@ function New-CergUnityYamlGraph {
     $stateLeaves=@{};$attackStateKeys=@{};$attackLeafKeys=@{};$anchorReachableStateCount=0
     foreach($stateDoc in @($documents|Where-Object TypeName -CEQ 'AnimatorState')){
         $refs=@(Get-CergYamlReferences $stateDoc|Where-Object PropertyPath -CEQ 'm_Motion');if($refs.Count-ne1){throw "AnimatorState must have exactly one m_Motion: $($stateDoc.Guid):$($stateDoc.FileId)"};$motionDoc=$docByKey["$($refs[0].Guid):$($refs[0].FileId)"];if($null-eq$motionDoc){throw 'AnimatorState motion is unresolved.'};$leaves=@(Resolve-CergMotionLeaves $motionDoc @{});$stateKey="$($stateDoc.Guid):$($stateDoc.FileId)";$stateLeaves[$stateKey]=$leaves
-        $anchorReachable=@($leaves|Where-Object{$_.Guid-ceq$anchor.unityGuid-and[int64]$_.FileId-eq[int64]$anchor.serializedFileId}).Count-gt0;$tagAttack=$stateDoc.Tag-ceq'Attack'
+        $anchorReachable=@($leaves|Where-Object{$_.Guid-ceq$anchorDoc.Guid-and[int64]$_.FileId-eq[int64]$anchorDoc.FileId}).Count-gt0;$tagAttack=$stateDoc.Tag-ceq'Attack'
         if($anchorReachable){$anchorReachableStateCount++};if($anchorReachable-or$tagAttack){$attackStateKeys[$stateKey]=$true;foreach($leaf in $leaves){$attackLeafKeys["$($leaf.Guid):$($leaf.FileId)"]=$leaf}}
     }
     if($anchorReachableStateCount-lt1){throw 'The immutable attack anchor is not reachable from any serialized AnimatorState.'}
@@ -494,7 +509,7 @@ function New-CergUnityYamlGraph {
     $subjects=[System.Collections.Generic.List[object]]::new();$subjectByKey=@{};$externalSubjectByGuid=@{};$docBySubjectId=@{}
     foreach($doc in $documents){
         $kind=Get-CergSubjectKindFromDocument $doc;$key="$($doc.Guid):$($doc.FileId)";if($doc.TypeName-ceq'AnimatorState'-and$attackStateKeys.ContainsKey($key)){$kind='AttackAction'};if($doc.TypeName-ceq'GameObject'-and$fxPrefabGuids.ContainsKey($doc.Guid)){$kind='FXObject'};if($doc.Extension-ceq'.prefab'-and-not$fxPrefabGuids.ContainsKey($doc.Guid)-and$kind-ceq'FXComponent'){$kind='ReferencedObject'}
-        $origins=Get-CergOriginsForKind $obligations $kind '';$info=$fileInfo[$doc.FullPath];$authority=if($doc.IsExternalLeaf){"ExternalLeaf:$($doc.Guid):$($doc.RelativePath):$($info.Sha):$($doc.MetaSha256):$($doc.ImporterKind)"}else{"DiscoveredYamlObject:$($doc.Guid):$($doc.FileId)"};if($kind-ceq'AttackAction'){$stateKey="$($doc.Guid):$($doc.FileId)";$anchorReached=@($stateLeaves[$stateKey]|Where-Object{$_.Guid-ceq$anchor.unityGuid-and[int64]$_.FileId-eq[int64]$anchor.serializedFileId}).Count-gt0;if($anchorReached){$authority+=':AttackAnchor:'+$anchor.attackAnchorId};if($doc.Tag-ceq'Attack'){$authority+=':AttackTag:m_Tag'}}
+        $origins=Get-CergOriginsForKind $obligations $kind '';$info=$fileInfo[$doc.FullPath];$authority=if($doc.IsExternalLeaf){"ExternalLeaf:$($doc.Guid):$($doc.RelativePath):$($info.Sha):$($doc.MetaSha256):$($doc.ImporterKind)"}else{"DiscoveredYamlObject:$($doc.Guid):$($doc.FileId)"};if($kind-ceq'AttackAction'){$stateKey="$($doc.Guid):$($doc.FileId)";$anchorReached=@($stateLeaves[$stateKey]|Where-Object{$_.Guid-ceq$anchorDoc.Guid-and[int64]$_.FileId-eq[int64]$anchorDoc.FileId}).Count-gt0;if($anchorReached){$authority+=':AttackAnchor:'+$anchor.attackAnchorId};if($doc.Tag-ceq'Attack'){$authority+=':AttackTag:m_Tag'}}
         $subject=New-CergParsedSubject $candidateId $kind $authority $doc $doc.RelativePath $info.Sha @($info.Evidence.evidenceId,$info.MetaEvidence.evidenceId) $origins
         $subjects.Add($subject);$subjectByKey[$key]=$subject;if($doc.IsExternalLeaf){$externalSubjectByGuid[$doc.Guid]=$subject};$docBySubjectId[$subject.subjectId]=$doc
     }

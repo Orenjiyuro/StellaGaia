@@ -147,7 +147,7 @@ function Get-CergFixtureObligations {
 }
 
 function Get-CergBaselineGraph {
-    param([string]$AttackGuid,[string]$AttackPath,[string]$AttackSha,[int64]$AttackBytes,[int64]$AttackFileId=75)
+    param([string]$AttackGuid,[string]$AttackPath,[string]$AttackSha,[int64]$AttackBytes,[int64]$AttackFileId=7400000)
     $evidence = New-CergFixtureEvidence 'char-14401-structural'
     $subjects = @{}
     foreach ($kind in @('CandidateFamilyAnchor','Model','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','ActionClip')) { $subjects[$kind] = New-CergFixtureSubject $kind 'baseline' @() @($evidence.evidenceId) }
@@ -195,7 +195,7 @@ AnimatorState:
 AnimatorState:
   m_Name: Attack01
   m_Tag: Attack
-  m_Motion: {fileID: 75, guid: __ANIM__, type: 3}
+  m_Motion: {fileID: 7400000, guid: __ANIM__, type: 3}
 --- !u!206 &5
 BlendTree:
   m_Name: LocomotionBlend
@@ -229,7 +229,7 @@ AnimatorState:
 --- !u!74 &74
 AnimationClip:
   m_Name: Idle
---- !u!74 &75
+--- !u!74 &7400000
 AnimationClip:
   m_Name: Attack01
   m_Events:
@@ -316,7 +316,7 @@ AnimatorOverrideController:
   m_Name: HeroOverride
   m_Controller: {fileID: 1, guid: __CONTROLLER__, type: 2}
   m_OriginalClip: {fileID: 74, guid: __ANIM__, type: 3}
-  m_OverrideClip: {fileID: 75, guid: __ANIM__, type: 3}
+  m_OverrideClip: {fileID: 7400000, guid: __ANIM__, type: 3}
 '@.Replace('__CONTROLLER__', $g.controller).Replace('__ANIM__', $g.anim)
     $gameplay = @'
 --- !u!114 &600
@@ -334,7 +334,7 @@ Combo:
 '@.Replace('__CONTROLLER__', $g.controller)
     $assets = @(
         [pscustomobject]@{Path='Controller/Hero.controller';Guid=$g.controller;Text=$controller},
-        [pscustomobject]@{Path='Animations/Hero.anim';Guid=$g.anim;Text=$anim},
+        [pscustomobject]@{Path='ExportedProject/Assets/Animations/Hero.anim';Guid=$g.anim;Text=$anim},
         [pscustomobject]@{Path='FX/Attack.prefab';Guid=$g.prefab;Text=$prefab},
         [pscustomobject]@{Path='Materials/Attack.mat';Guid=$g.material;Text=$material},
         [pscustomobject]@{Path='Models/Resources.asset';Guid=$g.resources;Text=$resources},
@@ -344,15 +344,15 @@ Combo:
     if ($ReverseWriteOrder) { [array]::Reverse($assets) }
     foreach ($asset in $assets) { Write-CergUnityYamlFixture (Join-Path $preparedOutputRoot $asset.Path) $asset.Guid $asset.Text }
 
-    $attackPath='Animations/Hero.anim';$attackLeaf=Join-Path $preparedOutputRoot $attackPath;$attackSha=Get-CergSha256Hex $attackLeaf;$attackBytes=[int64]([IO.FileInfo]::new($attackLeaf).Length)
-    $baseline = Get-CergBaselineGraph -AttackGuid $g.anim -AttackPath $attackPath -AttackSha $attackSha -AttackBytes $attackBytes
+    $attackD01Path='ExportedProject/Assets/Animations/Hero.anim';$attackHistoricalPath='FFS/LO-FFS1/Output/ExportedProject/Assets/Animations/Hero.anim';$attackLeaf=Join-Path $preparedOutputRoot $attackD01Path;$attackSha=Get-CergSha256Hex $attackLeaf;$attackBytes=[int64]([IO.FileInfo]::new($attackLeaf).Length)
+    $baseline = Get-CergBaselineGraph -AttackGuid $g.anim -AttackPath $attackHistoricalPath -AttackSha $attackSha -AttackBytes $attackBytes
     $obligations = @(Get-CergFixtureObligations)
     $sourceRoot=Join-Path $CaseRoot 'Source';$sourceLeaf=Join-Path $sourceRoot 'bundle.bin';Write-CergFixtureBytes $sourceLeaf ([byte[]](3));$sourceSha=Get-CergSha256Hex $sourceLeaf
     $stageRow = [pscustomobject][ordered]@{ sourceMemberRefId='C1F-SYNTH-1'; sourceId='fixture'; sourcePortableRelativePath='bundle.bin'; stagingPortableRelativePath='Extracted/CERG/SingleCharacter/LO-CERG1-R1/Input/fixture/bundle.bin'; byteCount=[int64]1; sha256=$sourceSha }
     $stageFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/staging-member-set/1' -Payload @($stageRow)
     $candidate = [pscustomobject][ordered]@{
         schemaVersion='cerg-t1-candidate-lock/2.2.0'; artifactId='CERG-T1V22-O01'; contractHeadCommit=('a'*40); selectedCandidateId='char_14401'; status='Passed'
-        attackAnchors=@([pscustomobject][ordered]@{attackAnchorId='';candidateId='char_14401';clipSubjectRefId=$baseline.Subjects.Where({$_.subjectKind-ceq'ActionClip'})[0].subjectId;portableRelativePath=$attackPath;byteCount=$attackBytes;sha256=$attackSha;unityGuid=$g.anim;serializedFileId=[int64]75;evidenceRefIds=@($baseline.Evidence.evidenceId);authorityKind='ImmutableFFSAttackClip'})
+        attackAnchors=@([pscustomobject][ordered]@{attackAnchorId='';candidateId='char_14401';clipSubjectRefId=$baseline.Subjects.Where({$_.subjectKind-ceq'ActionClip'})[0].subjectId;portableRelativePath=$attackHistoricalPath;byteCount=$attackBytes;sha256=$attackSha;unityGuid=$g.anim;serializedFileId=[int64]7400000;evidenceRefIds=@($baseline.Evidence.evidenceId);authorityKind='ImmutableFFSAttackClip'})
         sourceMembers=@([pscustomobject][ordered]@{memberId='C1F-SYNTH-1';candidateId='char_14401';sourceId='fixture';portableRelativePath='bundle.bin';sizeBytes=[int64]1;sha256=$sourceSha;containerKind='UnityBundle';memberClass='Model';evidenceRefIds=@()})
         evidenceItems=@($baseline.Evidence); authorityScopes=@(); subjects=@($baseline.Subjects); relationships=@($baseline.Relationships); discoveryObligations=$obligations
     }
@@ -395,14 +395,14 @@ function Update-CergFixtureBindings {
 }
 function Sync-CergFixtureAttackAnchor {
     param([object]$Fixture)
-    $candidate=Read-CergJsonFile $Fixture.CandidatePath;$anchor=$candidate.attackAnchors[0];$leaf=Join-Path $Fixture.OutputRoot $anchor.portableRelativePath;$newSha=Get-CergSha256Hex $leaf;$newBytes=[int64]([IO.FileInfo]::new($leaf).Length);$clip=@($candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)[0];$oldId=$clip.subjectId;$clip.contentSha256=$newSha;$clip.subjectId=Get-CergSubjectId $clip;$anchor.clipSubjectRefId=$clip.subjectId;$anchor.byteCount=$newBytes;$anchor.sha256=$newSha;$bytes=$script:CergUtf8NoBom.GetBytes((ConvertTo-CergCanonicalJsonValue @('cerg-t1/attack-anchor/1',$anchor.candidateId,$anchor.portableRelativePath,$newBytes,$newSha,$anchor.unityGuid,[int64]$anchor.serializedFileId)));$anchor.attackAnchorId='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant());foreach($relationship in @($candidate.relationships)){if($relationship.sourceSubjectId-ceq$oldId){$relationship.sourceSubjectId=$clip.subjectId};if($relationship.targetSubjectId-ceq$oldId){$relationship.targetSubjectId=$clip.subjectId};$relationship.relationshipId=Get-CergRelationshipId $relationship};Update-CergFixtureBindings $Fixture $candidate
+    $candidate=Read-CergJsonFile $Fixture.CandidatePath;$anchor=$candidate.attackAnchors[0];$marker='ExportedProject/';$offset=$anchor.portableRelativePath.IndexOf($marker,[StringComparison]::Ordinal);if($offset-lt0){throw 'Fixture attack anchor has no ExportedProject suffix.'};$leaf=Join-Path $Fixture.OutputRoot $anchor.portableRelativePath.Substring($offset);$newSha=Get-CergSha256Hex $leaf;$newBytes=[int64]([IO.FileInfo]::new($leaf).Length);$clip=@($candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)[0];$oldId=$clip.subjectId;$clip.contentSha256=$newSha;$clip.subjectId=Get-CergSubjectId $clip;$anchor.clipSubjectRefId=$clip.subjectId;$anchor.byteCount=$newBytes;$anchor.sha256=$newSha;$bytes=$script:CergUtf8NoBom.GetBytes((ConvertTo-CergCanonicalJsonValue @('cerg-t1/attack-anchor/1',$anchor.candidateId,$anchor.portableRelativePath,$newBytes,$newSha,$anchor.unityGuid,[int64]$anchor.serializedFileId)));$anchor.attackAnchorId='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant());foreach($relationship in @($candidate.relationships)){if($relationship.sourceSubjectId-ceq$oldId){$relationship.sourceSubjectId=$clip.subjectId};if($relationship.targetSubjectId-ceq$oldId){$relationship.targetSubjectId=$clip.subjectId};$relationship.relationshipId=Get-CergRelationshipId $relationship};Update-CergFixtureBindings $Fixture $candidate
 }
 function Add-CergRecursiveAttackBlend {
     param([object]$Fixture,[switch]$RemoveAttackTag,[int]$BlendType=0)
     $path=Join-Path $Fixture.OutputRoot 'Controller\Hero.controller';$tagText=if($RemoveAttackTag){''}else{"  m_Tag: Attack`n"};$replacement="AnimatorState:`n  m_Name: Attack01`n${tagText}  m_Motion: {fileID: 30}"
-    Replace-CergFixtureText $path 'AnimatorState:\r?\n  m_Name: Attack01\r?\n  m_Tag: Attack\r?\n  m_Motion: \{fileID: 75, guid: [0-9a-f]{32}, type: 3\}' $replacement
+    Replace-CergFixtureText $path 'AnimatorState:\r?\n  m_Name: Attack01\r?\n  m_Tag: Attack\r?\n  m_Motion: \{fileID: 7400000, guid: [0-9a-f]{32}, type: 3\}' $replacement
     $guid=(Read-CergJsonFile $Fixture.CandidatePath).attackAnchors[0].unityGuid
-    $extra="`n--- !u!206 &30`nBlendTree:`n  m_Name: AttackOuter`n  m_BlendType: $BlendType`n  m_BlendParameter: AttackPhase`n  m_Childs:`n  - m_Motion: {fileID: 31}`n    m_Threshold: 0.33`n--- !u!206 &31`nBlendTree:`n  m_Name: AttackInner`n  m_BlendType: 0`n  m_BlendParameter: AttackLeaf`n  m_Childs:`n  - m_Motion: {fileID: 75, guid: $guid, type: 3}`n    m_Threshold: 0.77`n"
+    $extra="`n--- !u!206 &30`nBlendTree:`n  m_Name: AttackOuter`n  m_BlendType: $BlendType`n  m_BlendParameter: AttackPhase`n  m_Childs:`n  - m_Motion: {fileID: 31}`n    m_Threshold: 0.33`n--- !u!206 &31`nBlendTree:`n  m_Name: AttackInner`n  m_BlendType: 0`n  m_BlendParameter: AttackLeaf`n  m_Childs:`n  - m_Motion: {fileID: 7400000, guid: $guid, type: 3}`n    m_Threshold: 0.77`n"
     [IO.File]::AppendAllText($path,$extra,$script:CergUtf8NoBom)
 }
 function Add-CergFixturePrefabClone {
@@ -412,7 +412,7 @@ function Add-CergFixturePrefabClone {
 }
 function Set-CergFixtureAttackEvents {
     param([object]$Fixture,[object[]]$Rows)
-    $path=Join-Path $Fixture.OutputRoot 'Animations\Hero.anim';$text=[IO.File]::ReadAllText($path,$script:CergUtf8NoBom);$prefix=[regex]::Replace($text,'(?ms)^  m_Events:\r?\n.*\z','').TrimEnd("`r","`n");$lines=[System.Collections.Generic.List[string]]::new();$lines.Add($prefix);$lines.Add('  m_Events:')
+    $path=Join-Path $Fixture.OutputRoot 'ExportedProject\Assets\Animations\Hero.anim';$text=[IO.File]::ReadAllText($path,$script:CergUtf8NoBom);$prefix=[regex]::Replace($text,'(?ms)^  m_Events:\r?\n.*\z','').TrimEnd("`r","`n");$lines=[System.Collections.Generic.List[string]]::new();$lines.Add($prefix);$lines.Add('  m_Events:')
     foreach($row in $Rows){$lines.Add("  - time: $($row.Time)");$lines.Add("    functionName: $($row.Function)");$lines.Add("    objectReferenceParameter: {fileID: 100100000, guid: $($row.Guid), type: 3}")}
     [IO.File]::WriteAllText($path,(($lines -join "`n")+"`n"),$script:CergUtf8NoBom);Sync-CergFixtureAttackAnchor $Fixture
 }
@@ -452,7 +452,8 @@ $testDefinitions = @(
     @('T1A4-TEST24','BlendTreeTypeEnumStrict'),
     @('T1A4-TEST25','PreflightV14PrivatePathChain'),
     @('T1A5-TEST26','AttemptBudgetSnapshotPartition'),
-    @('T1A6-TEST27','ProjectSettingsBoundaryAndStructuredDiscoveryFailure')
+    @('T1A6-TEST27','ProjectSettingsBoundaryAndStructuredDiscoveryFailure'),
+    @('T1A7-TEST28','AttackAnchorCrossExportRebinding')
 )
 $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('cerg-t1a4-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($fixtureRoot) | Out-Null
@@ -474,13 +475,13 @@ try {
                 'T1A2-TEST08' { $f=New-CergUnityGraphFixture $caseRoot;$p=Read-CergJsonFile $f.PreflightPath;$si=Read-CergJsonFile $f.StagingPath;$r=Invoke-CergGraphFixture $f;$event=@($r.relationships|Where-Object relationshipKind -CEQ 'ActionHasAnimationEvent')[0];$attackFx=@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX')[0];Assert-CergFixture ($p.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.4.0'-and$si.status-ceq'Complete'-and$r.schemaVersion-ceq'cerg-lo-cerg1-result/1.4.0'-and$r.status-ceq'Closed'-and$r.consumableForT2-and$r.obligationResults.Count-eq11-and@($r.obligationResults|Where-Object status -CEQ 'Resolved').Count-eq11-and$r.closure.requiredMissingReferenceCount-eq0-and$r.closure.unresolvedObligationCount-eq0-and@($r.diagnostics).Count-eq0-and$r.summary.ordinaryTaskUsed-eq4-and$r.summary.ordinaryTaskBudget-eq7-and$r.summary.LOUsed-eq1-and$r.summary.LOBudget-eq3-and[decimal]$event.eventTime-eq[decimal]0.5-and$event.eventFunctionName-ceq'SpawnAttackFx'-and$event.serializedPropertyPath-ceq'm_Events[0]'-and$attackFx.serializedPropertyPath-ceq'm_Events[0].objectReferenceParameter') 'v1.4 P01 to TG01 staging to ResultGraph R01 semantic chain was not exact.' }
                 'T1A2-TEST09' { $f=New-CergUnityGraphFixture $caseRoot;foreach($leaf in @([IO.Directory]::EnumerateFiles($f.OutputRoot,'*',[IO.SearchOption]::AllDirectories))){[IO.File]::Delete($leaf)};Write-CergFixtureBytes (Join-Path $f.OutputRoot 'body.bin') ([byte[]](1,2,3));$r=Invoke-CergGraphFixture $f;$member=$r.outputMembers[0];Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and$r.obligationResults.Count-eq0-and$member.portableRelativePath-ceq'body.bin'-and$member.byteCount-eq3-and$member.subjectRefIds.Count-eq0-and$member.obligationRefIds.Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'Missing direct graph vector was not exact.' }
                 'T1A2-TEST10' { $f=New-CergUnityGraphFixture $caseRoot;Write-CergFixtureJson (Join-Path $f.OutputRoot 'forbidden.cerggraph.json') ([pscustomobject]@{status='synthetic'}) -Canonical;$r=Invoke-CergGraphFixture $f;$member=@($r.outputMembers|Where-Object portableRelativePath -CEQ 'forbidden.cerggraph.json')[0];Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and$r.obligationResults.Count-eq0-and$member.subjectRefIds.Count-eq0-and$member.obligationRefIds.Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'Prebuilt diagnostic rejection vector was not exact.' }
-                'T1A2-TEST11' { $f=New-CergUnityGraphFixture $caseRoot;Remove-CergFixtureLine (Join-Path $f.OutputRoot 'Animations\Hero.anim') '(?m)^\s*objectReferenceParameter:.*\r?\n';$r=Invoke-CergGraphFixture $f;Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX').Count-eq0-and@($r.obligationResults|Where-Object obligationId -CEQ 'LO1-OB06').Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'AttackAction-without-FX rejection vector was not exact.' }
+                'T1A2-TEST11' { $f=New-CergUnityGraphFixture $caseRoot;Remove-CergFixtureLine (Join-Path $f.OutputRoot 'ExportedProject\Assets\Animations\Hero.anim') '(?m)^\s*objectReferenceParameter:.*\r?\n';$r=Invoke-CergGraphFixture $f;Assert-CergFixture ($r.status-ceq'Unresolved'-and-not$r.consumableForT2-and@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX').Count-eq0-and@($r.obligationResults|Where-Object obligationId -CEQ 'LO1-OB06').Count-eq0-and$r.nextAction-ceq'RunCERGT4ForLOCERG1Unresolved') 'AttackAction-without-FX rejection vector was not exact.' }
                 'T1A2-TEST12' {
                     $variants=@(
                         @('EmptyNestedStateMachine','(?m)^\s*m_State: \{fileID: 21\}\r?\n'),
                         @('MissingNestedBlendParameter','(?m)^\s*m_BlendParameter: Direction\r?\n'),
                         @('MissingBlendLeaf','(?m)^\s*m_Motion: \{fileID: 74, guid: [0-9a-f]{32}, type: 3\}\r?\n'),
-                        @('AttackWithoutMotion','(?m)^\s*m_Motion: \{fileID: 75, guid: [0-9a-f]{32}, type: 3\}\r?\n')
+                        @('AttackWithoutMotion','(?m)^\s*m_Motion: \{fileID: 7400000, guid: [0-9a-f]{32}, type: 3\}\r?\n')
                     )
                     foreach($variant in $variants){$f=New-CergUnityGraphFixture (Join-Path $caseRoot $variant[0]);Remove-CergFixtureLine (Join-Path $f.OutputRoot 'Controller\Hero.controller') $variant[1];$r=Invoke-CergGraphFixture $f;Assert-CergResultUnresolved $r $variant[0];if($variant[0]-ceq'EmptyNestedStateMachine'){$nested=@($r.subjects|Where-Object{$_.subjectKind-ceq'StateMachine'-and$_.serializedFileId-eq20})[0];Assert-CergFixture (@($r.relationships|Where-Object{$_.sourceSubjectId-ceq$nested.subjectId-and$_.relationshipKind-cin@('StateMachineContainsState','StateMachineContainsStateMachine')}).Count-eq0) 'Empty nested StateMachine retained a child.'}else{Assert-CergFixture ($r.obligationResults.Count-eq0-and@($r.relationships|Where-Object relationshipKind -CEQ 'AttackTriggersFX').Count-eq0) ("Malformed controller variant retained a partial authoritative graph: "+$variant[0])}}
                 }
@@ -544,7 +545,7 @@ try {
                     $f=New-CergUnityGraphFixture (Join-Path $caseRoot 'Nested');Add-CergRecursiveAttackBlend $f;$r=Invoke-CergGraphFixture $f;$state=@($r.subjects|Where-Object{$_.subjectKind-ceq'AttackAction'-and$_.serializedFileId-eq4})[0];$outer=@($r.subjects|Where-Object{$_.subjectKind-ceq'BlendTree'-and$_.serializedFileId-eq30})[0];$inner=@($r.subjects|Where-Object{$_.subjectKind-ceq'BlendTree'-and$_.serializedFileId-eq31})[0]
                     Assert-CergFixture ($r.status-ceq'Closed'-and@($r.relationships|Where-Object{$_.sourceSubjectId-ceq$state.subjectId-and$_.relationshipKind-ceq'StateUsesMotion'-and$_.targetSubjectId-ceq$outer.subjectId}).Count-eq1-and@($r.relationships|Where-Object{$_.relationshipKind-ceq'BlendBranchUsesMotion'-and$_.targetSubjectId-ceq$inner.subjectId}).Count-eq1) 'Recursive attack BlendTree path did not preserve both tree levels.'
                     Assert-CergFixture (@($r.relationships|Where-Object{$_.sourceSubjectId-ceq$state.subjectId-and$_.relationshipKind-ceq'ActionHasAnimationEvent'-and[decimal]$_.eventTime-eq[decimal]0.5-and$_.eventFunctionName-ceq'SpawnAttackFx'}).Count-eq1-and@($r.relationships|Where-Object{$_.sourceSubjectId-ceq$state.subjectId-and$_.relationshipKind-ceq'AttackTriggersFX'}).Count-eq1) 'Recursive attack leaf did not close to its event and FX.'
-                    $cycle=New-CergUnityGraphFixture (Join-Path $caseRoot 'Cycle');Add-CergRecursiveAttackBlend $cycle;Replace-CergFixtureText (Join-Path $cycle.OutputRoot 'Controller\Hero.controller') '(?m)^  - m_Motion: \{fileID: 75, guid: [0-9a-f]{32}, type: 3\}$' '  - m_Motion: {fileID: 30}';$cycleResult=Invoke-CergGraphFixture $cycle;Assert-CergResultUnresolved $cycleResult 'Cyclic attack BlendTree'
+                    $cycle=New-CergUnityGraphFixture (Join-Path $caseRoot 'Cycle');Add-CergRecursiveAttackBlend $cycle;Replace-CergFixtureText (Join-Path $cycle.OutputRoot 'Controller\Hero.controller') '(?m)^  - m_Motion: \{fileID: 7400000, guid: [0-9a-f]{32}, type: 3\}$' '  - m_Motion: {fileID: 30}';$cycleResult=Invoke-CergGraphFixture $cycle;Assert-CergResultUnresolved $cycleResult 'Cyclic attack BlendTree'
                 }
                 'T1A2-TEST21' {
                     $f=New-CergUnityGraphFixture $caseRoot;$textureGuid='7'*32;$shaderGuid='6'*32;$texturePath=Join-Path $f.OutputRoot 'Textures\Attack.png';$shaderPath=Join-Path $f.OutputRoot 'Shaders\Attack.shader';Write-CergFixtureBytes $texturePath ([byte[]](137,80,78,71,13,10,26,10));Write-CergFixtureBytes ($texturePath+'.meta') $script:CergUtf8NoBom.GetBytes("fileFormatVersion: 2`nguid: $textureGuid`nTextureImporter:`n  mipmaps: {}`n");Write-CergFixtureBytes $shaderPath $script:CergUtf8NoBom.GetBytes('Shader "Stella/Attack" {}');Write-CergFixtureBytes ($shaderPath+'.meta') $script:CergUtf8NoBom.GetBytes("fileFormatVersion: 2`nguid: $shaderGuid`nShaderImporter: {}`n");$materialPath=Join-Path $f.OutputRoot 'Materials\Attack.mat';Replace-CergFixtureText $materialPath '(?m)^  m_Shader:.*$' "  m_Shader: {fileID: 4800000, guid: $shaderGuid, type: 3}";Replace-CergFixtureText $materialPath '(?m)^  m_Texture:.*$' "  m_Texture: {fileID: 2800000, guid: $textureGuid, type: 3}"
@@ -570,7 +571,7 @@ try {
                     $missing=New-CergUnityGraphFixture (Join-Path $caseRoot 'MissingAnchor');$candidate=Read-CergJsonFile $missing.CandidatePath;$candidate.attackAnchors=@();Update-CergFixtureBindings $missing $candidate;$missingResult=Invoke-CergGraphFixture $missing;Assert-CergResultUnresolved $missingResult 'Missing attack anchor'
                     $stale=New-CergUnityGraphFixture (Join-Path $caseRoot 'StaleAnchor');$candidate=Read-CergJsonFile $stale.CandidatePath;$candidate.attackAnchors[0].sha256='0'*64;Update-CergFixtureBindings $stale $candidate;$staleResult=Invoke-CergGraphFixture $stale;Assert-CergResultUnresolved $staleResult 'Stale attack anchor'
                     $mismatch=New-CergUnityGraphFixture (Join-Path $caseRoot 'MismatchedAnchor');$candidate=Read-CergJsonFile $mismatch.CandidatePath;$candidate.attackAnchors[0].serializedFileId=[int64]74;Update-CergFixtureBindings $mismatch $candidate;$mismatchResult=Invoke-CergGraphFixture $mismatch;Assert-CergResultUnresolved $mismatchResult 'Mismatched attack anchor'
-                    $heuristic=New-CergUnityGraphFixture (Join-Path $caseRoot 'HeuristicOnly');Remove-CergFixtureLine (Join-Path $heuristic.OutputRoot 'Controller\Hero.controller') '(?m)^  m_Tag: Attack\r?\n';$candidate=Read-CergJsonFile $heuristic.CandidatePath;$anchor=$candidate.attackAnchors[0];$clip=@($candidate.subjects|Where-Object subjectId -CEQ $anchor.clipSubjectRefId)[0];$oldId=$clip.subjectId;$clip.serializedFileId=[int64]74;$clip.sourceObjectId="$($clip.unityGuid):74";$clip.authorityIdentity="BaselineYamlObject:$($clip.unityGuid):74";$clip.subjectId=Get-CergSubjectId $clip;$anchor.clipSubjectRefId=$clip.subjectId;$anchor.serializedFileId=[int64]74;$bytes=$script:CergUtf8NoBom.GetBytes((ConvertTo-CergCanonicalJsonValue @('cerg-t1/attack-anchor/1',$anchor.candidateId,$anchor.portableRelativePath,[int64]$anchor.byteCount,$anchor.sha256,$anchor.unityGuid,[int64]74)));$anchor.attackAnchorId='ATK-'+([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant());foreach($relationship in $candidate.relationships){if($relationship.sourceSubjectId-ceq$oldId){$relationship.sourceSubjectId=$clip.subjectId};if($relationship.targetSubjectId-ceq$oldId){$relationship.targetSubjectId=$clip.subjectId};$relationship.relationshipId=Get-CergRelationshipId $relationship};Update-CergFixtureBindings $heuristic $candidate;$heuristicResult=Invoke-CergGraphFixture $heuristic;Assert-CergResultUnresolved $heuristicResult 'Name/path/event-only attack heuristic';$stateFour=@($heuristicResult.subjects|Where-Object serializedFileId -EQ 4);Assert-CergFixture (@($stateFour|Where-Object subjectKind -CEQ 'ActionState').Count-eq1-and@($stateFour|Where-Object subjectKind -CEQ 'AttackAction').Count-eq0) 'State/clip name, path, or FX event self-classified an attack.'
+                    $heuristic=New-CergUnityGraphFixture (Join-Path $caseRoot 'HeuristicOnly');Remove-CergFixtureLine (Join-Path $heuristic.OutputRoot 'Controller\Hero.controller') '(?m)^  m_Tag: Attack\r?\n';Replace-CergFixtureText (Join-Path $heuristic.OutputRoot 'Controller\Hero.controller') '(?m)^  m_Motion: \{fileID: 7400000, guid: [0-9a-f]{32}, type: 3\}$' ('  m_Motion: {fileID: 74, guid: '+('a'*32)+', type: 3}');$heuristicResult=Invoke-CergGraphFixture $heuristic;Assert-CergResultUnresolved $heuristicResult 'Name/path/event-only attack heuristic';Assert-CergFixture (@($heuristicResult.subjects|Where-Object subjectKind -CEQ 'AttackAction').Count-eq0-and@($heuristicResult.diagnostics|Where-Object message -CEQ 'The immutable attack anchor is not reachable from any serialized AnimatorState.').Count-eq1) 'State/clip name, path, or FX event self-classified an attack.'
                 }
                 'T1A4-TEST24' {
                     $typeNames=[ordered]@{'0'='OneD';'1'='SimpleDirectional2D';'2'='FreeformDirectional2D';'3'='FreeformCartesian2D';'4'='Direct'}
@@ -654,6 +655,48 @@ try {
                     $missingResult=Invoke-CergGraphFixture $missingMeta
                     $diagnostic=@($missingResult.diagnostics)
                     Assert-CergFixture ($missingResult.status-ceq'Unresolved'-and-not$missingResult.consumableForT2-and$diagnostic.Count-eq1-and$diagnostic[0].stage-ceq'UnitySerializedDiscovery'-and$diagnostic[0].portableRelativePath-ceq'ExportedProject/Assets/Missing.asset'-and$diagnostic[0].exceptionCategory-ceq'MissingMeta') 'Assets missing-meta failure was not preserved as one exact structured diagnostic.'
+                }
+                'T1A7-TEST28' {
+                    $stableSuffix='ExportedProject/Assets/Animations/Hero.anim'
+                    $newGuid='7'*32
+
+                    $changed=New-CergUnityGraphFixture (Join-Path $caseRoot 'GuidChanged')
+                    $attackLeaf=Join-Path $changed.OutputRoot $stableSuffix
+                    $metaLeaf=$attackLeaf+'.meta'
+                    Replace-CergFixtureText $metaLeaf '(?m)^guid: [0-9a-f]{32}$' "guid: $newGuid"
+                    foreach($dependent in @('Controller\Hero.controller','Controller\Hero.overrideController')){Replace-CergFixtureText (Join-Path $changed.OutputRoot $dependent) ('guid: '+('a'*32)) "guid: $newGuid"}
+                    $changedResult=Invoke-CergGraphFixture $changed
+                    $resolvedClip=@($changedResult.subjects|Where-Object{$_.subjectKind-ceq'ActionClip'-and$_.portableRelativePath-ceq$stableSuffix-and[int64]$_.serializedFileId-eq7400000})
+                    Assert-CergFixture ($changedResult.status-ceq'Closed'-and$changedResult.consumableForT2-and$resolvedClip.Count-eq1-and$resolvedClip[0].unityGuid-ceq$newGuid-and@($changedResult.diagnostics).Count-eq0) 'Cross-export GUID change did not rebind the exact attack clip.'
+
+                    $clone=New-CergUnityGraphFixture (Join-Path $caseRoot 'IdenticalClone')
+                    $attackLeaf=Join-Path $clone.OutputRoot $stableSuffix
+                    $cloneLeaf=Join-Path $clone.OutputRoot 'ExportedProject\Assets\Animations\Hero_0.anim'
+                    Write-CergFixtureBytes $cloneLeaf ([IO.File]::ReadAllBytes($attackLeaf))
+                    Write-CergFixtureBytes ($cloneLeaf+'.meta') $script:CergUtf8NoBom.GetBytes("fileFormatVersion: 2`nguid: $('8'*32)`n")
+                    $cloneResult=Invoke-CergGraphFixture $clone
+                    $anchorState=@($cloneResult.subjects|Where-Object{$_.subjectKind-ceq'AttackAction'-and$_.serializedFileId-eq4})[0]
+                    $anchorAuthority=[string]$anchorState.authorityIdentity
+                    Assert-CergFixture ($cloneResult.status-ceq'Closed'-and$anchorAuthority.Contains(':AttackAnchor:',[StringComparison]::Ordinal)-and@($cloneResult.subjects|Where-Object{$_.subjectKind-ceq'ActionClip'-and$_.portableRelativePath-ceq$stableSuffix-and$_.unityGuid-ceq('a'*32)-and[int64]$_.serializedFileId-eq7400000}).Count-eq1) 'Byte-identical _0 clone displaced the exact stable-suffix anchor.'
+
+                    foreach($mismatchKind in @('Hash','ByteCount','FileId')){
+                        $mismatch=New-CergUnityGraphFixture (Join-Path $caseRoot ("Mismatch$mismatchKind"))
+                        $leaf=Join-Path $mismatch.OutputRoot $stableSuffix
+                        if($mismatchKind-ceq'Hash'){Replace-CergFixtureText $leaf '(?m)^  m_Name: Attack01$' '  m_Name: Attack02'}
+                        elseif($mismatchKind-ceq'ByteCount'){[IO.File]::AppendAllText($leaf,"# byte drift`n",$script:CergUtf8NoBom)}
+                        else{Replace-CergFixtureText $leaf '(?m)^--- !u!74 &7400000$' '--- !u!74 &7400001';Sync-CergFixtureAttackAnchor $mismatch}
+                        $mismatchResult=Invoke-CergGraphFixture $mismatch
+                        $diagnostic=@($mismatchResult.diagnostics)
+                        Assert-CergFixture ($mismatchResult.status-ceq'Unresolved'-and-not$mismatchResult.consumableForT2-and$diagnostic.Count-eq1-and$diagnostic[0].exceptionCategory-ceq'AttackAnchorResolutionFailure'-and$diagnostic[0].portableRelativePath-ceq$stableSuffix) "$mismatchKind mismatch was not one structured attack-anchor failure."
+                    }
+
+                    $ambiguous=New-CergUnityGraphFixture (Join-Path $caseRoot 'AmbiguousExactMatch')
+                    $leaf=Join-Path $ambiguous.OutputRoot $stableSuffix
+                    [IO.File]::AppendAllText($leaf,"--- !u!74 &7400000`nAnimationClip:`n  m_Name: Attack01Duplicate`n",$script:CergUtf8NoBom)
+                    Sync-CergFixtureAttackAnchor $ambiguous
+                    $ambiguousResult=Invoke-CergGraphFixture $ambiguous
+                    $diagnostic=@($ambiguousResult.diagnostics)
+                    Assert-CergFixture ($ambiguousResult.status-ceq'Unresolved'-and$diagnostic.Count-eq1-and$diagnostic[0].exceptionCategory-ceq'AttackAnchorResolutionFailure'-and$diagnostic[0].portableRelativePath-ceq$stableSuffix) 'Non-unique exact match was not one structured attack-anchor failure.'
                 }
             }
             $rows.Add([pscustomobject][ordered]@{testId=$testId;testClass=$testClass;status='Passed';evidenceLocator="SyntheticFixture/$testId/Assertions"})
