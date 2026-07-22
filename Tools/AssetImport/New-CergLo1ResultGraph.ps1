@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/7'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/8'
 $script:CergGraphImplementationPath = $PSCommandPath
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
@@ -121,6 +121,38 @@ function Get-CergReplayOutputSnapshot {
         byteCount = [int64](($rows | Measure-Object byteCount -Sum).Sum)
         fingerprintDomain = 'cerg-r2/p04-discovery-output-member-set/1'
         memberSetFingerprint = Get-CergStructuredSha256 'cerg-r2/p04-discovery-output-member-set/1' @($rows)
+    }
+}
+
+function Test-CergUnityInfrastructureRelativePath {
+    param([Parameter(Mandatory = $true)][string]$PortableRelativePath)
+    foreach ($prefix in @('ExportedProject/ProjectSettings/','ExportedProject/UserSettings/','ExportedProject/Packages/')) {
+        if ($PortableRelativePath.StartsWith($prefix, [StringComparison]::Ordinal)) { return $true }
+    }
+    return $false
+}
+
+function New-CergDiscoveryDiagnostic {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+    $message = [string]$ErrorRecord.Exception.Message
+    $category = if ($message -clike 'Unity serialized asset lacks matching .meta:*' -or $message -clike 'External Unity asset lacks matching .meta:*') {
+        'MissingMeta'
+    } elseif ($message -clike 'Unity serialized asset has no YAML object documents:*') {
+        'MissingYamlDocuments'
+    } elseif ($message -clike 'Duplicate Unity GUID ownership:*') {
+        'DuplicateGuidOwnership'
+    } elseif ($message -clike 'Unity meta leaf lacks one lowercase 32-hex GUID.*') {
+        'InvalidMetaGuid'
+    } else {
+        'UnitySerializedDiscoveryFailure'
+    }
+    $pathMatch = [regex]::Match($message, ':[ ](?<path>[^:]+)$')
+    return [pscustomobject][ordered]@{
+        stage = 'UnitySerializedDiscovery'
+        portableRelativePath = $(if ($pathMatch.Success) { ConvertTo-CergPortablePath $pathMatch.Groups['path'].Value } else { $null })
+        exceptionCategory = $category
+        exceptionType = $ErrorRecord.Exception.GetType().FullName
+        message = $message
     }
 }
 
@@ -281,6 +313,8 @@ function Get-CergUnityDocuments {
     if(@($files|Where-Object{$_.RelativePath.EndsWith('.cerggraph.json',[StringComparison]::Ordinal)}).Count-ne0){throw 'Prebuilt graph fragments are forbidden production input.'}
     $guidByAsset=@{};$assetByGuid=@{};$metaByAsset=@{}
     foreach($metaLeaf in [System.IO.Directory]::EnumerateFiles($OutputRoot,'*.meta',[System.IO.SearchOption]::AllDirectories)){
+        $metaFull=Get-CergFullPath $metaLeaf;$assetRelative=(ConvertTo-CergPortablePath ($metaFull.Substring($OutputRoot.TrimEnd('\','/').Length+1).Replace('\','/')));$assetRelative=$assetRelative.Substring(0,$assetRelative.Length-5)
+        if(Test-CergUnityInfrastructureRelativePath $assetRelative){continue}
         $text=[System.IO.File]::ReadAllText($metaLeaf,$script:CergUtf8NoBom);$match=[regex]::Match($text,'(?m)^guid:\s*([0-9a-f]{32})\s*$');$importerMatch=[regex]::Match($text,'(?m)^(?<kind>[A-Za-z][A-Za-z0-9]*Importer):(?:\s|$)')
         if(-not$match.Success){throw 'Unity meta leaf lacks one lowercase 32-hex GUID.'}
         $asset=Get-CergFullPath ($metaLeaf.Substring(0,$metaLeaf.Length-5));$guid=$match.Groups[1].Value
@@ -288,7 +322,7 @@ function Get-CergUnityDocuments {
         $guidByAsset[$asset]=$guid;$assetByGuid[$guid]=$asset;$metaByAsset[$asset]=[pscustomobject]@{FullPath=(Get-CergFullPath $metaLeaf);RelativePath=(ConvertTo-CergPortablePath ((Get-CergFullPath $metaLeaf).Substring($OutputRoot.TrimEnd('\','/').Length+1).Replace('\','/')));Sha256=(Get-CergSha256Hex $metaLeaf);ByteCount=[int64]([IO.FileInfo]::new($metaLeaf).Length);ImporterKind=$(if($importerMatch.Success){$importerMatch.Groups['kind'].Value}else{$null})}
     }
     $documents=[System.Collections.Generic.List[object]]::new()
-    foreach($file in @($files|Where-Object{$_.Extension-cin$allowed})){
+    foreach($file in @($files|Where-Object{$_.Extension-cin$allowed-and-not(Test-CergUnityInfrastructureRelativePath $_.RelativePath)})){
         if(-not$guidByAsset.ContainsKey($file.FullPath)){throw "Unity serialized asset lacks matching .meta: $($file.RelativePath)"}
         $text=[System.IO.File]::ReadAllText($file.FullPath,$script:CergUtf8NoBom)
         $matches=[regex]::Matches($text,'(?ms)^--- !u!(?<classId>\d+) &(?<fileId>-?\d+)\r?\n(?<typeName>[A-Za-z_][A-Za-z0-9_]*):\r?\n(?<body>.*?)(?=^--- !u!|\z)')
@@ -300,7 +334,7 @@ function Get-CergUnityDocuments {
             $documents.Add([pscustomobject]@{ClassId=[int]$match.Groups['classId'].Value;FileId=[int64]$match.Groups['fileId'].Value;TypeName=$match.Groups['typeName'].Value;Body=$match.Groups['body'].Value;Name=$(if($nameMatch.Success){$nameMatch.Groups[1].Value}else{''});Tag=$(if($tagMatch.Success){$tagMatch.Groups[1].Value}else{''});FullPath=$file.FullPath;RelativePath=$file.RelativePath;Guid=$guidByAsset[$file.FullPath];Extension=$file.Extension;IsExternalLeaf=$false;MetaFullPath=$meta.FullPath;MetaRelativePath=$meta.RelativePath;MetaSha256=$meta.Sha256;MetaByteCount=$meta.ByteCount;ImporterKind=$null})
         }
     }
-    foreach($file in @($files|Where-Object{$_.Extension-cin($externalTextures+$externalShaders)})){
+    foreach($file in @($files|Where-Object{$_.Extension-cin($externalTextures+$externalShaders)-and-not(Test-CergUnityInfrastructureRelativePath $_.RelativePath)})){
         if(-not$guidByAsset.ContainsKey($file.FullPath)){throw "External Unity asset lacks matching .meta: $($file.RelativePath)"}
         $meta=$metaByAsset[$file.FullPath];$isTexture=$file.Extension-cin$externalTextures;$typeName=if($isTexture){'Texture2D'}else{'Shader'};$importer=if($isTexture){'TextureImporter'}else{'ShaderImporter'};if($meta.ImporterKind-cne$importer){throw "External Unity asset has mismatched importer $($meta.ImporterKind): $($file.RelativePath)"}
         $documents.Add([pscustomobject]@{ClassId=$(if($isTexture){28}else{48});FileId=[int64]0;TypeName=$typeName;Body='';Name=[IO.Path]::GetFileNameWithoutExtension($file.FullPath);Tag='';FullPath=$file.FullPath;RelativePath=$file.RelativePath;Guid=$guidByAsset[$file.FullPath];Extension=$file.Extension;IsExternalLeaf=$true;MetaFullPath=$meta.FullPath;MetaRelativePath=$meta.RelativePath;MetaSha256=$meta.Sha256;MetaByteCount=$meta.ByteCount;ImporterKind=$importer})
@@ -824,6 +858,7 @@ function New-CergLo1ResultGraph {
             throw 'P04 discovery Output identity drifted before replay.'
         }
     }
+    $resourceOutputFiles = @($outputFiles | Where-Object { -not (Test-CergUnityInfrastructureRelativePath ([string]$_.portableRelativePath)) })
 
     $evidence = [System.Collections.Generic.List[object]]::new(); $evidenceIds = @{}
     $scopes = [System.Collections.Generic.List[object]]::new(); $scopeIds = @{}
@@ -837,6 +872,7 @@ function New-CergLo1ResultGraph {
     foreach ($row in @($candidate.relationships)) { Add-CergUniqueRow $relationships $relationshipIds $row 'relationshipId' 'GraphRelationship' }
 
     $diagnosticsRejected = $false;$discoveryLoaded=$false
+    $discoveryDiagnostics = [System.Collections.Generic.List[object]]::new()
     try {
         $discovery=New-CergUnityYamlGraph -OutputRoot $outputFull -Candidate $candidate -Preflight $preflight
         foreach ($row in @($discovery.EvidenceItems)) { Add-CergUniqueRow $evidence $evidenceIds $row 'evidenceId' 'EvidenceItem' }
@@ -847,6 +883,7 @@ function New-CergLo1ResultGraph {
         $bindings=$discovery.Bindings;$discoveryLoaded=$true
     } catch {
         Write-Verbose ('Direct Unity YAML discovery rejected: ' + $_.Exception.Message)
+        $discoveryDiagnostics.Add((New-CergDiscoveryDiagnostic $_))
         $diagnosticsRejected = $true
     }
 
@@ -856,7 +893,7 @@ function New-CergLo1ResultGraph {
     $relationshipsSorted = @(Get-CergSortedRows @($relationships) { param($x) "$($x.candidateId)`u{1f}$($x.sourceSubjectId)`u{1f}$($x.relationshipKind)`u{1f}$('{0:D10}' -f [int]$x.slotOrdinal)`u{1f}$($x.relationshipId)" })
     $obligationSorted = @(Get-CergSortedRows @($obligationResults) { param($x) $x.obligationId })
     $outputMembers = [System.Collections.Generic.List[object]]::new()
-    foreach ($file in (Get-CergSortedRows @($outputFiles) { param($x) $x.portableRelativePath })) {
+    foreach ($file in (Get-CergSortedRows @($resourceOutputFiles) { param($x) $x.portableRelativePath })) {
         $binding = if ($bindings.ContainsKey([string]$file.portableRelativePath)) { $bindings[[string]$file.portableRelativePath] } else { [pscustomobject]@{ subjectRefIds=@(); obligationRefIds=@() } }
         $outputMembers.Add([pscustomobject][ordered]@{
             portableRelativePath = [string]$file.portableRelativePath
@@ -894,7 +931,7 @@ function New-CergLo1ResultGraph {
     $statusCounts = [ordered]@{}; foreach ($kind in $script:CergObligationStatuses) { $statusCounts[$kind] = @($obligationSorted | Where-Object status -CEQ $kind).Count }
     $graphFingerprint = Get-CergStructuredSha256 -DomainTag 'cerg-lo1/exact-universe/2' -Payload @($stagingMembers, $evidenceSorted, $scopesSorted, $subjectsSorted, $relationshipsSorted, $obligationSorted, @($outputMembers))
     $result = [pscustomobject][ordered]@{
-        schemaVersion = 'cerg-lo-cerg1-result/1.3.0'
+        schemaVersion = 'cerg-lo-cerg1-result/1.4.0'
         artifactId = 'LO-CERG1-R01'
         candidateLockSha256 = Get-CergSha256Hex $CandidateLockPath
         preflightSha256 = Get-CergSha256Hex $PreflightPath
@@ -912,6 +949,7 @@ function New-CergLo1ResultGraph {
         relationships = $relationshipsSorted
         obligationResults = $obligationSorted
         outputMembers = @($outputMembers)
+        diagnostics = @($discoveryDiagnostics)
         partitions = [pscustomobject][ordered]@{
             evidenceClassCounts = [pscustomobject]$evidenceClassCounts
             authorityKindCounts = [pscustomobject]$authorityKindCounts
@@ -923,6 +961,7 @@ function New-CergLo1ResultGraph {
             subjectCount = $subjectsSorted.Count
             relationshipCount = $relationshipsSorted.Count
             obligationResultCount = $obligationSorted.Count
+            diagnosticCount = $discoveryDiagnostics.Count
             stagingMemberCount = $stagingMembers.Count
             outputMemberCount = $outputMembers.Count
         }
