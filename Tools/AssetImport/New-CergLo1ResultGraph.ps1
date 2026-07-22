@@ -18,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/5'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/6'
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
 $script:CergEvidenceStates = @('ProvenPresent','ProvenAbsent','EvidenceUnavailableBeforeExtraction','Contradictory')
@@ -68,6 +68,40 @@ function Assert-CergRequiredProperties {
     foreach ($name in $Names) {
         if ($null -eq $Value.PSObject.Properties[$name]) { throw "$Label is missing required property $name." }
     }
+}
+
+function Get-CergR01BudgetSnapshot {
+    param([Parameter(Mandatory = $true)][object]$Attempt)
+
+    if ($Attempt.schemaVersion -ceq 'cerg-lo-cerg1-r2-attempt-state/1.0.0') {
+        Assert-CergRequiredProperties $Attempt @('artifactId','LOUsedBeforeFirstSourceOpen','LOUsedAfterFirstSourceOpen','status') 'R2 attempt budget source'
+        if ($Attempt.artifactId -cne 'LO-CERG1-R2-A01' -or
+            $Attempt.status -cne 'ArmedNoSourceOpen' -or
+            [int64]$Attempt.LOUsedBeforeFirstSourceOpen -ne 1 -or
+            [int64]$Attempt.LOUsedAfterFirstSourceOpen -ne 2) {
+            throw 'R2 attempt LO counter transition is invalid.'
+        }
+        return [pscustomobject][ordered]@{
+            ordinaryTaskUsed = 5
+            ordinaryTaskBudget = 7
+            LOUsed = [int64]$Attempt.LOUsedAfterFirstSourceOpen
+            LOBudget = 3
+        }
+    }
+
+    if ($Attempt.schemaVersion -ceq 'cerg-lo-cerg1-attempt-state/1.1.0' -and
+        $Attempt.artifactId -ceq 'LO-CERG1-A01' -and
+        $Attempt.status -ceq 'StartedNoResult' -and
+        [int64]$Attempt.attemptCount -eq 1) {
+        return [pscustomobject][ordered]@{
+            ordinaryTaskUsed = 4
+            ordinaryTaskBudget = 7
+            LOUsed = 1
+            LOBudget = 3
+        }
+    }
+
+    throw 'Attempt cannot project an R01 budget snapshot.'
 }
 
 function Assert-CergUpstreamBindings {
@@ -643,6 +677,7 @@ function New-CergLo1ResultGraph {
     $adjacencyFreshness=if(-not[string]::IsNullOrWhiteSpace($AdjacencyFreshnessPath)){Read-CergJsonFile $AdjacencyFreshnessPath}else{$null}
     $readiness=if(-not[string]::IsNullOrWhiteSpace($ReadinessPath)){Read-CergJsonFile $ReadinessPath}else{$null}
     Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -AdjacencyFreshness $adjacencyFreshness -AdjacencyFreshnessPath $AdjacencyFreshnessPath -Readiness $readiness -ReadinessPath $ReadinessPath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -AttemptStatePath $AttemptStatePath -FirstSourceOpenReceiptPath $FirstSourceOpenReceiptPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
+    $budgetSnapshot = Get-CergR01BudgetSnapshot -Attempt $attempt
 
     $outputFull = Get-CergFullPath $OutputRoot
     if (-not [System.IO.Directory]::Exists($outputFull)) { [System.IO.Directory]::CreateDirectory($outputFull) | Out-Null }
@@ -774,10 +809,10 @@ function New-CergLo1ResultGraph {
             outputMemberCount = $outputMembers.Count
             outputBytes = [int64](($outputMembers | Measure-Object -Property byteCount -Sum).Sum)
             attemptCount = 1
-            ordinaryTaskUsed = 4
-            ordinaryTaskBudget = 7
-            LOUsed = 1
-            LOBudget = 3
+            ordinaryTaskUsed = $budgetSnapshot.ordinaryTaskUsed
+            ordinaryTaskBudget = $budgetSnapshot.ordinaryTaskBudget
+            LOUsed = $budgetSnapshot.LOUsed
+            LOBudget = $budgetSnapshot.LOBudget
         }
         nextAction = $(if ($isClosed) { 'RunCERGT2' } else { 'RunCERGT4ForLOCERG1Unresolved' })
     }
