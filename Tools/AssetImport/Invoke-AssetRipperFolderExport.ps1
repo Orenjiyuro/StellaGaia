@@ -4,6 +4,8 @@ param(
     [string]$Name,
     [Parameter(Mandatory = $true)]
     [string]$InputPath,
+    [Parameter(Mandatory = $true)]
+    [string]$PreflightPath,
     [string]$ToolManifestPath,
     [string]$ExportRoot,
     [string]$LogRoot,
@@ -13,6 +15,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'New-CergLo1Preflight.ps1')
 
 function Get-CanonicalPath {
     param(
@@ -333,11 +336,13 @@ $repoRoot = Get-CanonicalPath (Join-Path $PSScriptRoot '..\..')
 $extractedRoot = Get-CanonicalPath (Join-Path $repoRoot 'Extracted')
 $ToolManifestPath = Get-CanonicalPath $ToolManifestPath
 $InputPath = Get-CanonicalPath $InputPath
+$PreflightPath = Get-CanonicalPath $PreflightPath
 $ExportRoot = Get-CanonicalPath $ExportRoot
 $LogRoot = Get-CanonicalPath $LogRoot
 
 Assert-SafeNameSegment -Value $Name -Description 'Name'
 Assert-PathUnderOrEqual -Path $InputPath -RootPath $extractedRoot -Description 'InputPath'
+Assert-PathUnderOrEqual -Path $PreflightPath -RootPath $extractedRoot -Description 'PreflightPath'
 Assert-PathUnderOrEqual -Path $ExportRoot -RootPath $extractedRoot -Description 'ExportRoot'
 Assert-PathUnderOrEqual -Path $LogRoot -RootPath $extractedRoot -Description 'LogRoot'
 Assert-NoExistingReparsePointUnderRoot -Path $extractedRoot -RootPath $repoRoot -Description 'Extracted'
@@ -351,11 +356,21 @@ if (-not (Test-Path -LiteralPath $InputPath -PathType Container)) {
 if (-not (Test-Path -LiteralPath $ToolManifestPath -PathType Leaf)) {
     throw "Missing tool manifest: $ToolManifestPath"
 }
+if (-not (Test-Path -LiteralPath $PreflightPath -PathType Leaf)) {
+    throw "Missing P02 preflight: $PreflightPath"
+}
 
 $manifest = Get-Content -LiteralPath $ToolManifestPath -Raw | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($manifest.assetRipper) -or -not (Test-Path -LiteralPath $manifest.assetRipper -PathType Leaf)) {
     throw "Missing AssetRipper executable: $($manifest.assetRipper)"
 }
+$preflight=Get-Content -LiteralPath $PreflightPath -Raw|ConvertFrom-Json -Depth 100
+if($preflight.schemaVersion-cne'cerg-lo-cerg1-preflight/1.6.0'-or$preflight.artifactId-cne'LO-CERG1-P02'-or$preflight.status-cne'Green'){throw 'AssetRipper folder export requires one Green P02 v1.6 preflight.'}
+$null=Assert-CergP02ImplementationBindings $preflight $null
+$ia01=@($preflight.implementationBindings|Where-Object artifactId -CEQ 'LO1-IA01')
+if($ia01.Count-ne1){throw 'P02 does not contain exactly one IA01 binding.'}
+$boundAssetRipper=Get-CanonicalPath ([string]$ia01[0].privateAbsoluteLeafPath)
+if(-not[string]::Equals($boundAssetRipper,(Get-CanonicalPath ([string]$manifest.assetRipper)),[StringComparison]::OrdinalIgnoreCase)){throw 'Tool manifest AssetRipper path differs from the confirmed P02 IA01 binding.'}
 $port = ConvertTo-TcpPort -Value $manifest.assetRipperPort
 
 $exportPath = Get-CanonicalPath (Join-Path $ExportRoot $Name)
@@ -373,7 +388,7 @@ Assert-NoExistingReparsePointUnderRoot -Path $exportPath -RootPath $ExportRoot -
 $inputSummary = Get-FileSummary -RootPath $InputPath
 $process = $null
 try {
-    $process = Start-AssetRipperServer -AssetRipperPath $manifest.assetRipper -Port $port -LogPath $processLogPath -TimeoutSec $StartupTimeoutSec
+    $process = Start-AssetRipperServer -AssetRipperPath $boundAssetRipper -Port $port -LogPath $processLogPath -TimeoutSec $StartupTimeoutSec
     $url = "http://127.0.0.1:$port"
     Invoke-WebRequest -Uri "$url/LoadFolder" -Method Post -Body @{ Path = $InputPath } -UseBasicParsing -TimeoutSec $LoadTimeoutSec | Out-Null
     Invoke-WebRequest -Uri "$url/Export/UnityProject" -Method Post -Body @{ Path = $exportPath; CreateSubfolder = 'false' } -UseBasicParsing -TimeoutSec $ExportTimeoutSec | Out-Null

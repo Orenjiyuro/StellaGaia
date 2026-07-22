@@ -130,12 +130,28 @@ function Assert-CergPreflightP02Ordering {
     Assert-CergPreflightOrdinalStringList @($Value.operation.expectedRelationshipKinds) "$Label.operation.expectedRelationshipKinds"
 }
 
+function Assert-CergAssetRipperExecutableIdentity {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    $item=Get-Item -LiteralPath $Path
+    if($item.Name-cne'AssetRipper.GUI.Free.exe'-or$item.VersionInfo.ProductName-cne'AssetRipper.GUI.Free'-or$item.VersionInfo.FileVersion-cne'1.3.14.0'){
+        throw 'PreflightConsumerContractFailure: IA01 is not AssetRipper.GUI.Free 1.3.14.0.'
+    }
+    $stream=[IO.File]::Open($item.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try{
+        if($stream.Length-lt68-or$stream.ReadByte()-ne0x4d-or$stream.ReadByte()-ne0x5a){throw 'PreflightConsumerContractFailure: IA01 is not a PE executable.'}
+        $stream.Position=0x3c;$reader=[IO.BinaryReader]::new($stream,[Text.Encoding]::ASCII,$true)
+        try{$peOffset=$reader.ReadInt32()}finally{$reader.Dispose()}
+        if($peOffset-lt64-or$peOffset-gt($stream.Length-4)){throw 'PreflightConsumerContractFailure: IA01 PE header offset is invalid.'}
+        $stream.Position=$peOffset;$signature=New-Object byte[] 4;if($stream.Read($signature,0,4)-ne4-or$signature[0]-ne0x50-or$signature[1]-ne0x45-or$signature[2]-ne0-or$signature[3]-ne0){throw 'PreflightConsumerContractFailure: IA01 PE signature is invalid.'}
+    }finally{$stream.Dispose()}
+}
+
 function Assert-CergP02ImplementationBindings {
     param([object]$Value, [AllowNull()][object]$Readiness)
     $bindingFields=@('artifactId','implementationId','implementationRole','implementationVersion','pathKind','portableTrackedPath','privateAbsoluteLeafPath','implementationByteCount','implementationSha256','runtimePrivateAbsoluteLeafPath','runtimeByteCount','runtimeSha256','orderedArgumentTokens')
     $expected=[ordered]@{
         'LO1-IA01'=[pscustomobject]@{role='AssetRipperExecutable';version='1.3.14.0';pathKind='Private';portablePath=$null}
-        'LO1-IF01'=[pscustomobject]@{role='AssetRipperFolderInvoker';version='CERG-LO1-ASSETRIPPER-FOLDER-INVOKER/1';pathKind='Tracked';portablePath='Tools/AssetImport/Invoke-AssetRipperFolderExport.ps1'}
+        'LO1-IF01'=[pscustomobject]@{role='AssetRipperFolderInvoker';version='CERG-LO1-ASSETRIPPER-FOLDER-INVOKER/2';pathKind='Tracked';portablePath='Tools/AssetImport/Invoke-AssetRipperFolderExport.ps1'}
         'T1V22-TG01'=[pscustomobject]@{role='ExactLeafStagingWrapper';version='CERG-LO1-EXACT-STAGING/3';pathKind='Tracked';portablePath='Tools/AssetImport/Invoke-CergLo1ExactStaging.ps1'}
         'T1V22-TG02'=[pscustomobject]@{role='R01GraphProducer';version='CERG-LO1-R01-PRODUCER/5';pathKind='Tracked';portablePath='Tools/AssetImport/New-CergLo1ResultGraph.ps1'}
     }
@@ -161,7 +177,13 @@ function Assert-CergP02ImplementationBindings {
         $implementationItem=[System.IO.FileInfo]::new($implementationPath);$runtimeItem=[System.IO.FileInfo]::new($runtimePath)
         $implementationSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $implementationPath).Hash.ToLowerInvariant();$runtimeSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $runtimePath).Hash.ToLowerInvariant()
         if([int64]$binding.implementationByteCount-ne[long]$implementationItem.Length-or$binding.implementationSha256-cne$implementationSha-or[int64]$binding.runtimeByteCount-ne[long]$runtimeItem.Length-or$binding.runtimeSha256-cne$runtimeSha){throw 'PreflightConsumerContractFailure: P02 implementation/runtime byte identity differs.'}
-        if($artifactId-ceq'LO1-IA01'-and($implementationPath-cne$runtimePath-or[long]$implementationItem.Length-ne[long]$runtimeItem.Length-or$implementationSha-cne$runtimeSha)){throw 'PreflightConsumerContractFailure: AssetRipper executable must be its own runtime leaf.'}
+        if($artifactId-ceq'LO1-IA01'){
+            if($implementationPath-cne$runtimePath-or[long]$implementationItem.Length-ne[long]$runtimeItem.Length-or$implementationSha-cne$runtimeSha){throw 'PreflightConsumerContractFailure: AssetRipper executable must be its own runtime leaf.'}
+            Assert-CergAssetRipperExecutableIdentity $implementationPath
+        }else{
+            $currentRuntime=Get-CergPreflightAbsolutePath ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) 'current PowerShell executable'
+            if(-not[string]::Equals($runtimePath,$currentRuntime,[StringComparison]::OrdinalIgnoreCase)){throw 'PreflightConsumerContractFailure: tracked P02 runtime is not the current PowerShell executable.'}
+        }
         $expectedId='IMP-'+(Get-CergPreflightStructuredSha256 'cerg-lo1/implementation-id/1' @([string]$binding.implementationRole,[string]$binding.implementationVersion,[int64]$binding.implementationByteCount,[string]$binding.implementationSha256,[int64]$binding.runtimeByteCount,[string]$binding.runtimeSha256,@($binding.orderedArgumentTokens)))
         if($binding.implementationId-cne$expectedId){throw 'PreflightConsumerContractFailure: P02 implementation structured ID differs.'}
         if($null-ne$Readiness-and$rule.pathKind-ceq'Tracked'){
@@ -319,7 +341,7 @@ function New-CergLo1R2OrdinalPreflightObject {
     if($Definition.schemaVersion-cne'cerg-lo-cerg1-preflight-definition/1.2.0'-or$Definition.artifactId-cne'LO-CERG1-P02-DEFINITION'){throw 'PreflightConsumerContractFailure: R2 P02 definition identity invalid.'}
     if($Candidate.schemaVersion-cne'cerg-t1-candidate-lock/2.2.0'-or$Candidate.artifactId-cne'CERG-T1V22-O01'-or$Candidate.status-cne'Passed'){throw 'PreflightConsumerContractFailure: R2 candidate identity invalid.'}
     if($Freshness.schemaVersion-cne'cerg-lo-cerg1-r2-freshness/1.0.0'-or$Freshness.artifactId-cne'LO-CERG1-R2-F01'-or$Freshness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 freshness identity invalid.'}
-    if($Readiness.schemaVersion-cne'cerg-r2-aplus-readiness/1.3.0'-or$Readiness.artifactId-cne'R2-TO06'-or$Readiness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 readiness identity invalid.'}
+    if($Readiness.schemaVersion-cne'cerg-r2-aplus-readiness/1.4.0'-or$Readiness.artifactId-cne'R2-TO07'-or$Readiness.status-cne'Green'){throw 'PreflightConsumerContractFailure: R2 readiness identity invalid.'}
     if($Definition.candidateLockSha256-cne$Freshness.candidateLockSha256-or$Definition.candidateContractHeadCommit-cne$Candidate.contractHeadCommit-or$Definition.freshnessContractHeadCommit-cne$Freshness.contractHeadCommit-or$Definition.contractHeadCommit-cne$Readiness.contractHeadCommit){throw 'PreflightConsumerContractFailure: R2 definition HEAD domain is stale or spliced.'}
     foreach($headValue in @($Definition.candidateContractHeadCommit,$Definition.freshnessContractHeadCommit,$Definition.contractHeadCommit)){if([string]$headValue-cnotmatch'^[0-9a-f]{40}$'){throw 'PreflightConsumerContractFailure: R2 HEAD domain must be lowercase 40-hex.'}}
     $freshnessRawSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $FreshnessEvidencePath).Hash.ToLowerInvariant()
