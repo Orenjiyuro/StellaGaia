@@ -10,7 +10,9 @@ param(
     [string]$FreshnessEvidencePath,
     [string]$FirstSourceOpenReceiptPath,
     [string]$AdjacencyFreshnessPath,
-    [string]$ReadinessPath
+    [string]$ReadinessPath,
+    [string]$ReplayPreflightPath,
+    [string]$ReplayConfirmationId
 )
 
 Set-StrictMode -Version Latest
@@ -18,7 +20,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Invoke-CergLo1ExactStaging.ps1')
 
 $script:CergGraphImplementationRole = 'R01GraphProducer'
-$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/6'
+$script:CergGraphImplementationVersion = 'CERG-LO1-R01-PRODUCER/7'
+$script:CergGraphImplementationPath = $PSCommandPath
 $script:CergSubjectKinds = @('CandidateFamilyAnchor','Model','GameObject','Renderer','Mesh','Material','Texture','Shader','Skeleton','Bone','Avatar','Controller','OverrideController','StateMachine','ActionState','AttackAction','Motion','BlendTree','BlendParameter','BlendBranch','ActionClip','AnimationEvent','FXPrefab','FXObject','FXComponent','Weapon','Combo','Timeline','ReferencedObject')
 $script:CergRelationshipKinds = @('AnchorOwnsModel','ModelContainsRenderer','RendererUsesMesh','RendererUsesMaterial','RendererUsesSkeleton','SkeletonContainsBone','AvatarUsesSkeleton','AnchorOwnsActionClip','ActionClipBindsSkeleton','ControllerOwnsStateMachine','StateMachineContainsStateMachine','StateMachineContainsState','StateUsesMotion','BlendTreeUsesParameter','BlendTreeContainsBranch','BlendBranchUsesMotion','MotionUsesClip','OverrideMapsClip','ActionHasAnimationEvent','AttackTriggersFX','FXPrefabContainsObject','FXObjectContainsObject','FXObjectHasComponent','FXComponentReferencesSubject','MaterialUsesTexture','MaterialUsesShader','TimelineUsesAction','WeaponUsesAction','ComboUsesAction','SerializedObjectReference')
 $script:CergEvidenceStates = @('ProvenPresent','ProvenAbsent','EvidenceUnavailableBeforeExtraction','Contradictory')
@@ -104,15 +107,133 @@ function Get-CergR01BudgetSnapshot {
     throw 'Attempt cannot project an R01 budget snapshot.'
 }
 
+function Get-CergReplayOutputSnapshot {
+    param([Parameter(Mandatory = $true)][object[]]$OutputFiles)
+    $rows = @(Get-CergSortedRows @($OutputFiles | ForEach-Object {
+        [pscustomobject][ordered]@{
+            portableRelativePath = [string]$_.portableRelativePath
+            byteCount = [int64]$_.byteCount
+            sha256 = [string]$_.sha256
+        }
+    }) { param($row) $row.portableRelativePath })
+    return [pscustomobject][ordered]@{
+        memberCount = [int64]$rows.Count
+        byteCount = [int64](($rows | Measure-Object byteCount -Sum).Sum)
+        fingerprintDomain = 'cerg-r2/p04-discovery-output-member-set/1'
+        memberSetFingerprint = Get-CergStructuredSha256 'cerg-r2/p04-discovery-output-member-set/1' @($rows)
+    }
+}
+
+function Assert-CergR01ReplayPreflight {
+    param(
+        [Parameter(Mandatory = $true)][object]$Replay,
+        [Parameter(Mandatory = $true)][string]$ReplayPath,
+        [Parameter(Mandatory = $true)][string]$ConfirmationId,
+        [Parameter(Mandatory = $true)][object]$Candidate,
+        [Parameter(Mandatory = $true)][string]$CandidatePath,
+        [Parameter(Mandatory = $true)][string]$PreflightPath,
+        [Parameter(Mandatory = $true)][string]$FreshnessEvidencePath,
+        [Parameter(Mandatory = $true)][string]$ReadinessPath,
+        [Parameter(Mandatory = $true)][string]$AdjacencyFreshnessPath,
+        [Parameter(Mandatory = $true)][string]$AttemptStatePath,
+        [Parameter(Mandatory = $true)][string]$FirstSourceOpenReceiptPath,
+        [Parameter(Mandatory = $true)][string]$StagingInventoryPath,
+        [Parameter(Mandatory = $true)][string]$OutputRoot,
+        [Parameter(Mandatory = $true)][string]$ResultTemporaryPath,
+        [Parameter(Mandatory = $true)][string]$ResultPath
+    )
+
+    Assert-CergExactProperties $Replay @('schemaVersion','artifactId','contractHeadCommit','createdAtUtc','selectedCandidateId','supersededReplayPreflight','upstreamBindings','implementationBinding','discoveryInputSnapshot','resultOutput','confirmationDomain','status','consumableForTG02','nextAction') 'P04 replay preflight'
+    if ($Replay.schemaVersion -cne 'cerg-lo-cerg1-r01-replay-preflight/1.1.0' -or
+        $Replay.artifactId -cne 'LO-CERG1-P04' -or
+        $Replay.selectedCandidateId -cne $Candidate.selectedCandidateId -or
+        $Replay.confirmationDomain -cne 'cerg-r2/p04-confirmation-id/1' -or
+        $Replay.status -cne 'AwaitingExactHumanConfirmation' -or
+        [bool]$Replay.consumableForTG02 -or
+        $Replay.nextAction -cne 'ExactP04Confirmation') {
+        throw 'P04 replay preflight fixed fields are invalid.'
+    }
+    if ([string]$Replay.contractHeadCommit -cnotmatch '^[0-9a-f]{40}$') { throw 'P04 contract HEAD is invalid.' }
+
+    Assert-CergExactProperties $Replay.supersededReplayPreflight @('artifactId','privateAbsolutePath','byteCount','sha256','auditDisposition','consumableForTG02') 'P04 superseded P03'
+    $p03Path = Get-CergFullPath ([string]$Replay.supersededReplayPreflight.privateAbsolutePath)
+    if ($Replay.supersededReplayPreflight.artifactId -cne 'LO-CERG1-P03' -or
+        $Replay.supersededReplayPreflight.auditDisposition -cne 'SupersededHistorical' -or
+        [bool]$Replay.supersededReplayPreflight.consumableForTG02 -or
+        -not [IO.File]::Exists($p03Path) -or
+        [int64]$Replay.supersededReplayPreflight.byteCount -ne [IO.FileInfo]::new($p03Path).Length -or
+        $Replay.supersededReplayPreflight.sha256 -cne (Get-CergSha256Hex $p03Path)) {
+        throw 'P04 superseded P03 identity is invalid.'
+    }
+
+    Assert-CergExactProperties $Replay.implementationBinding @('artifactId','implementationRole','implementationVersion','portableTrackedPath','byteCount','sha256') 'P04 TG02 binding'
+    $implementationPath = Get-CergFullPath $script:CergGraphImplementationPath
+    if ($Replay.implementationBinding.artifactId -cne 'T1V22-TG02' -or
+        $Replay.implementationBinding.implementationRole -cne 'R01GraphProducer' -or
+        $Replay.implementationBinding.implementationVersion -cne $script:CergGraphImplementationVersion -or
+        $Replay.implementationBinding.portableTrackedPath -cne 'Tools/AssetImport/New-CergLo1ResultGraph.ps1' -or
+        [int64]$Replay.implementationBinding.byteCount -ne [IO.FileInfo]::new($implementationPath).Length -or
+        $Replay.implementationBinding.sha256 -cne (Get-CergSha256Hex $implementationPath)) {
+        throw 'P04 TG02 implementation identity is stale or spliced.'
+    }
+
+    $expectedPaths = [ordered]@{
+        'CERG-T1V22-O01' = $CandidatePath
+        'LO-CERG1-P02' = $PreflightPath
+        'LO-CERG1-R2-F01' = $FreshnessEvidencePath
+        'R2-TO07' = $ReadinessPath
+        'LO-CERG1-R2-F02' = $AdjacencyFreshnessPath
+        'LO-CERG1-R2-A01' = $AttemptStatePath
+        'LO-CERG1-R2-H01' = $FirstSourceOpenReceiptPath
+        'LO-CERG1-SI01' = $StagingInventoryPath
+    }
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($row in @($Replay.upstreamBindings)) {
+        Assert-CergExactProperties $row @('artifactId','privateAbsolutePath','byteCount','sha256') 'P04 upstream binding'
+        $id = [string]$row.artifactId
+        if (-not $seen.Add($id) -or -not $expectedPaths.Contains($id)) { throw 'P04 upstream artifact set is invalid.' }
+        $expectedPath = Get-CergFullPath ([string]$expectedPaths[$id])
+        if ((Get-CergFullPath ([string]$row.privateAbsolutePath)) -cne $expectedPath -or
+            -not [IO.File]::Exists($expectedPath) -or
+            [int64]$row.byteCount -ne [IO.FileInfo]::new($expectedPath).Length -or
+            $row.sha256 -cne (Get-CergSha256Hex $expectedPath)) { throw 'P04 upstream identity is stale or spliced.' }
+    }
+    if ($seen.Count -ne $expectedPaths.Count) { throw 'P04 upstream artifact set is incomplete.' }
+
+    Assert-CergExactProperties $Replay.discoveryInputSnapshot @('privateAbsoluteRoot','accessMode','memberCount','byteCount','fingerprintDomain','memberSetFingerprint') 'P04 discovery snapshot'
+    if ((Get-CergFullPath ([string]$Replay.discoveryInputSnapshot.privateAbsoluteRoot)) -cne (Get-CergFullPath $OutputRoot) -or
+        $Replay.discoveryInputSnapshot.accessMode -cne 'ReadOnlyExistingAssetRipperOutput' -or
+        $Replay.discoveryInputSnapshot.fingerprintDomain -cne 'cerg-r2/p04-discovery-output-member-set/1') { throw 'P04 discovery input binding is invalid.' }
+
+    Assert-CergExactProperties $Replay.resultOutput @('portableRoot','privateAbsoluteRoot','temporaryPrivateAbsolutePath','finalPrivateAbsolutePath','mustBeInitiallyAbsent','noOverwrite') 'P04 result output'
+    if ((Get-CergFullPath ([string]$Replay.resultOutput.temporaryPrivateAbsolutePath)) -cne (Get-CergFullPath $ResultTemporaryPath) -or
+        (Get-CergFullPath ([string]$Replay.resultOutput.finalPrivateAbsolutePath)) -cne (Get-CergFullPath $ResultPath) -or
+        -not [bool]$Replay.resultOutput.mustBeInitiallyAbsent -or -not [bool]$Replay.resultOutput.noOverwrite) { throw 'P04 result output binding is invalid.' }
+
+    $expectedConfirmation = 'P04CONF-' + (Get-CergStructuredSha256 'cerg-r2/p04-confirmation-id/1' @(
+        (Get-CergSha256Hex $ReplayPath),
+        [string]$Replay.implementationBinding.sha256,
+        [string]$Replay.discoveryInputSnapshot.memberSetFingerprint,
+        [string]$Replay.resultOutput.portableRoot
+    ))
+    if ($ConfirmationId -cne $expectedConfirmation) { throw 'P04 exact confirmation identity does not recompute.' }
+    return $true
+}
+
 function Assert-CergUpstreamBindings {
-    param([object]$Candidate,[object]$Preflight,[AllowNull()][object]$Freshness,[string]$FreshnessEvidencePath,[AllowNull()][object]$AdjacencyFreshness,[string]$AdjacencyFreshnessPath,[AllowNull()][object]$Readiness,[string]$ReadinessPath,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$AttemptStatePath,[string]$FirstSourceOpenReceiptPath,[string]$StagingInventoryPath,[string]$OutputRoot)
+    param([object]$Candidate,[object]$Preflight,[AllowNull()][object]$Freshness,[string]$FreshnessEvidencePath,[AllowNull()][object]$AdjacencyFreshness,[string]$AdjacencyFreshnessPath,[AllowNull()][object]$Readiness,[string]$ReadinessPath,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$AttemptStatePath,[string]$FirstSourceOpenReceiptPath,[string]$StagingInventoryPath,[string]$OutputRoot,[AllowNull()][object]$ReplayPreflight)
     Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','attackAnchors','sourceMembers','discoveryObligations') 'Candidate lock'
     Assert-CergRequiredProperties $Preflight @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','operation','stagingPlan','status') 'Preflight'
     $isR2Attempt=$Attempt.schemaVersion-ceq'cerg-lo-cerg1-r2-attempt-state/1.0.0'
     if($isR2Attempt){Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','contractHeadCommit','candidateLockSha256','selectedCandidateId','confirmedF01Sha256','confirmedF01CheckRunId','confirmedMemberSetFingerprint','preflightSha256','confirmationId','adjacencyF02Sha256','adjacencyCheckRunId','adjacencyMemberSetFingerprint','adjacencyValidatorFinishedAtUtc','runnerImplementation','runnerInstanceId','processId','maxFirstSourceOpenDelayMilliseconds','LOUsedBeforeFirstSourceOpen','LOUsedAfterFirstSourceOpen','status','sameRunnerOnly','nextAction') 'R2 attempt state'}else{Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'}
     Assert-CergRequiredProperties $Staging @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','selectedCandidateId','memberRows','memberCount','byteCount','memberSetFingerprint','status') 'Staging inventory'
     if ($Candidate.schemaVersion -cne 'cerg-t1-candidate-lock/2.2.0' -or $Candidate.artifactId -cne 'CERG-T1V22-O01' -or $Candidate.status -cne 'Passed') { throw 'Candidate lock schema, artifact ID, or status is invalid.' }
-    $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -Freshness $Freshness -Readiness $Readiness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryPath $StagingInventoryPath
+    if ($isR2Attempt -and $null -ne $ReplayPreflight) {
+        # The P04 validator has already rebound the current TG02 bytes and every immutable upstream.
+        # The remaining checks below independently conserve P02/F01/A01/H01/SI01 identities and tuples.
+    } else {
+        $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -Freshness $Freshness -Readiness $Readiness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryPath $StagingInventoryPath
+    }
     $preflightIdentityValid=($Preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.4.0'-and$Preflight.artifactId-ceq'LO-CERG1-P01')-or($Preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.6.0'-and$Preflight.artifactId-ceq'LO-CERG1-P02')
     if (-not$preflightIdentityValid -or $Preflight.status -cne 'Green' -or ($isR2Attempt -and $Preflight.schemaVersion -cne 'cerg-lo-cerg1-preflight/1.6.0') -or (-not$isR2Attempt -and $Preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.6.0')) { throw 'Preflight schema, artifact ID, or status is invalid.' }
     if ((Get-CergFullPath $OutputRoot) -cne (Get-CergFullPath ([string]$Preflight.stagingPlan.outputPrivateAbsolutePath))) { throw 'ResultGraph output root differs from the v1.4 P01 private output binding.' }
@@ -665,7 +786,9 @@ function New-CergLo1ResultGraph {
         [string]$FreshnessEvidencePath,
         [string]$FirstSourceOpenReceiptPath,
         [string]$AdjacencyFreshnessPath,
-        [string]$ReadinessPath
+        [string]$ReadinessPath,
+        [string]$ReplayPreflightPath,
+        [string]$ReplayConfirmationId
     )
 
     if ([System.IO.File]::Exists($ResultTemporaryPath) -or [System.IO.File]::Exists($ResultPath)) { throw 'R01 temporary/final paths must be initially absent.' }
@@ -676,7 +799,12 @@ function New-CergLo1ResultGraph {
     $staging = Read-CergJsonFile $StagingInventoryPath
     $adjacencyFreshness=if(-not[string]::IsNullOrWhiteSpace($AdjacencyFreshnessPath)){Read-CergJsonFile $AdjacencyFreshnessPath}else{$null}
     $readiness=if(-not[string]::IsNullOrWhiteSpace($ReadinessPath)){Read-CergJsonFile $ReadinessPath}else{$null}
-    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -AdjacencyFreshness $adjacencyFreshness -AdjacencyFreshnessPath $AdjacencyFreshnessPath -Readiness $readiness -ReadinessPath $ReadinessPath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -AttemptStatePath $AttemptStatePath -FirstSourceOpenReceiptPath $FirstSourceOpenReceiptPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
+    $replayPreflight=if(-not[string]::IsNullOrWhiteSpace($ReplayPreflightPath)){Read-CergJsonFile $ReplayPreflightPath}else{$null}
+    if ($null -ne $replayPreflight) {
+        if ($attempt.schemaVersion -cne 'cerg-lo-cerg1-r2-attempt-state/1.0.0' -or [string]::IsNullOrWhiteSpace($ReplayConfirmationId)) { throw 'P04 replay is valid only for a confirmed R2 attempt.' }
+        $null=Assert-CergR01ReplayPreflight -Replay $replayPreflight -ReplayPath $ReplayPreflightPath -ConfirmationId $ReplayConfirmationId -Candidate $candidate -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -FreshnessEvidencePath $FreshnessEvidencePath -ReadinessPath $ReadinessPath -AdjacencyFreshnessPath $AdjacencyFreshnessPath -AttemptStatePath $AttemptStatePath -FirstSourceOpenReceiptPath $FirstSourceOpenReceiptPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot -ResultTemporaryPath $ResultTemporaryPath -ResultPath $ResultPath
+    } elseif (-not[string]::IsNullOrWhiteSpace($ReplayConfirmationId)) { throw 'Replay confirmation requires a P04 replay preflight.' }
+    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -AdjacencyFreshness $adjacencyFreshness -AdjacencyFreshnessPath $AdjacencyFreshnessPath -Readiness $readiness -ReadinessPath $ReadinessPath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -AttemptStatePath $AttemptStatePath -FirstSourceOpenReceiptPath $FirstSourceOpenReceiptPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot -ReplayPreflight $replayPreflight
     $budgetSnapshot = Get-CergR01BudgetSnapshot -Attempt $attempt
 
     $outputFull = Get-CergFullPath $OutputRoot
@@ -686,6 +814,15 @@ function New-CergLo1ResultGraph {
         Assert-CergNoReparsePoint -Leaf $leaf -Root $outputFull -Label 'Output member'
         $relative = (Get-CergFullPath $leaf).Substring($outputFull.TrimEnd('\','/').Length + 1).Replace('\','/')
         $outputFiles.Add([pscustomobject]@{ fullPath = $leaf; portableRelativePath = ConvertTo-CergPortablePath $relative; byteCount = [System.IO.FileInfo]::new($leaf).Length; sha256 = Get-CergSha256Hex $leaf })
+    }
+    if ($null -ne $replayPreflight) {
+        $snapshot=Get-CergReplayOutputSnapshot @($outputFiles)
+        if ([int64]$snapshot.memberCount -ne [int64]$replayPreflight.discoveryInputSnapshot.memberCount -or
+            [int64]$snapshot.byteCount -ne [int64]$replayPreflight.discoveryInputSnapshot.byteCount -or
+            $snapshot.fingerprintDomain -cne $replayPreflight.discoveryInputSnapshot.fingerprintDomain -or
+            $snapshot.memberSetFingerprint -cne $replayPreflight.discoveryInputSnapshot.memberSetFingerprint) {
+            throw 'P04 discovery Output identity drifted before replay.'
+        }
     }
 
     $evidence = [System.Collections.Generic.List[object]]::new(); $evidenceIds = @{}
