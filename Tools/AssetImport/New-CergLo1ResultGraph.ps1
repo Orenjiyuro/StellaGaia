@@ -7,7 +7,8 @@ param(
     [string]$OutputRoot,
     [string]$ResultTemporaryPath,
     [string]$ResultPath,
-    [string]$FreshnessEvidencePath
+    [string]$FreshnessEvidencePath,
+    [string]$FirstSourceOpenReceiptPath
 )
 
 Set-StrictMode -Version Latest
@@ -68,16 +69,26 @@ function Assert-CergRequiredProperties {
 }
 
 function Assert-CergUpstreamBindings {
-    param([object]$Candidate,[object]$Preflight,[AllowNull()][object]$Freshness,[string]$FreshnessEvidencePath,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$StagingInventoryPath,[string]$OutputRoot)
+    param([object]$Candidate,[object]$Preflight,[AllowNull()][object]$Freshness,[string]$FreshnessEvidencePath,[object]$Attempt,[object]$Staging,[string]$CandidatePath,[string]$PreflightPath,[string]$AttemptStatePath,[string]$FirstSourceOpenReceiptPath,[string]$StagingInventoryPath,[string]$OutputRoot)
     Assert-CergRequiredProperties $Candidate @('schemaVersion','artifactId','contractHeadCommit','selectedCandidateId','status','attackAnchors','sourceMembers','discoveryObligations') 'Candidate lock'
     Assert-CergRequiredProperties $Preflight @('schemaVersion','artifactId','candidateLockSha256','contractHeadCommit','selectedCandidateId','operation','stagingPlan','status') 'Preflight'
-    Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'
+    $isR2Attempt=$Attempt.schemaVersion-ceq'cerg-lo-cerg1-r2-attempt-state/1.0.0'
+    if($isR2Attempt){Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','contractHeadCommit','candidateLockSha256','selectedCandidateId','confirmedF01Sha256','confirmedF01CheckRunId','confirmedMemberSetFingerprint','preflightSha256','confirmationId','adjacencyF02Sha256','adjacencyCheckRunId','adjacencyMemberSetFingerprint','adjacencyValidatorFinishedAtUtc','runnerImplementation','runnerInstanceId','processId','maxFirstSourceOpenDelayMilliseconds','LOUsedBeforeFirstSourceOpen','LOUsedAfterFirstSourceOpen','status','sameRunnerOnly','nextAction') 'R2 attempt state'}else{Assert-CergRequiredProperties $Attempt @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','contractHeadCommit','selectedCandidateId','attemptCount','status') 'Attempt state'}
     Assert-CergRequiredProperties $Staging @('schemaVersion','artifactId','candidateLockSha256','preflightSha256','selectedCandidateId','memberRows','memberCount','byteCount','memberSetFingerprint','status') 'Staging inventory'
     if ($Candidate.schemaVersion -cne 'cerg-t1-candidate-lock/2.2.0' -or $Candidate.artifactId -cne 'CERG-T1V22-O01' -or $Candidate.status -cne 'Passed') { throw 'Candidate lock schema, artifact ID, or status is invalid.' }
     $null=Assert-CergLo1PreflightConsumerContract -Candidate $Candidate -Preflight $Preflight -Freshness $Freshness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryPath $StagingInventoryPath
     if ($Preflight.schemaVersion -notin @('cerg-lo-cerg1-preflight/1.4.0','cerg-lo-cerg1-preflight/1.5.0') -or $Preflight.artifactId -cne 'LO-CERG1-P01' -or $Preflight.status -cne 'Green') { throw 'Preflight schema, artifact ID, or status is invalid.' }
     if ((Get-CergFullPath $OutputRoot) -cne (Get-CergFullPath ([string]$Preflight.stagingPlan.outputPrivateAbsolutePath))) { throw 'ResultGraph output root differs from the v1.4 P01 private output binding.' }
-    if ($Attempt.schemaVersion -cne 'cerg-lo-cerg1-attempt-state/1.1.0' -or $Attempt.artifactId -cne 'LO-CERG1-A01' -or $Attempt.status -cne 'StartedNoResult' -or [int64]$Attempt.attemptCount -ne 1) { throw 'Attempt-state schema, artifact ID, attempt count, or status is invalid.' }
+    if($isR2Attempt){
+        if($Attempt.artifactId-cne'LO-CERG1-R2-A01'-or$Attempt.status-cne'ArmedNoSourceOpen'-or-not[bool]$Attempt.sameRunnerOnly-or[int64]$Attempt.maxFirstSourceOpenDelayMilliseconds-ne10000-or[int64]$Attempt.LOUsedBeforeFirstSourceOpen-ne1-or[int64]$Attempt.LOUsedAfterFirstSourceOpen-ne2-or$Attempt.nextAction-cne'SameRunnerEnterLOWrapperImmediately'){throw'R2 attempt-state fixed fields are invalid.'}
+        if([string]::IsNullOrWhiteSpace($AttemptStatePath)-or[string]::IsNullOrWhiteSpace($FirstSourceOpenReceiptPath)){throw'R2 attempt requires exact A01 and H01 paths.'}
+        $h01=Read-CergJsonFile $FirstSourceOpenReceiptPath
+        Assert-CergExactProperties $h01 @('schemaVersion','artifactId','a01Sha256','runnerImplementationId','runnerInstanceId','processId','sourceMemberId','adjacencyValidatorFinishedAtUtc','firstSourceOpenedAtUtc','elapsedMilliseconds','LOUsedBeforeFirstSourceOpen','LOUsedAfterFirstSourceOpen','status','nextAction') 'R2 first-source-open receipt'
+        if($h01.schemaVersion-cne'cerg-lo-cerg1-r2-first-source-open/1.0.0'-or$h01.artifactId-cne'LO-CERG1-R2-H01'-or$h01.a01Sha256-cne(Get-CergSha256Hex $AttemptStatePath)-or$h01.runnerImplementationId-cne$Attempt.runnerImplementation.implementationId-or$h01.runnerInstanceId-cne$Attempt.runnerInstanceId-or[int64]$h01.processId-ne[int64]$Attempt.processId-or$h01.adjacencyValidatorFinishedAtUtc-cne$Attempt.adjacencyValidatorFinishedAtUtc-or[int64]$h01.elapsedMilliseconds-lt0-or[int64]$h01.elapsedMilliseconds-gt10000-or[int64]$h01.LOUsedBeforeFirstSourceOpen-ne1-or[int64]$h01.LOUsedAfterFirstSourceOpen-ne2-or$h01.status-cne'FirstSourceOpenObserved'-or$h01.nextAction-cne'ContinueOnlySameForegroundLOInvocation'){throw'R2 first-source-open receipt is stale, late, foreign, or non-consumable.'}
+        $f01Hash=Get-CergSha256Hex $FreshnessEvidencePath;$p01Hash=Get-CergSha256Hex $PreflightPath
+        if($Attempt.confirmedF01Sha256-cne$f01Hash-or$Attempt.confirmedF01CheckRunId-cne$Freshness.checkRunId-or$Attempt.confirmedMemberSetFingerprint-cne$Freshness.currentMemberSetFingerprint-or$Attempt.preflightSha256-cne$p01Hash-or$Attempt.adjacencyMemberSetFingerprint-cne$Freshness.currentMemberSetFingerprint){throw'R2 A01 F01/P01/F02 binding is stale or spliced.'}
+        $expectedConfirmation='R2CONF-'+(Get-CergStructuredSha256 'cerg-r2/p01-confirmation-id/1' @($Attempt.contractHeadCommit,$f01Hash,$Freshness.checkRunId,$Freshness.currentMemberSetFingerprint,$p01Hash,$Attempt.runnerImplementation.implementationId));if($Attempt.confirmationId-cne$expectedConfirmation){throw'R2 A01 confirmation identity does not recompute.'}
+    }elseif($Attempt.schemaVersion-cne'cerg-lo-cerg1-attempt-state/1.1.0'-or$Attempt.artifactId-cne'LO-CERG1-A01'-or$Attempt.status-cne'StartedNoResult'-or[int64]$Attempt.attemptCount-ne1){throw'Attempt-state schema, artifact ID, attempt count, or status is invalid.'}
     if ($Staging.schemaVersion -cne 'cerg-lo-cerg1-staging-inventory/1.0.0' -or $Staging.artifactId -cne 'LO-CERG1-SI01' -or $Staging.status -cne 'Complete') { throw 'Staging-inventory schema, artifact ID, or status is invalid.' }
     $candidateHash=Get-CergSha256Hex $CandidatePath;$preflightHash=Get-CergSha256Hex $PreflightPath
     if ($Preflight.candidateLockSha256 -cne $candidateHash -or $Attempt.candidateLockSha256 -cne $candidateHash -or $Staging.candidateLockSha256 -cne $candidateHash) { throw 'Candidate lock freshness binding is stale or spliced.' }
@@ -88,6 +99,7 @@ function Assert-CergUpstreamBindings {
     $candidateIds=@(Get-CergSortedStrings @($candidateRows|ForEach-Object memberId));$planIds=@(Get-CergSortedStrings @($planRows|ForEach-Object sourceMemberRefId));$stagingIds=@(Get-CergSortedStrings @($stagingRows|ForEach-Object sourceMemberRefId));$operationIds=@(Get-CergSortedStrings @($Preflight.operation.inputMemberRefIds))
     $expected=ConvertTo-CergCanonicalJsonValue $candidateIds
     if((ConvertTo-CergCanonicalJsonValue $planIds)-cne$expected -or (ConvertTo-CergCanonicalJsonValue $stagingIds)-cne$expected -or (ConvertTo-CergCanonicalJsonValue $operationIds)-cne$expected){throw 'Upstream SourceMember bijection is stale or spliced.'}
+    if($isR2Attempt-and([string]$h01.sourceMemberId-cne[string]$planRows[0].sourceMemberRefId)){throw'R2 H01 does not identify the first staging-plan source member.'}
     $candidateById=@{};foreach($row in $candidateRows){if($candidateById.ContainsKey([string]$row.memberId)){throw 'Duplicate candidate SourceMember.'};$candidateById[[string]$row.memberId]=$row}
     $planById=@{};foreach($row in $planRows){if($planById.ContainsKey([string]$row.sourceMemberRefId)){throw 'Duplicate plan SourceMember.'};$planById[[string]$row.sourceMemberRefId]=$row}
     foreach($row in $stagingRows){$id=[string]$row.sourceMemberRefId;$member=$candidateById[$id];$plan=$planById[$id];if($null-eq$member-or$null-eq$plan){throw 'Staging row references unknown member.'};if($row.sourceId-cne$member.sourceId-or$row.sourcePortableRelativePath-cne$member.portableRelativePath-or[int64]$row.byteCount-ne[int64]$member.sizeBytes-or$row.sha256-cne$member.sha256-or(ConvertTo-CergCanonicalJsonValue $row)-cne(ConvertTo-CergCanonicalJsonValue $plan)){throw 'Source/plan/staging tuple is stale or spliced.'}}
@@ -609,7 +621,8 @@ function New-CergLo1ResultGraph {
         [Parameter(Mandatory = $true)][string]$OutputRoot,
         [Parameter(Mandatory = $true)][string]$ResultTemporaryPath,
         [Parameter(Mandatory = $true)][string]$ResultPath,
-        [string]$FreshnessEvidencePath
+        [string]$FreshnessEvidencePath,
+        [string]$FirstSourceOpenReceiptPath
     )
 
     if ([System.IO.File]::Exists($ResultTemporaryPath) -or [System.IO.File]::Exists($ResultPath)) { throw 'R01 temporary/final paths must be initially absent.' }
@@ -618,7 +631,7 @@ function New-CergLo1ResultGraph {
     $freshness = if(-not[string]::IsNullOrWhiteSpace($FreshnessEvidencePath)){Read-CergJsonFile $FreshnessEvidencePath}else{$null}
     $attempt = Read-CergJsonFile $AttemptStatePath
     $staging = Read-CergJsonFile $StagingInventoryPath
-    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
+    Assert-CergUpstreamBindings -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -Attempt $attempt -Staging $staging -CandidatePath $CandidateLockPath -PreflightPath $PreflightPath -AttemptStatePath $AttemptStatePath -FirstSourceOpenReceiptPath $FirstSourceOpenReceiptPath -StagingInventoryPath $StagingInventoryPath -OutputRoot $OutputRoot
 
     $outputFull = Get-CergFullPath $OutputRoot
     if (-not [System.IO.Directory]::Exists($outputFull)) { [System.IO.Directory]::CreateDirectory($outputFull) | Out-Null }

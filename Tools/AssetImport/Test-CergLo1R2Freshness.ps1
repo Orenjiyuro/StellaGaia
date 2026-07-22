@@ -37,7 +37,7 @@ function Test-CergR2ValidatorAncestorChain {
 }
 function Invoke-CergLo1R2FreshnessValidator {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][object]$ProducerPacket,[Parameter(Mandatory=$true)][object[]]$SourceRootBindings,[Parameter(Mandatory=$true)][object[]]$FixedCounterexamples,[Parameter(Mandatory=$true)][object[]]$SuccessPathChecks,[Parameter(Mandatory=$true)][object[]]$PostSuccessAttackChecks)
+    param([Parameter(Mandatory=$true)][object]$ProducerPacket,[Parameter(Mandatory=$true)][object[]]$SourceRootBindings,[Parameter(Mandatory=$true)][object[]]$FixedCounterexamples,[Parameter(Mandatory=$true)][object[]]$SuccessPathChecks,[Parameter(Mandatory=$true)][object[]]$PostSuccessAttackChecks,[ValidateSet('F01','F02')][string]$Generation='F01')
     if($ProducerPacket.schemaVersion-cne'cerg-r2-producer-packet/1.0.0'-or@($ProducerPacket.sourceSelectors).Count-ne17){throw'Producer packet schema/count invalid.'}
     $implementation=Get-CergR2ValidatorImplementation;if($implementation.sha256-ceq$ProducerPacket.producerImplementation.sha256-or$implementation.portableRelativePath-ceq$ProducerPacket.producerImplementation.portableRelativePath){throw'Producer and validator are not independent identities.'}
     $roots=Get-CergR2ValidatorRootMap $SourceRootBindings;$rows=[Collections.Generic.List[object]]::new()
@@ -75,15 +75,17 @@ function Invoke-CergLo1R2FreshnessValidator {
         }
         [pscustomobject][ordered]@{claimId=$_;status=$(if($green){'Green'}else{'FailedClosed'});evidenceRefIds=$(if($green){$refs}else{@()})}
     }
-    return [pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-r2-freshness/1.0.0';artifactId='LO-CERG1-R2-F01';contractHeadCommit=$ProducerPacket.contractHeadCommit;candidateLockSha256=$ProducerPacket.candidateLockSha256;checkRunId=$ProducerPacket.checkRunId;producerImplementation=$ProducerPacket.producerImplementation;validatorImplementation=$implementation;startedAtUtc=$ProducerPacket.startedAtUtc;producerFinishedAtUtc=$ProducerPacket.producerFinishedAtUtc;validatorFinishedAtUtc=[DateTimeOffset]::UtcNow.ToString('O');sourceSelectors=@($ProducerPacket.sourceSelectors);producerRows=@($ProducerPacket.producerRows);validatorRows=@($rows);currentMembers=$(if($green){$sorted}else{@()});currentMemberSetFingerprint=$fingerprint;fixedCounterexamples=@($FixedCounterexamples);successPathChecks=@($SuccessPathChecks);postSuccessAttackChecks=@($PostSuccessAttackChecks);greenClaims=@($claims);status=$(if($green){'Green'}else{'FailedClosed'});nextAction=$(if($green){'RequestExactHumanConfirmationForR2'}else{'ReturnToTotalControlAudit_NoLO'})}
+    $schema=$(if($Generation-ceq'F02'){'cerg-lo-cerg1-r2-adjacency-freshness/1.0.0'}else{'cerg-lo-cerg1-r2-freshness/1.0.0'});$artifactId=$(if($Generation-ceq'F02'){'LO-CERG1-R2-F02'}else{'LO-CERG1-R2-F01'});$greenNext=$(if($Generation-ceq'F02'){'SameRunnerInstallA01AndEnterLOWrapperImmediately'}else{'RequestExactHumanConfirmationForR2'})
+    return [pscustomobject][ordered]@{schemaVersion=$schema;artifactId=$artifactId;contractHeadCommit=$ProducerPacket.contractHeadCommit;candidateLockSha256=$ProducerPacket.candidateLockSha256;checkRunId=$ProducerPacket.checkRunId;producerImplementation=$ProducerPacket.producerImplementation;validatorImplementation=$implementation;startedAtUtc=$ProducerPacket.startedAtUtc;producerFinishedAtUtc=$ProducerPacket.producerFinishedAtUtc;validatorFinishedAtUtc=[DateTimeOffset]::UtcNow.ToString('O');sourceSelectors=@($ProducerPacket.sourceSelectors);producerRows=@($ProducerPacket.producerRows);validatorRows=@($rows);currentMembers=$(if($green){$sorted}else{@()});currentMemberSetFingerprint=$fingerprint;fixedCounterexamples=@($FixedCounterexamples);successPathChecks=@($SuccessPathChecks);postSuccessAttackChecks=@($PostSuccessAttackChecks);greenClaims=@($claims);status=$(if($green){'Green'}else{'FailedClosed'});nextAction=$(if($green){$greenNext}else{'ReturnToTotalControlAudit_NoLO'})}
 }
 
 function Assert-CergLo1R2FreshnessArtifact {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][object]$Artifact,[Parameter(Mandatory=$true)][object[]]$SourceRootBindings,[int]$MaxAgeSeconds=300)
+    param([Parameter(Mandatory=$true)][object]$Artifact,[Parameter(Mandatory=$true)][object[]]$SourceRootBindings,[int]$MaxAgeSeconds=300,[ValidateSet('F01','F02')][string]$Generation='F01',[switch]$StructuralOnly)
     $top=@('schemaVersion','artifactId','contractHeadCommit','candidateLockSha256','checkRunId','producerImplementation','validatorImplementation','startedAtUtc','producerFinishedAtUtc','validatorFinishedAtUtc','sourceSelectors','producerRows','validatorRows','currentMembers','currentMemberSetFingerprint','fixedCounterexamples','successPathChecks','postSuccessAttackChecks','greenClaims','status','nextAction')
     if((@($Artifact.PSObject.Properties.Name)-join'|')-cne($top-join'|')){throw'Freshness artifact fields/order invalid.'}
-    if($Artifact.schemaVersion-cne'cerg-lo-cerg1-r2-freshness/1.0.0'-or$Artifact.artifactId-cne'LO-CERG1-R2-F01'-or$Artifact.status-cne'Green'-or$Artifact.nextAction-cne'RequestExactHumanConfirmationForR2'){throw'Freshness artifact fixed state invalid.'}
+    $schema=$(if($Generation-ceq'F02'){'cerg-lo-cerg1-r2-adjacency-freshness/1.0.0'}else{'cerg-lo-cerg1-r2-freshness/1.0.0'});$artifactId=$(if($Generation-ceq'F02'){'LO-CERG1-R2-F02'}else{'LO-CERG1-R2-F01'});$next=$(if($Generation-ceq'F02'){'SameRunnerInstallA01AndEnterLOWrapperImmediately'}else{'RequestExactHumanConfirmationForR2'})
+    if($Artifact.schemaVersion-cne$schema-or$Artifact.artifactId-cne$artifactId-or$Artifact.status-cne'Green'-or$Artifact.nextAction-cne$next){throw'Freshness artifact fixed state invalid.'}
     if($Artifact.producerImplementation.role-cne'Producer'-or$Artifact.validatorImplementation.role-cne'IndependentValidator'-or$Artifact.producerImplementation.sha256-ceq$Artifact.validatorImplementation.sha256-or$Artifact.producerImplementation.portableRelativePath-ceq$Artifact.validatorImplementation.portableRelativePath){throw'Freshness implementation independence invalid.'}
     $finished=[DateTimeOffset]::Parse([string]$Artifact.validatorFinishedAtUtc).ToUniversalTime()
     if(([DateTimeOffset]::UtcNow-$finished).TotalSeconds -gt $MaxAgeSeconds -or $finished -lt [DateTimeOffset]::Parse([string]$Artifact.producerFinishedAtUtc).ToUniversalTime()){throw'Freshness run is stale or time order invalid.'}
@@ -102,7 +104,17 @@ function Assert-CergLo1R2FreshnessArtifact {
     $expectedClaims=@('All17LeavesExist','All17LeavesRegular','All17LeavesNonReparse','All17SizesObserved','All17HashesObserved','ProducerValidatorAgree','FreshnessRunComplete','ConstructorConsumerSchemaExact','CounterexamplesPassed','PostSuccessAttackPassed')
     if((@($Artifact.greenClaims|ForEach-Object claimId)-join'|')-cne($expectedClaims-join'|')){throw'Green claim identities invalid.'}
     foreach($claim in @($Artifact.greenClaims)){if($claim.status -cne 'Green' -or @($claim.evidenceRefIds).Count -lt 2){throw'Green claim lacks direct evidence.'};foreach($id in @($claim.evidenceRefIds)){if(-not $validIds.Contains([string]$id)){throw'Green claim evidence does not resolve.'}}}
-    $roots=Get-CergR2ValidatorRootMap $SourceRootBindings;$members=[object[]]@($Artifact.currentMembers)
+    $members=[object[]]@($Artifact.currentMembers)
+    foreach($member in $members){
+        if(-not$selectorById.ContainsKey([string]$member.selectorId)){throw'Current member selector reference missing.'};$selector=$selectorById[[string]$member.selectorId]
+        if($member.sourceId-cne$selector.sourceId-or$member.portableRelativePath-cne$selector.portableRelativePath){throw'Current member selector tuple differs.'}
+        $mid='R2M-'+(Get-CergR2ValidatorSha 'cerg-r2/current-member-id/1' @($member.sourceId,$member.portableRelativePath,[int64]$member.byteCount,$member.sha256));if($member.memberId-cne$mid){throw'Current member ID invalid.'}
+    }
+    if($StructuralOnly){
+        $sorted=[object[]]@($members);[Array]::Sort($sorted,[Collections.Generic.Comparer[object]]::Create([System.Comparison[object]]{param($a,$b)[string]::CompareOrdinal([string]$a.memberId,[string]$b.memberId)}))
+        if($Artifact.currentMemberSetFingerprint-cne(Get-CergR2ValidatorSha 'cerg-r2/current-source-member-set/1' @($sorted))){throw'Current member-set fingerprint invalid.'};return $true
+    }
+    $roots=Get-CergR2ValidatorRootMap $SourceRootBindings
     foreach($member in $members){
         if(-not$selectorById.ContainsKey([string]$member.selectorId)){throw'Current member selector reference missing.'};$selector=$selectorById[[string]$member.selectorId];if($member.sourceId-cne$selector.sourceId-or$member.portableRelativePath-cne$selector.portableRelativePath){throw'Current member selector tuple differs.'}
         if(-not$roots.ContainsKey([string]$member.sourceId)){throw'Current member source binding missing.'}

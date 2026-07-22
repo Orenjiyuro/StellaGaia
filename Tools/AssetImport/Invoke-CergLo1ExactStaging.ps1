@@ -4,7 +4,8 @@ param(
     [string]$PreflightPath,
     [string]$StagingInventoryTemporaryPath,
     [string]$StagingInventoryPath,
-    [string]$FreshnessEvidencePath
+    [string]$FreshnessEvidencePath,
+    [object]$AtomicHandoffToken
 )
 
 Set-StrictMode -Version Latest
@@ -14,6 +15,7 @@ $script:CergStagingImplementationRole = 'ExactLeafStagingWrapper'
 $script:CergStagingImplementationVersion = 'CERG-LO1-EXACT-STAGING/3'
 $script:CergUtf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:CergOrdinal = [System.StringComparer]::Ordinal
+$script:CergActiveR2HandoffSecret = $null
 . (Join-Path $PSScriptRoot 'New-CergLo1Preflight.ps1')
 
 function ConvertTo-CergPortablePath {
@@ -168,7 +170,9 @@ function Copy-CergLeafWithHash {
         [Parameter(Mandatory = $true)][string]$SourceLeaf,
         [Parameter(Mandatory = $true)][string]$DestinationLeaf,
         [Parameter(Mandatory = $true)][long]$ExpectedBytes,
-        [Parameter(Mandatory = $true)][string]$ExpectedSha256
+        [Parameter(Mandatory = $true)][string]$ExpectedSha256,
+        [object]$AtomicHandoffToken,
+        [string]$SourceMemberId
     )
 
     if ([System.IO.Directory]::Exists($SourceLeaf) -or -not [System.IO.File]::Exists($SourceLeaf)) {
@@ -181,6 +185,9 @@ function Copy-CergLeafWithHash {
 
     $source = [System.IO.File]::Open($SourceLeaf, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
     try {
+        if ($null -ne $AtomicHandoffToken) {
+            Complete-CergR2AtomicFirstSourceOpen -Token $AtomicHandoffToken -SourceMemberId $SourceMemberId
+        }
         $destination = [System.IO.File]::Open($DestinationLeaf, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
         try {
             $sha = [System.Security.Cryptography.SHA256]::Create()
@@ -211,6 +218,37 @@ function Copy-CergLeafWithHash {
     finally { $source.Dispose() }
 }
 
+function New-CergR2AtomicHandoffToken {
+    [CmdletBinding()]
+    param([string]$RunnerInstanceId,[string]$RunnerImplementationId,[string]$AdjacencyValidatorFinishedAtUtc,[string]$A01Path,[string]$A01Sha256,[string]$H01TemporaryPath,[string]$H01Path,[int64]$LOUsedBeforeFirstSourceOpen=1,[int64]$LOUsedAfterFirstSourceOpen=2)
+    if($null-ne$script:CergActiveR2HandoffSecret){throw'AtomicHandoffFailure: another handoff token is active.'}
+    if([IO.File]::Exists($H01TemporaryPath)-or[IO.File]::Exists($H01Path)){throw'AtomicHandoffFailure: H01 paths must be initially absent.'}
+    $secret=[object]::new();$script:CergActiveR2HandoffSecret=$secret
+    return [pscustomobject]@{secret=$secret;processId=[int64]$PID;runnerInstanceId=$RunnerInstanceId;runnerImplementationId=$RunnerImplementationId;adjacencyValidatorFinishedAtUtc=$AdjacencyValidatorFinishedAtUtc;a01Path=(Get-CergFullPath $A01Path);a01Sha256=$A01Sha256;h01TemporaryPath=(Get-CergFullPath $H01TemporaryPath);h01Path=(Get-CergFullPath $H01Path);LOUsedBeforeFirstSourceOpen=$LOUsedBeforeFirstSourceOpen;LOUsedAfterFirstSourceOpen=$LOUsedAfterFirstSourceOpen;firstSourceOpenObserved=$false}
+}
+
+function Assert-CergR2AtomicHandoffToken {
+    param([Parameter(Mandatory=$true)][object]$Token,[switch]$AtFirstSourceOpen)
+    if($null-eq$script:CergActiveR2HandoffSecret-or-not[object]::ReferenceEquals($Token.secret,$script:CergActiveR2HandoffSecret)-or[int64]$Token.processId-ne[int64]$PID-or$Token.firstSourceOpenObserved){throw'AtomicHandoffFailure: token is foreign, stale, or consumed.'}
+    if(-not[IO.File]::Exists($Token.a01Path)-or(Get-CergSha256Hex $Token.a01Path)-cne$Token.a01Sha256){throw'AtomicHandoffFailure: A01 identity is missing or changed.'}
+    $finished=[DateTimeOffset]::Parse([string]$Token.adjacencyValidatorFinishedAtUtc).ToUniversalTime();$elapsed=([DateTimeOffset]::UtcNow-$finished).TotalMilliseconds
+    if($elapsed-lt0-or(-not$AtFirstSourceOpen-and$elapsed-gt10000)){throw'AtomicHandoffFailure: F02-to-first-source-open deadline expired.'}
+}
+
+function Complete-CergR2AtomicFirstSourceOpen {
+    param([Parameter(Mandatory=$true)][object]$Token,[Parameter(Mandatory=$true)][string]$SourceMemberId)
+    Assert-CergR2AtomicHandoffToken $Token -AtFirstSourceOpen
+    $opened=[DateTimeOffset]::UtcNow;$finished=[DateTimeOffset]::Parse([string]$Token.adjacencyValidatorFinishedAtUtc).ToUniversalTime();$elapsed=[int64][Math]::Ceiling(($opened-$finished).TotalMilliseconds)
+    if($elapsed-lt0){throw'AtomicHandoffFailure: first source open predates F02 validation.'}
+    $withinDeadline=$elapsed-le10000
+    $receipt=[pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-r2-first-source-open/1.0.0';artifactId='LO-CERG1-R2-H01';a01Sha256=$Token.a01Sha256;runnerImplementationId=$Token.runnerImplementationId;runnerInstanceId=$Token.runnerInstanceId;processId=[int64]$PID;sourceMemberId=$SourceMemberId;adjacencyValidatorFinishedAtUtc=$Token.adjacencyValidatorFinishedAtUtc;firstSourceOpenedAtUtc=$opened.ToString('O');elapsedMilliseconds=$elapsed;LOUsedBeforeFirstSourceOpen=[int64]$Token.LOUsedBeforeFirstSourceOpen;LOUsedAfterFirstSourceOpen=[int64]$Token.LOUsedAfterFirstSourceOpen;status=$(if($withinDeadline){'FirstSourceOpenObserved'}else{'FirstSourceOpenAfterDeadline'});nextAction=$(if($withinDeadline){'ContinueOnlySameForegroundLOInvocation'}else{'FailClosedNoReuse'})}
+    $Token.firstSourceOpenObserved=$true;$script:CergActiveR2HandoffSecret=$null
+    $json=ConvertTo-CergCanonicalJsonValue $receipt;[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Token.h01TemporaryPath))|Out-Null;[IO.File]::WriteAllText($Token.h01TemporaryPath,$json,$script:CergUtf8NoBom)
+    if([IO.File]::ReadAllText($Token.h01TemporaryPath,$script:CergUtf8NoBom)-cne$json-or[IO.File]::Exists($Token.h01Path)){throw'AtomicHandoffFailure: H01 atomic publication precondition failed.'}
+    [IO.File]::Move($Token.h01TemporaryPath,$Token.h01Path)
+    if(-not$withinDeadline){throw'AtomicHandoffFailure: first source open missed the 10-second deadline; LO is consumed and this A01 cannot be reused.'}
+}
+
 function Invoke-CergLo1ExactStaging {
     [CmdletBinding()]
     param(
@@ -218,7 +256,8 @@ function Invoke-CergLo1ExactStaging {
         [Parameter(Mandatory = $true)][string]$PreflightPath,
         [Parameter(Mandatory = $true)][string]$StagingInventoryTemporaryPath,
         [Parameter(Mandatory = $true)][string]$StagingInventoryPath,
-        [string]$FreshnessEvidencePath
+        [string]$FreshnessEvidencePath,
+        [object]$AtomicHandoffToken
     )
 
     if ([System.IO.File]::Exists($StagingInventoryTemporaryPath) -or [System.IO.File]::Exists($StagingInventoryPath)) {
@@ -231,6 +270,10 @@ function Invoke-CergLo1ExactStaging {
     $null = Assert-CergLo1PreflightConsumerContract -Candidate $candidate -Preflight $preflight -Freshness $freshness -FreshnessEvidencePath $FreshnessEvidencePath -StagingInventoryTemporaryPath $StagingInventoryTemporaryPath -StagingInventoryPath $StagingInventoryPath
     if ($candidate.status -cne 'Passed' -or $preflight.status -cne 'Green') { throw 'Candidate lock and preflight must be consumable.' }
     if ($candidate.selectedCandidateId -cne $preflight.selectedCandidateId) { throw 'Candidate identity mismatch.' }
+    if($preflight.schemaVersion-ceq'cerg-lo-cerg1-preflight/1.5.0'){
+        if($null-eq$AtomicHandoffToken){throw'AtomicHandoffFailure: P01 v1.5 is consumable only by the same foreground A+ runner.'}
+        Assert-CergR2AtomicHandoffToken $AtomicHandoffToken
+    }
 
     $sourceMembers = if($preflight.schemaVersion -ceq 'cerg-lo-cerg1-preflight/1.5.0'){@($freshness.currentMembers|ForEach-Object{[pscustomobject]@{memberId=$_.memberId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath;sizeBytes=[int64]$_.byteCount;sha256=$_.sha256}})}else{@($candidate.sourceMembers)}
     $rootBindings = @($preflight.sourceRootBindings)
@@ -292,7 +335,8 @@ function Invoke-CergLo1ExactStaging {
         $stagingLeaf = Get-CergFullPath ([System.IO.Path]::Combine($stagingRoot, $stagingRelative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)))
         Assert-CergNoReparsePoint -Leaf $sourceLeaf -Root $rootById[[string]$row.sourceId] -Label 'Source member'
         if (-not (Test-CergPathContained -Leaf $stagingLeaf -Root $stagingRoot)) { throw 'Staging leaf escapes its attempt-owned root.' }
-        $copied = Copy-CergLeafWithHash -SourceLeaf $sourceLeaf -DestinationLeaf $stagingLeaf -ExpectedBytes ([int64]$row.byteCount) -ExpectedSha256 ([string]$row.sha256)
+        $firstOpenToken = if($null-ne$AtomicHandoffToken-and-not$AtomicHandoffToken.firstSourceOpenObserved){$AtomicHandoffToken}else{$null}
+        $copied = Copy-CergLeafWithHash -SourceLeaf $sourceLeaf -DestinationLeaf $stagingLeaf -ExpectedBytes ([int64]$row.byteCount) -ExpectedSha256 ([string]$row.sha256) -AtomicHandoffToken $firstOpenToken -SourceMemberId $memberId
         $inventoryRows.Add([pscustomobject][ordered]@{
             sourceMemberRefId = $memberId
             sourceId = [string]$row.sourceId
@@ -302,6 +346,7 @@ function Invoke-CergLo1ExactStaging {
             sha256 = [string]$copied.sha256
         })
     }
+    if($null-ne$AtomicHandoffToken-and-not$AtomicHandoffToken.firstSourceOpenObserved){throw'AtomicHandoffFailure: staging completed without an observed first source open.'}
 
     $actualLeaves = @([System.IO.Directory]::EnumerateFiles($stagingRoot, '*', [System.IO.SearchOption]::AllDirectories) | ForEach-Object {
         $full = Get-CergFullPath $_

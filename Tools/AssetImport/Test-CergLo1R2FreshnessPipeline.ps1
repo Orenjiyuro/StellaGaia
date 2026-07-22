@@ -98,10 +98,13 @@ try{
     Add-R2Result $ids[12] {if($validArtifact.status-cne'Green'-or@($validArtifact.currentMembers).Count-ne17){throw'Independent validator not Green.'}}
     Add-R2Result $ids[13] {
         $inventoryTemp=$r2Preflight.stagingPlan.stagingInventoryTemporaryPrivateAbsolutePath;$inventory=$r2Preflight.stagingPlan.stagingInventoryPrivateAbsolutePath
-        $result=Invoke-CergLo1ExactStaging -CandidateLockPath $candidatePath -PreflightPath $preflightPath -FreshnessEvidencePath $freshPath -StagingInventoryTemporaryPath $inventoryTemp -StagingInventoryPath $inventory
+        [IO.Directory]::CreateDirectory($attemptRoot)|Out-Null
+        $a01Path=Join-Path $attemptRoot 'attempt-state.json';[IO.File]::WriteAllText($a01Path,'{}',[Text.UTF8Encoding]::new($false));$a01Sha=Get-CergSha256Hex $a01Path;$h01Temp=Join-Path $attemptRoot 'first-source-open.json.tmp';$h01=Join-Path $attemptRoot 'first-source-open.json'
+        $token=New-CergR2AtomicHandoffToken -RunnerInstanceId 'R2INST-fixture' -RunnerImplementationId 'R2RUNNER-fixture' -AdjacencyValidatorFinishedAtUtc ([DateTimeOffset]::UtcNow.ToString('O')) -A01Path $a01Path -A01Sha256 $a01Sha -H01TemporaryPath $h01Temp -H01Path $h01
+        $result=Invoke-CergLo1ExactStaging -CandidateLockPath $candidatePath -PreflightPath $preflightPath -FreshnessEvidencePath $freshPath -StagingInventoryTemporaryPath $inventoryTemp -StagingInventoryPath $inventory -AtomicHandoffToken $token
         $attempt=[pscustomobject][ordered]@{schemaVersion='cerg-lo-cerg1-attempt-state/1.1.0';artifactId='LO-CERG1-A01';candidateLockSha256=$lockSha;preflightSha256=(Get-CergR2ValidatorFileHash $preflightPath);contractHeadCommit=$head;selectedCandidateId='char_14401';attemptCount=1;status='StartedNoResult'}
         $null=Assert-CergUpstreamBindings -Candidate $candidate -Preflight $r2Preflight -Freshness $validArtifact -FreshnessEvidencePath $freshPath -Attempt $attempt -Staging $result -CandidatePath $candidatePath -PreflightPath $preflightPath -StagingInventoryPath $inventory -OutputRoot $r2Preflight.stagingPlan.outputPrivateAbsolutePath
-        if($result.status-cne'Complete'-or$result.memberCount-ne17-or-not(Assert-CergLo1R2FreshnessArtifact $validArtifact $bindings)){throw'Production staging/result-graph consumers rejected valid R2 chain.'}
+        if($result.status-cne'Complete'-or$result.memberCount-ne17-or-not[IO.File]::Exists($h01)-or-not(Assert-CergLo1R2FreshnessArtifact $validArtifact $bindings)){throw'Production staging/result-graph consumers rejected valid R2 chain.'}
     }
     Add-R2Result $ids[14] {$x=Copy-R2Object $validArtifact;$x.sourceSelectors[0].portableRelativePath='leaf/mutated.bin';Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
     Add-R2Result $ids[15] {$x=Copy-R2Object $validArtifact;$x.currentMembers[0].byteCount=[int64]$x.currentMembers[0].byteCount+1;Test-R2Throws {Assert-CergLo1R2FreshnessArtifact $x $bindings}}
