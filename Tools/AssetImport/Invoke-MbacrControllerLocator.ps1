@@ -88,6 +88,49 @@ function Install-MbacrLocatorAttempt {
     return [pscustomobject]@{Path=$full;ByteCount=[int64]$reopen.Length;Sha256=(Get-MbacrProducerFileHash $full)}
 }
 
+function Assert-MbacrProducerLimits {
+    param([object]$Limits)
+    $expected=[pscustomobject][ordered]@{maxFilesRead=2;maxBytesRead=[int64]33554432;maxDurationSeconds=600;maxResultRows=32;maxChildProcesses=0}
+    if(-not(Test-MbacrProducerExactObject $Limits $expected)){throw 'Producer locator limits do not equal the fixed contract.'}
+}
+
+function Install-MbacrProducerCanonicalArtifact {
+    param([object]$Artifact,[string]$FinalPath)
+    $full=[IO.Path]::GetFullPath($FinalPath);$temp=$full+'.tmp';[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($full))|Out-Null
+    if([IO.File]::Exists($full)-or[IO.File]::Exists($temp)){throw 'Canonical artifact final or temporary path already exists.'}
+    $bytes=$script:MbacrProducerUtf8.GetBytes((ConvertTo-MbacrProducerCanonicalJson $Artifact));$stream=[IO.File]::Open($temp,'CreateNew','Write','None')
+    try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+    [IO.File]::Move($temp,$full,$false);$reopen=[IO.File]::ReadAllBytes($full);$sha=([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($reopen))).ToLowerInvariant()
+    if($reopen.Length-ne$bytes.Length-or$sha-cne([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))).ToLowerInvariant()){throw 'Canonical artifact reopen identity mismatch.'}
+    $reopened=$script:MbacrProducerUtf8.GetString($reopen)|ConvertFrom-Json -Depth 100 -DateKind String
+    if(-not(Test-MbacrProducerExactObject $reopened $Artifact)){throw 'Canonical artifact reopened object mismatch.'}
+    return [pscustomobject][ordered]@{Path=$full;ByteCount=[int64]$reopen.Length;Sha256=$sha;Object=$reopened}
+}
+
+function Get-MbacrProducerInputArtifactRefs {
+    param([string]$RepositoryRoot,[object[]]$ExpectedRows,[string]$ReadinessPath)
+    if(@($ExpectedRows).Count-ne3){throw 'Exactly three MBACR input artifact references are required.'}
+    $expectedIds=@('MBACR-I01','MBACR-I02','MBACR-TO01');$rows=[Collections.Generic.List[object]]::new()
+    for($i=0;$i-lt$expectedIds.Count;$i++){$row=@($ExpectedRows)[$i];if($row.artifactId-cne$expectedIds[$i]-or(@($row.PSObject.Properties.Name)-join'|')-cne'artifactId|portableRelativePath|byteCount|sha256'){throw 'Input artifact reference shape/order mismatch.'}
+        $leaf=[IO.Path]::GetFullPath((Join-Path $RepositoryRoot ([string]$row.portableRelativePath).Replace('/',[IO.Path]::DirectorySeparatorChar)))
+        if($row.artifactId-ceq'MBACR-TO01'-and$leaf-cne[IO.Path]::GetFullPath($ReadinessPath)){throw 'TO01 input artifact path mismatch.'}
+        if(-not[IO.File]::Exists($leaf)){throw 'Input artifact leaf is absent.'};$info=[IO.FileInfo]::new($leaf);$sha=Get-MbacrProducerFileHash $leaf
+        if([int64]$row.byteCount-ne[int64]$info.Length-or$row.sha256-cne$sha){throw 'Input artifact identity mismatch.'}
+        $rows.Add([pscustomobject][ordered]@{artifactId=$row.artifactId;portableRelativePath=$row.portableRelativePath;byteCount=[int64]$info.Length;sha256=$sha})
+    }
+    return @($rows)
+}
+
+function Assert-MbacrProducerReadiness {
+    param([object]$Readiness,[string]$ReadinessSha256,[object]$ProducerBinding,[object]$ValidatorBinding)
+    $ids=@('MBACR-CE01-FilenameOnly','MBACR-CE02-RawStringOnly','MBACR-CE03-MissingLeaf','MBACR-CE04-AncestorReparse','MBACR-CE05-DuplicateObject','MBACR-CE06-ParserDisagreement','MBACR-CE07-LimitExceeded','MBACR-CE08-MultipleControllersOneSelector','MBACR-CE09-NonCanonicalFailureRejected','MBACR-CE10-LocatorReadWithoutAllowance','MBACR-CE11-WrongRoot','MBACR-CE12-ArgumentTamper','MBACR-CE13-AttemptReuseOrInterruption','MBACR-SP01-ParsedController')
+    if($Readiness.schemaVersion-cne'cerg-mbacr-tooling-readiness/1.0.0'-or$Readiness.artifactId-cne'MBACR-TO01'-or$Readiness.contractHeadCommit-notmatch'^[0-9a-f]{40}$'-or$Readiness.status-cne'Green'-or@($Readiness.failures).Count-ne0-or$Readiness.nextAction-cne'AwaitTotalControlAuditBeforeMBACRT1B'){throw 'TO01 fixed state invalid.'}
+    if($ReadinessSha256-cne(Get-MbacrProducerCanonicalHash $Readiness)){throw 'TO01 canonical SHA mismatch.'}
+    $toolRows=@([pscustomobject][ordered]@{artifactId=$ProducerBinding.artifactId;role=$ProducerBinding.role;portableTrackedPath=$ProducerBinding.portableTrackedPath;implementationVersion=$ProducerBinding.implementationVersion;byteCount=[int64]$ProducerBinding.byteCount;sha256=$ProducerBinding.sha256},[pscustomobject][ordered]@{artifactId=$ValidatorBinding.artifactId;role=$ValidatorBinding.role;portableTrackedPath=$ValidatorBinding.portableTrackedPath;implementationVersion=$ValidatorBinding.implementationVersion;byteCount=[int64]$ValidatorBinding.byteCount;sha256=$ValidatorBinding.sha256})
+    if(-not(Test-MbacrProducerExactObject @($Readiness.toolRows) $toolRows)){throw 'TO01 tool identities do not equal current committed tools.'}
+    if((@($Readiness.testRows|ForEach-Object testId)-join'|')-cne($ids-join'|')-or@($Readiness.testRows|Where-Object status -cne 'Passed').Count-ne0){throw 'TO01 fixed test matrix is not Green.'}
+}
+
 if(-not ('MbacrProducerBinaryParser' -as [type])) {
 Add-Type -TypeDefinition @'
 using System;
@@ -142,14 +185,59 @@ function Assert-MbacrProducerAttempt {
 function Invoke-MbacrControllerLocatorProducer {
     [CmdletBinding()]
     param([Parameter(Mandatory=$true)][object]$Attempt,[Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$AttemptSha256,[Parameter(Mandatory=$true)][object[]]$SelectorRows,[Parameter(Mandatory=$true)][string]$SourceRoot,[Parameter(Mandatory=$true)][string[]]$OrderedArgumentTokens,[Parameter(Mandatory=$true)][object]$Limits)
-    if(@($SelectorRows).Count-ne2-or[int]$Limits.maxFilesRead-ne2-or[int64]$Limits.maxBytesRead-le0-or[int]$Limits.maxChildProcesses-ne0){throw 'Producer locator limits invalid.'}
+    if(@($SelectorRows).Count-ne2){throw 'Producer requires exactly two selectors.'};Assert-MbacrProducerLimits $Limits
     $root=Get-MbacrProducerRootBinding 'pc-install' $SourceRoot;$binding=Get-MbacrProducerBinding $root $OrderedArgumentTokens
     Assert-MbacrProducerAttempt $Attempt $AttemptSha256 $root $binding $SelectorRows
-    $started=[DateTimeOffset]::UtcNow;$total=[int64]0;$results=[Collections.Generic.List[object]]::new();$opens=[Collections.Generic.List[object]]::new()
+    $started=[DateTimeOffset]::UtcNow;$total=[int64]0;$resultCount=0;$results=[Collections.Generic.List[object]]::new();$opens=[Collections.Generic.List[object]]::new()
     for($i=0;$i-lt2;$i++){$selector=$SelectorRows[$i];$leaf=[IO.Path]::GetFullPath((Join-Path $root.privateAbsoluteReadOnlyRoot ([string]$selector.portableRelativePath).Replace('/',[IO.Path]::DirectorySeparatorChar)));$status='InvalidCurrentLeaf';$count=$null;$hash=$null;$controllers=@();$detail=$null
-        if(-not(Test-MbacrProducerAncestorChain $root.privateAbsoluteReadOnlyRoot $leaf)){$detail='AncestorReparse'}elseif(-not[IO.File]::Exists($leaf)){$detail='MissingLeaf'}else{$info=[IO.FileInfo]::new($leaf);if(($info.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){$detail='LeafReparse'}else{$stream=[IO.File]::Open($leaf,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);try{$bytes=New-Object byte[] $stream.Length;$read=0;while($read-lt$bytes.Length){$n=$stream.Read($bytes,$read,$bytes.Length-$read);if($n-le0){throw 'Unexpected EOF'};$read+=$n}}finally{$stream.Dispose()};$count=[int64]$bytes.Length;$total+=$count;if($total-gt[int64]$Limits.maxBytesRead){$detail='BytesReadExceeded'}else{$hash=([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))).ToLowerInvariant();try{$controllers=@([MbacrProducerBinaryParser]::Parse($bytes));$status=$(if($controllers.Count){'Located'}else{'NotLocated'})}catch{$detail='MalformedSerializedContainer'}};$opens.Add([pscustomobject][ordered]@{implementationArtifactId='MBACR-TG01';implementationId=$binding.implementationId;selectorId=$selector.selectorId;sourceId=$selector.sourceId;portableRelativePath=$selector.portableRelativePath;openedAtUtc=[DateTimeOffset]::UtcNow.ToString('O');byteCount=$count;sha256=$hash})}}
+        if(-not(Test-MbacrProducerAncestorChain $root.privateAbsoluteReadOnlyRoot $leaf)){$detail='AncestorReparse'}elseif(-not[IO.File]::Exists($leaf)){$detail='MissingLeaf'}else{$info=[IO.FileInfo]::new($leaf);if(($info.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){$detail='LeafReparse'}else{$stream=[IO.File]::Open($leaf,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);try{$bytes=New-Object byte[] $stream.Length;$read=0;while($read-lt$bytes.Length){$n=$stream.Read($bytes,$read,$bytes.Length-$read);if($n-le0){throw 'Unexpected EOF'};$read+=$n}}finally{$stream.Dispose()};$count=[int64]$bytes.Length;$total+=$count;if($total-gt[int64]$Limits.maxBytesRead){$detail='BytesReadExceeded'}else{$hash=([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))).ToLowerInvariant();try{$controllers=@([MbacrProducerBinaryParser]::Parse($bytes));$prospectiveResultCount=$resultCount+@($controllers).Count;if($prospectiveResultCount-gt[int]$Limits.maxResultRows){$controllers=@();$detail='ResultRowsExceeded'}else{$resultCount=$prospectiveResultCount;$status=$(if($controllers.Count){'Located'}else{'NotLocated'})}}catch{$detail='MalformedSerializedContainer'}};$opens.Add([pscustomobject][ordered]@{implementationArtifactId='MBACR-TG01';implementationId=$binding.implementationId;selectorId=$selector.selectorId;sourceId=$selector.sourceId;portableRelativePath=$selector.portableRelativePath;openedAtUtc=[DateTimeOffset]::UtcNow.ToString('O');byteCount=$count;sha256=$hash})}}
         $results.Add([pscustomobject][ordered]@{selectorId=$selector.selectorId;sourceId=$selector.sourceId;portableRelativePath=$selector.portableRelativePath;currentByteCount=$count;currentSha256=$hash;status=$status;detailCode=$detail;controllers=@($controllers)})
     }
     if(([DateTimeOffset]::UtcNow-$started).TotalSeconds-gt[int]$Limits.maxDurationSeconds){throw 'Producer locator duration exceeded.'}
     return [pscustomobject][ordered]@{schemaVersion='cerg-mbacr-producer-packet/1.0.0';artifactId='MBACR-PRODUCER-PACKET';attemptSha256=$AttemptSha256;rootBinding=$root;producerBinding=$binding;selectorResults=@($results);producerOpenRows=@($opens);status=$(if(@($results|Where-Object status -ceq 'InvalidCurrentLeaf').Count){'FailedClosed'}else{'Complete'})}
+}
+
+function Invoke-MbacrControllerLocatorForegroundRun {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)][string]$RepositoryRoot,
+        [Parameter(Mandatory=$true)][string]$SourceRoot,
+        [Parameter(Mandatory=$true)][object[]]$SelectorRows,
+        [Parameter(Mandatory=$true)][string[]]$ProducerOrderedArgumentTokens,
+        [Parameter(Mandatory=$true)][string[]]$ValidatorOrderedArgumentTokens,
+        [Parameter(Mandatory=$true)][object]$Limits,
+        [Parameter(Mandatory=$true)][object[]]$InputArtifactRefs,
+        [Parameter(Mandatory=$true)][ValidatePattern('^MBACRLOC-[0-9a-f]{64}$')][string]$ExactAuthorizationId,
+        [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExactTo01Sha256,
+        [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExactRootFingerprint,
+        [Parameter(Mandatory=$true)][ValidatePattern('^MBACRIMP-[0-9a-f]{64}$')][string]$ExactProducerImplementationId,
+        [Parameter(Mandatory=$true)][ValidatePattern('^MBACRIMP-[0-9a-f]{64}$')][string]$ExactValidatorImplementationId,
+        [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExactArgumentsFingerprint
+    )
+    $repo=[IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\','/');$recoveryRel='Extracted/CERG/SingleCharacter/Recovery-BaseController';$recovery=Join-Path $repo $recoveryRel
+    $readinessPath=Join-Path $recovery 'tooling-readiness.json';$attemptPath=Join-Path $recovery 'T1/locator-attempt.json';$resultPath=Join-Path $recovery 'T1/controller-location.json'
+    if([IO.File]::Exists($attemptPath)-or[IO.File]::Exists($attemptPath+'.tmp')){throw 'MBACR-A00 final or temporary state already exists; source reads and retries are forbidden.'}
+    if([IO.File]::Exists($resultPath)-or[IO.File]::Exists($resultPath+'.tmp')){throw 'MBACR-L01 final or temporary state already exists.'}
+    Assert-MbacrProducerLimits $Limits;$fixedSelectors=@([pscustomobject][ordered]@{selectorId='MBACR-S01';sourceId='pc-install';portableRelativePath='Persistent_Store/AssetBundles/actor_common.unity3d';ledgerByteCount=[int64]10821270;ledgerSha256='8c485e107b27b5ff6862c79c61ba683eae7c46ed5fdd8afb203e8ff7de6dcf64'},[pscustomobject][ordered]@{selectorId='MBACR-S02';sourceId='pc-install';portableRelativePath='xtlr_Data/StreamingAssets/InstallResource/actor_common.unity3d';ledgerByteCount=[int64]10777435;ledgerSha256='d66c4c505e3e577319dc776f76ac5a471487181b4fa9396e57bc2308639464fb'})
+    if(-not(Test-MbacrProducerExactObject @($SelectorRows) $fixedSelectors)){throw 'Fixed selector tuples mismatch.'}
+    $toolRepositoryRoot=[IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($script:MbacrProducerPath))));$validatorPath=Join-Path $toolRepositoryRoot 'Tools/AssetImport/Test-MbacrControllerLocation.ps1';if(-not[IO.File]::Exists($validatorPath)){throw 'Independent validator tool is absent.'}
+    if(-not(Get-Command Get-MbacrValidatorBinding -ErrorAction SilentlyContinue)){. $validatorPath}
+    if([IO.Path]::GetFullPath($script:MbacrValidatorPath)-cne[IO.Path]::GetFullPath($validatorPath)){throw 'Loaded validator path mismatch.'}
+    $root=Get-MbacrProducerRootBinding 'pc-install' $SourceRoot;$producerBinding=Get-MbacrProducerBinding $root $ProducerOrderedArgumentTokens;$validatorBinding=Get-MbacrValidatorBinding $root $ValidatorOrderedArgumentTokens
+    if($root.rootFingerprint-cne$ExactRootFingerprint-or$producerBinding.implementationId-cne$ExactProducerImplementationId-or$validatorBinding.implementationId-cne$ExactValidatorImplementationId){throw 'Exact root or implementation authorization mismatch.'}
+    $argumentsFingerprint=Get-MbacrProducerStructuredHash 'mbacr/locator-arguments/1' @($ProducerOrderedArgumentTokens,$ValidatorOrderedArgumentTokens);if($argumentsFingerprint-cne$ExactArgumentsFingerprint){throw 'Exact argument authorization mismatch.'}
+    if(-not[IO.File]::Exists($readinessPath)){throw 'MBACR-TO01 is absent.'};$readinessBytes=[IO.File]::ReadAllBytes($readinessPath);$readinessSha=([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($readinessBytes))).ToLowerInvariant();if($readinessSha-cne$ExactTo01Sha256){throw 'Exact TO01 authorization mismatch.'}
+    $readiness=$script:MbacrProducerUtf8.GetString($readinessBytes)|ConvertFrom-Json -Depth 100 -DateKind String;Assert-MbacrProducerReadiness $readiness $readinessSha $producerBinding $validatorBinding
+    $verifiedInputs=Get-MbacrProducerInputArtifactRefs $repo $InputArtifactRefs $readinessPath
+    $auth=[pscustomobject][ordered]@{authorizationId=$ExactAuthorizationId;to01Sha256=$readinessSha;sourceId='pc-install';rootFingerprint=$root.rootFingerprint;producerImplementationId=$producerBinding.implementationId;validatorImplementationId=$validatorBinding.implementationId;orderedArgumentTokensFingerprint=$argumentsFingerprint;selectorIds=@('MBACR-S01','MBACR-S02');maxProducerSourceOpens=2;maxValidatorSourceOpens=2;maxTotalSourceOpens=4;noLO=$true}
+    $calculatedAuthorizationId='MBACRLOC-'+(Get-MbacrProducerStructuredHash 'mbacr/locator-authorization/2' @($auth.to01Sha256,$auth.sourceId,$auth.rootFingerprint,$auth.producerImplementationId,$auth.validatorImplementationId,$auth.orderedArgumentTokensFingerprint,@($auth.selectorIds),2,2,4,$true));if($auth.authorizationId-cne$calculatedAuthorizationId){throw 'Exact locator authorization ID mismatch.'}
+    $plan=@($SelectorRows|ForEach-Object{[pscustomobject][ordered]@{selectorId=$_.selectorId;sourceId=$_.sourceId;portableRelativePath=$_.portableRelativePath}})
+    $attempt=[pscustomobject][ordered]@{schemaVersion='cerg-mbacr-locator-attempt/1.0.0';artifactId='MBACR-A00';contractHeadCommit=$readiness.contractHeadCommit;to01Sha256=$readinessSha;locatorAuthorization=$auth;sourceRootBinding=$root;producerBinding=$producerBinding;validatorBinding=$validatorBinding;selectorPlan=$plan;allowanceUsedBeforeInstall=0;allowanceUsedAfterInstall=1;status='ArmedNoSourceOpen';nextAction='RunExactFourLocatorOpens'}
+    $installedAttempt=Install-MbacrProducerCanonicalArtifact $attempt $attemptPath;$attemptSha=$installedAttempt.Sha256
+    $producerPacket=Invoke-MbacrControllerLocatorProducer -Attempt $installedAttempt.Object -AttemptSha256 $attemptSha -SelectorRows $SelectorRows -SourceRoot $SourceRoot -OrderedArgumentTokens $ProducerOrderedArgumentTokens -Limits $Limits
+    $synthetic=Invoke-MbacrControllerLocatorValidator -Attempt $installedAttempt.Object -AttemptSha256 $attemptSha -ProducerPacket $producerPacket -SelectorRows $SelectorRows -SourceRoot $SourceRoot -OrderedArgumentTokens $ValidatorOrderedArgumentTokens -Limits $Limits
+    $formal=[pscustomobject][ordered]@{schemaVersion='cerg-mbacr-controller-location/1.0.0';artifactId='MBACR-L01';contractHeadCommit=$readiness.contractHeadCommit;inputArtifactRefs=@($verifiedInputs);locatorAttemptRef=[pscustomobject][ordered]@{artifactId='MBACR-A00';portableRelativePath="$recoveryRel/T1/locator-attempt.json";byteCount=[int64]$installedAttempt.ByteCount;sha256=$attemptSha};locatorAuthorization=$synthetic.locatorAuthorization;sourceRootBinding=$synthetic.sourceRootBinding;selectorRows=@($synthetic.selectorRows);locationRows=@($synthetic.locationRows);openRows=@($synthetic.openRows);openCounts=$synthetic.openCounts;partitions=$synthetic.partitions;limits=$synthetic.limits;producerBinding=$synthetic.producerBinding;validatorBinding=$synthetic.validatorBinding;status=$synthetic.status;failures=@($synthetic.failures);nextAction=$synthetic.nextAction}
+    $installedResult=Install-MbacrProducerCanonicalArtifact $formal $resultPath
+    if($installedResult.Object.artifactId-cne'MBACR-L01'-or$installedResult.Object.locatorAttemptRef.sha256-cne$attemptSha-or-not(Test-MbacrProducerExactObject $installedResult.Object $formal)){throw 'Formal MBACR-L01 reopen validation failed.'}
+    return [pscustomobject][ordered]@{artifact=$installedResult.Object;path=$installedResult.Path;byteCount=$installedResult.ByteCount;sha256=$installedResult.Sha256;attemptPath=$installedAttempt.Path;attemptByteCount=$installedAttempt.ByteCount;attemptSha256=$attemptSha}
 }
