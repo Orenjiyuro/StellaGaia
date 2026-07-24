@@ -26,7 +26,7 @@ function Get-DcpLo1Sha256 {
 
 function Get-DcpLo1ProductionContract {
     $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-    $attemptPortableRoot = 'Extracted/DirectCharacterConsumerProof/char_14401/LO-DCP1'
+    $attemptPortableRoot = 'Extracted/DirectCharacterConsumerProof/char_14401/LO-DCP1-A02'
     return [pscustomobject][ordered]@{
         candidateId = 'char_14401'
         sourceId = 'pc-install'

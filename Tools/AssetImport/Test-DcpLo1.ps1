@@ -5,6 +5,12 @@ $runnerPath = Join-Path $PSScriptRoot 'Invoke-DcpLo1.ps1'
 $formalAttemptRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $PSScriptRoot '..\..\Extracted\DirectCharacterConsumerProof\char_14401\LO-DCP1')
 )
+$formalA02Root = [System.IO.Path]::GetFullPath(
+    (Join-Path $PSScriptRoot '..\..\Extracted\DirectCharacterConsumerProof\char_14401\LO-DCP1-A02')
+)
+if (Test-Path -LiteralPath $formalA02Root) {
+    throw 'Formal LO-DCP1-A02 attempt root must not exist before synthetic tests.'
+}
 $formalTerminalPath = Join-Path $formalAttemptRoot 'terminal-result.json'
 $formalTerminalSha256 = 'd7ced8a43b0702a85e3c27f1f229238cd37dc849382c8f61e076c5612758b492'
 if (
@@ -102,7 +108,7 @@ function New-DcpSyntheticFixture {
         [System.Text.UTF8Encoding]::new($false)
     )
     $snapshotItem = Get-Item -LiteralPath $snapshotPath
-    $attemptPortable = 'Extracted/DirectCharacterConsumerProof/char_14401/LO-DCP1'
+    $attemptPortable = 'Extracted/DirectCharacterConsumerProof/char_14401/LO-DCP1-A02'
     $contract = [pscustomobject][ordered]@{
         candidateId = 'char_14401'
         sourceId = 'pc-install'
@@ -646,6 +652,17 @@ try {
         Assert-DcpTest $threw 'Mismatched parent/child relationship was accepted.'
     }
 
+    Add-DcpTestResult 'ProductionA02AttemptContract' {
+        $contract = Get-DcpLo1ProductionContract
+        $expectedRoot = 'Extracted/DirectCharacterConsumerProof/char_14401/LO-DCP1-A02'
+        Assert-DcpTest ($contract.attemptPortableRoot -ceq $expectedRoot) 'Production attempt root is not fixed to LO-DCP1-A02.'
+        Assert-DcpTest ($contract.stagingPortableRoot -ceq "$expectedRoot/Input") 'Production staging path is outside A02.'
+        Assert-DcpTest ($contract.outputPortableRoot -ceq "$expectedRoot/Output") 'Production output path is outside A02.'
+        Assert-DcpTest ($contract.logPortablePath -ceq "$expectedRoot/Logs/assetripper.log") 'Production log path is outside A02.'
+        Assert-DcpTest ($contract.terminalPortablePath -ceq "$expectedRoot/terminal-result.json") 'Production terminal path is outside A02.'
+        Assert-DcpTest (-not (Test-Path -LiteralPath $formalA02Root)) 'Production A02 attempt root exists before authorization.'
+    }
+
     Add-DcpTestResult 'PbI03FullBindingValidation' {
         $fixture = New-DcpSyntheticFixture $testRoot 'pb-i03-binding'
         $binding = New-DcpSyntheticPbBinding -Fixture $fixture -Name 'valid'
@@ -795,6 +812,9 @@ if (
     (Get-FileHash -Algorithm SHA256 -LiteralPath $topologyResultPath).Hash.ToLowerInvariant() -cne $topologyResultSha256
 ) {
     throw 'Synthetic tests changed frozen LO-DCP1 startup topology evidence.'
+}
+if (Test-Path -LiteralPath $formalA02Root) {
+    throw 'Synthetic tests created the formal LO-DCP1-A02 attempt root.'
 }
 
 $failed = @($script:results | Where-Object status -cne 'Passed')
