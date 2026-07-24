@@ -20,7 +20,12 @@ namespace StellaGaia.Editor
         private const int EffectiveBundleCount = 12;
         private const int ScreenshotWidth = 512;
         private const int ScreenshotHeight = 512;
-        private const int ProofLayer = 31;
+        private const int CharacterProofLayer = 30;
+        private const int FxProofLayer = 31;
+        private const int MinimumForegroundPixels = 64;
+        private const int MinimumBrightnessRange = 4;
+        private const int MinimumDistinctColorBins = 2;
+        private const int ForegroundDifferenceSquared = 64;
         private const string NotApplicable = "<not-applicable>";
 
         private static readonly AuthorizedMember[] AuthorizedMembers =
@@ -785,7 +790,66 @@ namespace StellaGaia.Editor
                         ParticleSystem particleSystem = particleSystems[index];
                         particleSystem.useAutoRandomSeed = false;
                         particleSystem.randomSeed = (uint)(1440100 + index);
-                        particleSystem.Simulate(0.1f, true, true, true);
+                        particleSystem.Simulate(1f, true, true, true);
+                    }
+
+                    int liveParticleCount = 0;
+                    foreach (ParticleSystem particleSystem in particleSystems)
+                    {
+                        liveParticleCount += particleSystem.particleCount;
+                    }
+
+                    int activeFxRendererCount = 0;
+                    int validFxMaterialCount = 0;
+                    int supportedFxShaderCount = 0;
+                    int finiteNonZeroFxBoundsCount = 0;
+                    int qualifyingFxRendererCount = 0;
+                    foreach (ParticleSystem particleSystem in particleSystems)
+                    {
+                        int particleCount = particleSystem.particleCount;
+                        if (particleCount <= 0)
+                        {
+                            continue;
+                        }
+                        ParticleSystemRenderer renderer =
+                            particleSystem.GetComponent<ParticleSystemRenderer>();
+                        if (renderer == null)
+                        {
+                            continue;
+                        }
+                        if (!renderer.enabled || !renderer.gameObject.activeInHierarchy)
+                        {
+                            continue;
+                        }
+                        activeFxRendererCount++;
+
+                        bool finiteNonZeroBounds =
+                            IsFinite(renderer.bounds) &&
+                            renderer.bounds.size.sqrMagnitude > 0.00000001f;
+                        if (finiteNonZeroBounds)
+                        {
+                            finiteNonZeroFxBoundsCount++;
+                        }
+
+                        bool hasSupportedMaterial = false;
+                        foreach (Material material in renderer.sharedMaterials)
+                        {
+                            if (material == null)
+                            {
+                                continue;
+                            }
+                            validFxMaterialCount++;
+                            Shader shader = material.shader;
+                            if (shader != null && shader.isSupported)
+                            {
+                                supportedFxShaderCount++;
+                                hasSupportedMaterial = true;
+                            }
+                        }
+                        if (finiteNonZeroBounds && hasSupportedMaterial)
+                        {
+                            qualifyingFxRendererCount++;
+                        }
                     }
 
                     report.battleFxBundle = source.descriptor.relativePath;
@@ -793,7 +857,25 @@ namespace StellaGaia.Editor
                     report.battleFxObject =
                         SanitizePortableText(GetHierarchyPath(instance.transform), null, null);
                     report.particleSystemCount = particleSystems.Length;
+                    report.liveParticleCount = liveParticleCount;
                     report.fxRendererCount = renderers.Length;
+                    report.activeFxRendererCount = activeFxRendererCount;
+                    report.validFxMaterialCount = validFxMaterialCount;
+                    report.supportedFxShaderCount = supportedFxShaderCount;
+                    report.finiteNonZeroFxBoundsCount = finiteNonZeroFxBoundsCount;
+                    report.qualifyingFxRendererCount = qualifyingFxRendererCount;
+                    if (liveParticleCount <= 0)
+                    {
+                        instantiated.Remove(instance);
+                        UnityEngine.Object.DestroyImmediate(instance);
+                        continue;
+                    }
+                    if (qualifyingFxRendererCount <= 0)
+                    {
+                        instantiated.Remove(instance);
+                        UnityEngine.Object.DestroyImmediate(instance);
+                        continue;
+                    }
                     report.battleFxConsumerProofPassed = true;
                     SetContext(
                         report,
@@ -832,10 +914,10 @@ namespace StellaGaia.Editor
             instantiated.Add(lightObject);
             Camera camera = cameraObject.AddComponent<Camera>();
             Light light = lightObject.AddComponent<Light>();
-            SetLayerRecursively(character, ProofLayer);
-            SetLayerRecursively(attackFx, ProofLayer);
-            cameraObject.layer = ProofLayer;
-            lightObject.layer = ProofLayer;
+            SetLayerRecursively(character, CharacterProofLayer);
+            SetLayerRecursively(attackFx, FxProofLayer);
+            cameraObject.layer = CharacterProofLayer;
+            lightObject.layer = CharacterProofLayer;
 
             Bounds bounds = CalculateBounds(character);
             EncapsulateRenderers(attackFx, ref bounds);
@@ -844,7 +926,7 @@ namespace StellaGaia.Editor
             camera.backgroundColor = new Color(0.08f, 0.08f, 0.10f, 1f);
             camera.allowHDR = false;
             camera.allowMSAA = false;
-            camera.cullingMask = 1 << ProofLayer;
+            camera.cullingMask = 0;
             camera.fieldOfView = 30f;
             camera.nearClipPlane = 0.01f;
             camera.farClipPlane = radius * 20f;
@@ -855,7 +937,7 @@ namespace StellaGaia.Editor
             light.type = LightType.Directional;
             light.color = Color.white;
             light.intensity = 1f;
-            light.cullingMask = 1 << ProofLayer;
+            light.cullingMask = 0;
             light.shadows = LightShadows.None;
             light.transform.rotation = Quaternion.Euler(35f, -35f, 0f);
 
@@ -877,15 +959,50 @@ namespace StellaGaia.Editor
                 renderTexture.antiAliasing = 1;
                 renderTexture.Create();
                 camera.targetTexture = renderTexture;
-                camera.Render();
                 RenderTexture.active = renderTexture;
-                pixels.ReadPixels(
-                    new Rect(0, 0, ScreenshotWidth, ScreenshotHeight),
-                    0,
-                    0,
-                    false);
-                pixels.Apply(false, false);
+
+                int characterMask = 1 << CharacterProofLayer;
+                int fxMask = 1 << FxProofLayer;
+                Color32[] baselinePixels =
+                    RenderPixels(camera, light, pixels, 0);
+                Color32[] characterPixels =
+                    RenderPixels(camera, light, pixels, characterMask);
+                Color32[] fxPixels =
+                    RenderPixels(camera, light, pixels, fxMask);
+                Color32[] compositePixels =
+                    RenderPixels(camera, light, pixels, characterMask | fxMask);
+
+                VisibilityMetrics characterVisibility =
+                    AnalyzeVisibility(baselinePixels, characterPixels);
+                VisibilityMetrics fxVisibility =
+                    AnalyzeVisibility(baselinePixels, fxPixels);
+                VisibilityMetrics compositeVisibility =
+                    AnalyzeVisibility(baselinePixels, compositePixels);
+                RequireVisibility("character-only", characterVisibility);
+                RequireVisibility("FX-only", fxVisibility);
+                RequireVisibility("composite", compositeVisibility);
+
+                report.characterForegroundPixelCount =
+                    characterVisibility.foregroundPixelCount;
+                report.characterBrightnessRange =
+                    characterVisibility.brightnessRange;
+                report.characterDistinctColorCount =
+                    characterVisibility.distinctColorCount;
+                report.fxForegroundPixelCount = fxVisibility.foregroundPixelCount;
+                report.fxBrightnessRange = fxVisibility.brightnessRange;
+                report.fxDistinctColorCount = fxVisibility.distinctColorCount;
+                report.compositeForegroundPixelCount =
+                    compositeVisibility.foregroundPixelCount;
+                report.compositeBrightnessRange =
+                    compositeVisibility.brightnessRange;
+                report.compositeDistinctColorCount =
+                    compositeVisibility.distinctColorCount;
+
                 byte[] png = pixels.EncodeToPNG();
+                if (png == null || png.Length == 0)
+                {
+                    throw new InvalidDataException("Composite screenshot PNG is empty.");
+                }
                 WriteBytesCreateNew(outputRoot, ScreenshotFileName, png);
                 report.screenshotRelativePath = ScreenshotFileName;
                 report.screenshotWidth = ScreenshotWidth;
@@ -904,6 +1021,98 @@ namespace StellaGaia.Editor
                 }
                 UnityEngine.Object.DestroyImmediate(pixels);
                 UnityEngine.Object.DestroyImmediate(renderTexture);
+            }
+        }
+
+        private static Color32[] RenderPixels(
+            Camera camera,
+            Light light,
+            Texture2D pixels,
+            int cullingMask)
+        {
+            camera.cullingMask = cullingMask;
+            light.cullingMask = cullingMask;
+            camera.Render();
+            pixels.ReadPixels(
+                new Rect(0, 0, ScreenshotWidth, ScreenshotHeight),
+                0,
+                0,
+                false);
+            pixels.Apply(false, false);
+            return pixels.GetPixels32();
+        }
+
+        private static VisibilityMetrics AnalyzeVisibility(
+            Color32[] baselinePixels,
+            Color32[] renderedPixels)
+        {
+            if (baselinePixels == null ||
+                renderedPixels == null ||
+                baselinePixels.Length != renderedPixels.Length)
+            {
+                throw new InvalidDataException("Visibility pixel accounting mismatch.");
+            }
+
+            int foregroundPixelCount = 0;
+            int minimumBrightness = 255;
+            int maximumBrightness = 0;
+            var distinctColors = new HashSet<int>();
+            for (int index = 0; index < renderedPixels.Length; index++)
+            {
+                Color32 baseline = baselinePixels[index];
+                Color32 rendered = renderedPixels[index];
+                int redDifference = rendered.r - baseline.r;
+                int greenDifference = rendered.g - baseline.g;
+                int blueDifference = rendered.b - baseline.b;
+                int differenceSquared =
+                    (redDifference * redDifference) +
+                    (greenDifference * greenDifference) +
+                    (blueDifference * blueDifference);
+                if (differenceSquared <= ForegroundDifferenceSquared)
+                {
+                    continue;
+                }
+
+                foregroundPixelCount++;
+                int brightness =
+                    ((77 * rendered.r) + (150 * rendered.g) + (29 * rendered.b)) >> 8;
+                minimumBrightness = Math.Min(minimumBrightness, brightness);
+                maximumBrightness = Math.Max(maximumBrightness, brightness);
+                int colorBin =
+                    ((rendered.r >> 4) << 8) |
+                    ((rendered.g >> 4) << 4) |
+                    (rendered.b >> 4);
+                distinctColors.Add(colorBin);
+            }
+
+            return new VisibilityMetrics
+            {
+                foregroundPixelCount = foregroundPixelCount,
+                brightnessRange = foregroundPixelCount == 0
+                    ? 0
+                    : maximumBrightness - minimumBrightness,
+                distinctColorCount = distinctColors.Count
+            };
+        }
+
+        private static void RequireVisibility(
+            string evidenceName,
+            VisibilityMetrics metrics)
+        {
+            if (metrics.foregroundPixelCount < MinimumForegroundPixels)
+            {
+                throw new InvalidDataException(
+                    $"{evidenceName} foreground pixel count is below the fixed threshold.");
+            }
+            if (metrics.brightnessRange < MinimumBrightnessRange)
+            {
+                throw new InvalidDataException(
+                    $"{evidenceName} brightness variation is below the fixed threshold.");
+            }
+            if (metrics.distinctColorCount < MinimumDistinctColorBins)
+            {
+                throw new InvalidDataException(
+                    $"{evidenceName} color variation is below the fixed threshold.");
             }
         }
 
@@ -1110,6 +1319,11 @@ namespace StellaGaia.Editor
         {
             return IsFinite(value.x) && IsFinite(value.y) &&
                    IsFinite(value.z) && IsFinite(value.w);
+        }
+
+        private static bool IsFinite(Bounds value)
+        {
+            return IsFinite(value.center) && IsFinite(value.extents);
         }
 
         private static bool IsFinite(float value)
@@ -1345,6 +1559,13 @@ namespace StellaGaia.Editor
             }
         }
 
+        private sealed class VisibilityMetrics
+        {
+            public int foregroundPixelCount;
+            public int brightnessRange;
+            public int distinctColorCount;
+        }
+
         [Serializable]
         private sealed class TerminalReport
         {
@@ -1385,7 +1606,13 @@ namespace StellaGaia.Editor
             public string battleFxAsset;
             public string battleFxObject;
             public int particleSystemCount;
+            public int liveParticleCount;
             public int fxRendererCount;
+            public int activeFxRendererCount;
+            public int validFxMaterialCount;
+            public int supportedFxShaderCount;
+            public int finiteNonZeroFxBoundsCount;
+            public int qualifyingFxRendererCount;
 
             public bool screenshotProofPassed;
             public string screenshotRelativePath;
@@ -1393,6 +1620,15 @@ namespace StellaGaia.Editor
             public int screenshotHeight;
             public long screenshotByteCount;
             public string screenshotSha256;
+            public int characterForegroundPixelCount;
+            public int characterBrightnessRange;
+            public int characterDistinctColorCount;
+            public int fxForegroundPixelCount;
+            public int fxBrightnessRange;
+            public int fxDistinctColorCount;
+            public int compositeForegroundPixelCount;
+            public int compositeBrightnessRange;
+            public int compositeDistinctColorCount;
 
             public string contextBundle;
             public string contextAsset;

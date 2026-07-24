@@ -124,7 +124,16 @@ $requiredLiterals = [string[]]@(
     'numericChangeMagnitude',
     'float.IsNaN',
     'ParticleSystem',
+    'ParticleSystemRenderer',
+    'particleSystem.particleCount',
+    'particleSystem.GetComponent<ParticleSystemRenderer>()',
+    'liveParticleCount',
     'Renderer',
+    'renderer.enabled',
+    'activeInHierarchy',
+    'shader.isSupported',
+    'qualifyingFxRendererCount',
+    'IsFinite(renderer.bounds)',
     'attackTokens',
     'RenderTexture',
     'Camera',
@@ -132,9 +141,21 @@ $requiredLiterals = [string[]]@(
     'smoke-screenshot.png',
     'ScreenshotWidth = 512',
     'ScreenshotHeight = 512',
-    'ProofLayer = 31',
+    'CharacterProofLayer = 30',
+    'FxProofLayer = 31',
+    'MinimumForegroundPixels',
+    'MinimumBrightnessRange',
+    'MinimumDistinctColorBins',
+    'AnalyzeVisibility',
+    'baselinePixels',
+    'characterForegroundPixelCount',
+    'characterBrightnessRange',
+    'characterDistinctColorCount',
+    'fxForegroundPixelCount',
+    'fxBrightnessRange',
+    'fxDistinctColorCount',
+    'compositeForegroundPixelCount',
     'SetLayerRecursively',
-    'cullingMask = 1 << ProofLayer',
     'useAutoRandomSeed = false',
     'randomSeed',
     'Application.unityVersion',
@@ -211,6 +232,26 @@ Assert-Contract ($source -match 'failureBundle\s*=\s*report\.contextBundle') 'fa
 Assert-Contract ($source -match 'failureAsset\s*=\s*report\.contextAsset') 'failure asset is not captured'
 Assert-Contract ($source -match 'failureObject\s*=\s*report\.contextObject') 'failure object is not captured'
 Assert-Contract ($source -match 'exceptionType\s*=\s*exception\.GetType\(\)\.FullName') 'failure exception type is not captured'
+
+$fxParticleGateIndex = $source.IndexOf('if (liveParticleCount <= 0)', [System.StringComparison]::Ordinal)
+$fxRendererGateIndex = $source.IndexOf('if (qualifyingFxRendererCount <= 0)', [System.StringComparison]::Ordinal)
+$fxPassIndex = $source.IndexOf('report.battleFxConsumerProofPassed = true;', [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $fxParticleGateIndex -ge 0 -and
+    $fxRendererGateIndex -gt $fxParticleGateIndex -and
+    $fxPassIndex -gt $fxRendererGateIndex
+) 'attack FX can pass before live-particle and qualifying-renderer gates'
+
+$characterVisibilityGateIndex = $source.IndexOf('RequireVisibility("character-only"', [System.StringComparison]::Ordinal)
+$fxVisibilityGateIndex = $source.IndexOf('RequireVisibility("FX-only"', [System.StringComparison]::Ordinal)
+$compositeVisibilityGateIndex = $source.IndexOf('RequireVisibility("composite"', [System.StringComparison]::Ordinal)
+$screenshotPassIndex = $source.IndexOf('report.screenshotProofPassed = true;', [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $characterVisibilityGateIndex -ge 0 -and
+    $fxVisibilityGateIndex -gt $characterVisibilityGateIndex -and
+    $compositeVisibilityGateIndex -gt $fxVisibilityGateIndex -and
+    $screenshotPassIndex -gt $compositeVisibilityGateIndex
+) 'screenshot can pass before character-only, FX-only, and composite visibility gates'
 
 $resolveOutputIndex = $source.IndexOf('outputRoot = ResolveOutputRoot();', [System.StringComparison]::Ordinal)
 $separationGateIndex = $source.IndexOf('AssertSeparatedRoots(expectedInputRoot, outputRoot);', [System.StringComparison]::Ordinal)
