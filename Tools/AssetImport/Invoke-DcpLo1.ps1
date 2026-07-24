@@ -60,6 +60,18 @@ function Get-DcpLo1ProductionContract {
         overallTimeoutMilliseconds = [int64]1800000
         maxProcessStartCount = 1
         allowedChildProcessCount = 0
+        allowedChildProcessIdentities = @(
+            [pscustomobject][ordered]@{
+                parentRole = 'AssetRipperTopLevel'
+                executableName = 'conhost.exe'
+                pathAnchor = 'SystemDirectory'
+                relativePath = 'conhost.exe'
+                byteCount = [int64]1007616
+                sha256 = '32e45de7f02912f3907083690043df4abdc4705eea28300719788eaa4a339d0b'
+                productName = 'Microsoft® Windows® Operating System'
+                fileVersion = '10.0.26100.8875 (WinBuild.160101.0800)'
+            }
+        )
     }
 }
 
@@ -653,16 +665,131 @@ function Test-DcpLo1PortFree {
     return $listeners.Count -eq 0
 }
 
-function Get-DcpLo1ChildProcessIds {
+function Get-DcpLo1ChildProcessRecords {
     param([Parameter(Mandatory)][int]$ParentProcessId)
     try {
         return @(
             Get-CimInstance Win32_Process -Filter "ParentProcessId=$ParentProcessId" -ErrorAction Stop |
-                ForEach-Object { [int]$_.ProcessId }
+                ForEach-Object {
+                    [pscustomobject][ordered]@{
+                        processId = [int]$_.ProcessId
+                        parentProcessId = [int]$_.ParentProcessId
+                        executablePath = [string]$_.ExecutablePath
+                    }
+                }
         )
     }
     catch {
         Stop-DcpLo1 'ChildProcessInspectionFailure'
+    }
+}
+
+function Get-DcpLo1ChildProcessIdentity {
+    param(
+        [Parameter(Mandatory)][object]$ChildRecord,
+        [Parameter(Mandatory)][int]$ExpectedParentProcessId,
+        [Parameter(Mandatory)][string]$AssetRipperPath
+    )
+    if (
+        [int]$ChildRecord.parentProcessId -ne $ExpectedParentProcessId -or
+        [string]::IsNullOrWhiteSpace([string]$ChildRecord.executablePath)
+    ) {
+        Stop-DcpLo1 'ChildProcessInspectionFailure'
+    }
+    $executablePath = [System.IO.Path]::GetFullPath([string]$ChildRecord.executablePath)
+    if (
+        -not [System.IO.Path]::IsPathFullyQualified($executablePath) -or
+        $executablePath -match '^[\\/]{2}'
+    ) {
+        Stop-DcpLo1 'ChildProcessInspectionFailure'
+    }
+    Assert-DcpLo1NoReparseChain -AbsolutePath $executablePath -LeafKind File -FailureCode 'ChildProcessInspectionFailure'
+    $anchors = [ordered]@{
+        AssetRipperDirectory = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($AssetRipperPath))
+        SystemDirectory = [Environment]::SystemDirectory
+        WindowsDirectory = [Environment]::GetFolderPath('Windows')
+        ProgramFiles = [Environment]::GetFolderPath('ProgramFiles')
+        ProgramFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+        LocalApplicationData = [Environment]::GetFolderPath('LocalApplicationData')
+    }
+    $pathAnchor = $null
+    $relativePath = $null
+    foreach ($entry in $anchors.GetEnumerator()) {
+        if (
+            -not [string]::IsNullOrWhiteSpace([string]$entry.Value) -and
+            (Test-DcpLo1Contained -Root ([string]$entry.Value) -Leaf $executablePath)
+        ) {
+            $pathAnchor = [string]$entry.Key
+            $relativePath = [System.IO.Path]::GetRelativePath([string]$entry.Value, $executablePath).Replace('\', '/')
+            break
+        }
+    }
+    if ($null -eq $pathAnchor -or [string]::IsNullOrWhiteSpace($relativePath)) {
+        Stop-DcpLo1 'ChildProcessInspectionFailure'
+    }
+    $item = Get-Item -LiteralPath $executablePath -Force
+    return [pscustomobject][ordered]@{
+        processId = [int]$ChildRecord.processId
+        parentProcessId = [int]$ChildRecord.parentProcessId
+        parentRole = 'AssetRipperTopLevel'
+        executableName = [string]$item.Name
+        pathAnchor = $pathAnchor
+        relativePath = $relativePath
+        byteCount = [int64]$item.Length
+        sha256 = Get-DcpLo1Sha256 $item.FullName
+        productName = [string]$item.VersionInfo.ProductName
+        fileVersion = [string]$item.VersionInfo.FileVersion
+    }
+}
+
+function Test-DcpLo1ChildProcessIdentityAllowed {
+    param(
+        [Parameter(Mandatory)][object]$Identity,
+        [Parameter(Mandatory)][object[]]$Whitelist
+    )
+    foreach ($allowed in $Whitelist) {
+        if (
+            $Identity.parentRole -ceq $allowed.parentRole -and
+            $Identity.executableName -ceq $allowed.executableName -and
+            $Identity.pathAnchor -ceq $allowed.pathAnchor -and
+            $Identity.relativePath -ceq $allowed.relativePath -and
+            [int64]$Identity.byteCount -eq [int64]$allowed.byteCount -and
+            $Identity.sha256 -ceq $allowed.sha256 -and
+            $Identity.productName -ceq $allowed.productName -and
+            $Identity.fileVersion -ceq $allowed.fileVersion
+        ) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Update-DcpLo1ChildProcessEvidence {
+    param(
+        [Parameter(Mandatory)][object]$Process,
+        [Parameter(Mandatory)][object]$Context,
+        [Parameter(Mandatory)][System.Collections.Generic.HashSet[int]]$UnauthorizedChildren
+    )
+    foreach ($record in @(Get-DcpLo1ChildProcessRecords -ParentProcessId $Process.Id)) {
+        try {
+            $identity = Get-DcpLo1ChildProcessIdentity `
+                -ChildRecord $record `
+                -ExpectedParentProcessId $Process.Id `
+                -AssetRipperPath $Context.assetRipperPath
+        }
+        catch {
+            if ([string]$_.Exception.Message -ceq 'DCPLO1:ChildProcessInspectionFailure') { throw }
+            Stop-DcpLo1 'ChildProcessInspectionFailure'
+        }
+        if (-not $Context.processFacts.observedChildProcessIds.Add([int]$identity.processId)) {
+            continue
+        }
+        $Context.processFacts.childProcessIdentities.Add($identity)
+        if (-not (Test-DcpLo1ChildProcessIdentityAllowed `
+            -Identity $identity `
+            -Whitelist @($Context.contract.allowedChildProcessIdentities))) {
+            [void]$UnauthorizedChildren.Add([int]$identity.processId)
+        }
     }
 }
 
@@ -688,9 +815,7 @@ function Assert-DcpLo1ProcessBoundary {
         [Parameter(Mandatory)][System.Collections.Generic.HashSet[int]]$UnauthorizedChildren
     )
     if ($Process.HasExited) { Stop-DcpLo1 'AssetRipperExitedUnexpectedly' }
-    foreach ($child in @(Get-DcpLo1ChildProcessIds -ParentProcessId $Process.Id)) {
-        [void]$UnauthorizedChildren.Add($child)
-    }
+    Update-DcpLo1ChildProcessEvidence -Process $Process -Context $Context -UnauthorizedChildren $UnauthorizedChildren
     if ($UnauthorizedChildren.Count -gt [int]$Context.contract.allowedChildProcessCount) {
         Stop-DcpLo1 'UnexpectedChildProcess'
     }
@@ -798,9 +923,7 @@ function Invoke-DcpLo1AssetRipperProcess {
             Assert-DcpLo1Deadline -Clock $Context.clock -StartedAt $Context.operationStartedAt -LimitMilliseconds $Context.contract.overallTimeoutMilliseconds -FailureCode 'OverallTimeout'
             Assert-DcpLo1Deadline -Clock $Context.clock -StartedAt $startupStartedAt -LimitMilliseconds $Context.contract.startupTimeoutMilliseconds -FailureCode 'AssetRipperStartFailure'
             if ($process.HasExited) { Stop-DcpLo1 'AssetRipperStartFailure' }
-            foreach ($child in @(Get-DcpLo1ChildProcessIds -ParentProcessId $process.Id)) {
-                [void]$unauthorizedChildren.Add($child)
-            }
+            Update-DcpLo1ChildProcessEvidence -Process $process -Context $Context -UnauthorizedChildren $unauthorizedChildren
             if ($unauthorizedChildren.Count -gt [int]$Context.contract.allowedChildProcessCount) {
                 Stop-DcpLo1 'UnexpectedChildProcess'
             }
@@ -912,6 +1035,8 @@ function Invoke-DcpLo1Core {
         shutdownAttempted = $false
         shutdownProcessExited = $false
         listenerAbsentAfterShutdown = $false
+        observedChildProcessIds = [System.Collections.Generic.HashSet[int]]::new()
+        childProcessIdentities = [System.Collections.Generic.List[object]]::new()
     }
     $classification = 'UnexpectedFailure'
     $status = 'Failed'
@@ -971,6 +1096,7 @@ function Invoke-DcpLo1Core {
         stagingInventoryIdentity = $stagingInventoryIdentity
         processStartCount = $processFacts.processStartCount
         unauthorizedChildProcessCount = $processFacts.unauthorizedChildProcessCount
+        childProcessIdentities = $processFacts.childProcessIdentities.ToArray()
         sourceContentOpenCount = $metrics.sourceContentOpenCount
         stagedMemberCount = $metrics.stagedMemberCount
         stagedBytes = $metrics.stagedBytes

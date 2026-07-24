@@ -5,8 +5,23 @@ $runnerPath = Join-Path $PSScriptRoot 'Invoke-DcpLo1.ps1'
 $formalAttemptRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $PSScriptRoot '..\..\Extracted\DirectCharacterConsumerProof\char_14401\LO-DCP1')
 )
-if (Test-Path -LiteralPath $formalAttemptRoot) {
-    throw 'Formal LO-DCP1 attempt root must remain absent during synthetic tests.'
+$formalTerminalPath = Join-Path $formalAttemptRoot 'terminal-result.json'
+$formalTerminalSha256 = 'd7ced8a43b0702a85e3c27f1f229238cd37dc849382c8f61e076c5612758b492'
+if (
+    -not (Test-Path -LiteralPath $formalTerminalPath -PathType Leaf) -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $formalTerminalPath).Hash.ToLowerInvariant() -cne $formalTerminalSha256
+) {
+    throw 'Frozen formal LO-DCP1 failure evidence identity is missing or changed.'
+}
+$topologyResultPath = [System.IO.Path]::GetFullPath(
+    (Join-Path $PSScriptRoot '..\..\Extracted\DirectCharacterConsumerProof\char_14401\LO-DCP1-TopologyProbe-01\topology-result.json')
+)
+$topologyResultSha256 = 'ad564d55916722844068a778ebe0e3b0d221b11b2a285e89932ae3df46acf8f6'
+if (
+    -not (Test-Path -LiteralPath $topologyResultPath -PathType Leaf) -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $topologyResultPath).Hash.ToLowerInvariant() -cne $topologyResultSha256
+) {
+    throw 'Frozen LO-DCP1 startup topology evidence identity is missing or changed.'
 }
 
 . $runnerPath
@@ -379,6 +394,19 @@ try {
             $context.processFacts.processStartCount = 1
             $context.processFacts.listenerOwnedDuringRun = $true
             $context.processFacts.unauthorizedChildProcessCount = 1
+            [void]$context.processFacts.observedChildProcessIds.Add(60001)
+            $context.processFacts.childProcessIdentities.Add([pscustomobject][ordered]@{
+                processId = 60001
+                parentProcessId = 60000
+                parentRole = 'AssetRipperTopLevel'
+                executableName = 'unknown.exe'
+                pathAnchor = 'SystemDirectory'
+                relativePath = 'unknown.exe'
+                byteCount = 1L
+                sha256 = ('ab' * 32)
+                productName = 'Synthetic Unknown'
+                fileVersion = '0.0.0.0'
+            })
             $context.processFacts.shutdownAttempted = $true
             $context.processFacts.shutdownProcessExited = $true
             $context.processFacts.listenerAbsentAfterShutdown = $true
@@ -391,6 +419,11 @@ try {
         $result = Invoke-DcpSyntheticCore -Fixture $fixture -ProcessAdapter $adapter
         Assert-DcpTest ($result.classification -ceq 'UnexpectedChildProcess') 'Unauthorized child process was not reported.'
         Assert-DcpTest ($result.processStartCount -eq 1) 'Child-process test did not record one process start.'
+        Assert-DcpTest (
+            @($result.childProcessIdentities).Count -eq 1 -and
+            $result.childProcessIdentities[0].parentProcessId -eq 60000 -and
+            $result.childProcessIdentities[0].sha256 -ceq ('ab' * 32)
+        ) 'Terminal result did not preserve complete unknown child identity evidence.'
     }
 
     Add-DcpTestResult 'OverallTimeout' {
@@ -567,6 +600,52 @@ try {
         Assert-DcpTest (-not (Test-DcpLo1HttpPreservedFailure -Message 'socket closed')) 'Ordinary transport failure was treated as a safety classification.'
     }
 
+    Add-DcpTestResult 'ChildProcessIdentityAndExactWhitelist' {
+        $contract = Get-DcpLo1ProductionContract
+        Assert-DcpTest (@($contract.allowedChildProcessIdentities).Count -eq 1) 'Production whitelist is not frozen to exactly one identity.'
+        $allowed = $contract.allowedChildProcessIdentities[0]
+        Assert-DcpTest (Test-DcpLo1ChildProcessIdentityAllowed -Identity $allowed -Whitelist @($allowed)) 'Exact frozen identity was rejected.'
+        foreach ($propertyName in @(
+            'parentRole',
+            'executableName',
+            'pathAnchor',
+            'relativePath',
+            'byteCount',
+            'sha256',
+            'productName',
+            'fileVersion'
+        )) {
+            $mutated = $allowed.PSObject.Copy()
+            if ($propertyName -ceq 'byteCount') {
+                $mutated.byteCount = [int64]$allowed.byteCount + 1
+            }
+            else {
+                $mutated.$propertyName = ([string]$allowed.$propertyName) + '-unknown'
+            }
+            Assert-DcpTest (-not (Test-DcpLo1ChildProcessIdentityAllowed -Identity $mutated -Whitelist @($allowed))) "Whitelist accepted changed $propertyName."
+        }
+        $pwshPath = (Get-Process -Id $PID).Path
+        $record = [pscustomobject][ordered]@{
+            processId = $PID
+            parentProcessId = 424242
+            executablePath = $pwshPath
+        }
+        $identity = Get-DcpLo1ChildProcessIdentity `
+            -ChildRecord $record `
+            -ExpectedParentProcessId 424242 `
+            -AssetRipperPath $pwshPath
+        Assert-DcpTest ($identity.parentRole -ceq 'AssetRipperTopLevel' -and $identity.sha256 -cmatch '^[0-9a-f]{64}$') 'Complete child identity was not captured.'
+        $threw = $false
+        try {
+            $null = Get-DcpLo1ChildProcessIdentity `
+                -ChildRecord $record `
+                -ExpectedParentProcessId 424243 `
+                -AssetRipperPath $pwshPath
+        }
+        catch { $threw = $_.Exception.Message -ceq 'DCPLO1:ChildProcessInspectionFailure' }
+        Assert-DcpTest $threw 'Mismatched parent/child relationship was accepted.'
+    }
+
     Add-DcpTestResult 'PbI03FullBindingValidation' {
         $fixture = New-DcpSyntheticFixture $testRoot 'pb-i03-binding'
         $binding = New-DcpSyntheticPbBinding -Fixture $fixture -Name 'valid'
@@ -705,8 +784,17 @@ finally {
     }
 }
 
-if (Test-Path -LiteralPath $formalAttemptRoot) {
-    throw 'Synthetic tests created the formal LO-DCP1 attempt root.'
+if (
+    -not (Test-Path -LiteralPath $formalTerminalPath -PathType Leaf) -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $formalTerminalPath).Hash.ToLowerInvariant() -cne $formalTerminalSha256
+) {
+    throw 'Synthetic tests changed frozen formal LO-DCP1 failure evidence.'
+}
+if (
+    -not (Test-Path -LiteralPath $topologyResultPath -PathType Leaf) -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $topologyResultPath).Hash.ToLowerInvariant() -cne $topologyResultSha256
+) {
+    throw 'Synthetic tests changed frozen LO-DCP1 startup topology evidence.'
 }
 
 $failed = @($script:results | Where-Object status -cne 'Passed')
