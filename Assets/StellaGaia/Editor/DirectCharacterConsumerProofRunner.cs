@@ -978,10 +978,6 @@ namespace StellaGaia.Editor
                     AnalyzeVisibility(baselinePixels, fxPixels);
                 VisibilityMetrics compositeVisibility =
                     AnalyzeVisibility(baselinePixels, compositePixels);
-                RequireVisibility("character-only", characterVisibility);
-                RequireVisibility("FX-only", fxVisibility);
-                RequireVisibility("composite", compositeVisibility);
-
                 report.characterForegroundPixelCount =
                     characterVisibility.foregroundPixelCount;
                 report.characterBrightnessRange =
@@ -997,6 +993,10 @@ namespace StellaGaia.Editor
                     compositeVisibility.brightnessRange;
                 report.compositeDistinctColorCount =
                     compositeVisibility.distinctColorCount;
+
+                RequireVisibility("character-only", characterVisibility);
+                RequireVisibility("FX-only", fxVisibility);
+                RequireVisibility("composite", compositeVisibility);
 
                 byte[] png = pixels.EncodeToPNG();
                 if (png == null || png.Length == 0)

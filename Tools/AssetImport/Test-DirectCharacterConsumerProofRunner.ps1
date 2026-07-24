@@ -246,6 +246,24 @@ $characterVisibilityGateIndex = $source.IndexOf('RequireVisibility("character-on
 $fxVisibilityGateIndex = $source.IndexOf('RequireVisibility("FX-only"', [System.StringComparison]::Ordinal)
 $compositeVisibilityGateIndex = $source.IndexOf('RequireVisibility("composite"', [System.StringComparison]::Ordinal)
 $screenshotPassIndex = $source.IndexOf('report.screenshotProofPassed = true;', [System.StringComparison]::Ordinal)
+$visibilityAssignments = [string[]]@(
+    'report.characterForegroundPixelCount =',
+    'report.characterBrightnessRange =',
+    'report.characterDistinctColorCount =',
+    'report.fxForegroundPixelCount =',
+    'report.fxBrightnessRange =',
+    'report.fxDistinctColorCount =',
+    'report.compositeForegroundPixelCount =',
+    'report.compositeBrightnessRange =',
+    'report.compositeDistinctColorCount ='
+)
+foreach ($assignment in $visibilityAssignments) {
+    $assignmentIndex = $source.IndexOf($assignment, [System.StringComparison]::Ordinal)
+    Assert-Contract (
+        $assignmentIndex -ge 0 -and
+        $assignmentIndex -lt $characterVisibilityGateIndex
+    ) "visibility metric assignment occurs after the first gate: $assignment"
+}
 Assert-Contract (
     $characterVisibilityGateIndex -ge 0 -and
     $fxVisibilityGateIndex -gt $characterVisibilityGateIndex -and
