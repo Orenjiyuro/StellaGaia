@@ -9,6 +9,7 @@ namespace StellaGaia.Editor
     public static partial class DirectCharacterConsumerProofRunner
     {
         private const string FullValidationFramesDirectory = "full-validation-frames";
+        private const string FullAnimationLogicalName = "char_14401_animations.unity3d";
         private const float MotionEpsilon = 0.00001f;
         private static readonly float[] SimulationTimes = { 0.10f, 0.25f, 0.50f, 1.00f, 2.00f };
         private static readonly string[] FullFxLogicalNames =
@@ -43,6 +44,15 @@ namespace StellaGaia.Editor
             foreach (LoadedBundle source in bundles)
             {
                 AnimationClip[] clips = source.bundle.LoadAllAssets<AnimationClip>();
+                report.totalAnimationClipCount += clips.Length;
+                if (!string.Equals(source.descriptor.logicalName, FullAnimationLogicalName, StringComparison.Ordinal))
+                {
+                    report.outOfScopeAnimationCount += clips.Length;
+                    continue;
+                }
+                report.animationUniverseBundleCount++;
+                report.animationUniverseBundle = source.descriptor.relativePath;
+                report.inScopeAnimationCount += clips.Length;
                 Array.Sort(clips, CompareAnimationClips);
                 foreach (AnimationClip clip in clips)
                 {
@@ -52,6 +62,16 @@ namespace StellaGaia.Editor
                         clip = clip
                     });
                 }
+            }
+            if (report.animationUniverseBundleCount != 1)
+            {
+                throw new InvalidDataException(
+                    "Expected exactly one effective character animation bundle.");
+            }
+            if (report.totalAnimationClipCount !=
+                report.inScopeAnimationCount + report.outOfScopeAnimationCount)
+            {
+                throw new InvalidDataException("Animation scope partition conservation failed.");
             }
             ordered.Sort(CompareAnimationCandidates);
 
@@ -129,6 +149,12 @@ namespace StellaGaia.Editor
             if (report.eligibleAnimationCount != report.passedAnimationCount + report.failedAnimationCount)
             {
                 throw new InvalidDataException("Animation eligibility conservation failed.");
+            }
+            if (report.discoveredAnimationCount !=
+                report.eligibleAnimationCount + report.ineligibleAnimationCount ||
+                report.discoveredAnimationCount != report.inScopeAnimationCount)
+            {
+                throw new InvalidDataException("In-scope animation partition conservation failed.");
             }
             if (report.eligibleAnimationCount == 0)
             {

@@ -89,6 +89,14 @@ $expectedEffectivePaths = [string[]]@(
 $actualEffectivePaths = [string[]]@($effective.Values | ForEach-Object { $_.relativePath })
 Assert-Contract ($actualEffectivePaths.Count -eq 12) "expected 12 effective bundles, found $($actualEffectivePaths.Count)"
 Assert-Contract (@(Compare-Object -ReferenceObject $expectedEffectivePaths -DifferenceObject $actualEffectivePaths -SyncWindow 0).Count -eq 0) 'effective priority result drifted'
+$effectiveAnimationPaths = @(
+    $actualEffectivePaths |
+        Where-Object { [System.IO.Path]::GetFileName($_) -ceq 'char_14401_animations.unity3d' }
+)
+Assert-Contract (
+    $effectiveAnimationPaths.Count -eq 1 -and
+    $effectiveAnimationPaths[0] -ceq 'Persistent_Store/AssetBundles/char_14401_animations.unity3d'
+) 'full animation universe is not exactly the effective override animation bundle'
 
 $requiredLiterals = [string[]]@(
     'namespace StellaGaia.Editor',
@@ -307,18 +315,79 @@ Assert-Contract ($source.Contains('public static partial class DirectCharacterCo
 Assert-Contract ($fullValidationSource.Contains('public static partial class DirectCharacterConsumerProofRunner', [System.StringComparison]::Ordinal)) 'full validator is not the runner partial'
 
 $runSmokeStart = $source.IndexOf('public static void RunSmoke()', [System.StringComparison]::Ordinal)
-$createReportStart = $source.IndexOf('private static TerminalReport CreateReport()', [System.StringComparison]::Ordinal)
-Assert-Contract ($runSmokeStart -ge 0 -and $createReportStart -gt $runSmokeStart) 'RunSmoke boundary is unavailable'
-$runSmokeBody = $source.Substring($runSmokeStart, $createReportStart - $runSmokeStart)
-foreach ($requiredCall in @('ValidateAllAnimations(', 'ValidateAllVisualEffects(', 'CaptureAttackCombination(')) {
-    Assert-Contract ($runSmokeBody.Contains($requiredCall, [System.StringComparison]::Ordinal)) "RunSmoke is missing full validation call: $requiredCall"
+$runFullStart = $source.IndexOf('public static void RunFullValidation()', [System.StringComparison]::Ordinal)
+$runConsumerProofStart = $source.IndexOf('private static void RunConsumerProof(', [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $runSmokeStart -ge 0 -and
+    $runFullStart -gt $runSmokeStart -and
+    $runConsumerProofStart -gt $runFullStart
+) 'separate smoke/full entry boundaries are unavailable'
+$runSmokeBody = $source.Substring($runSmokeStart, $runFullStart - $runSmokeStart)
+$runFullBody = $source.Substring($runFullStart, $runConsumerProofStart - $runFullStart)
+Assert-Contract (
+    $runSmokeBody.Contains(
+        'RunConsumerProof(ValidationMode.Smoke)',
+        [System.StringComparison]::Ordinal)
+) 'RunSmoke is not frozen to Smoke mode'
+Assert-Contract (
+    $runFullBody.Contains(
+        'RunConsumerProof(ValidationMode.Full)',
+        [System.StringComparison]::Ordinal)
+) 'RunFullValidation is not frozen to Full mode'
+$runConsumerProofBody = $source.Substring($runConsumerProofStart)
+foreach ($requiredCall in @(
+    'SampleBoundAnimation(',
+    'InstantiateAndValidateAttackFx(',
+    'ValidateAllAnimations(',
+    'ValidateAllVisualEffects(',
+    'CaptureAttackCombination('
+)) {
+    Assert-Contract ($runConsumerProofBody.Contains($requiredCall, [System.StringComparison]::Ordinal)) "mode dispatcher is missing validation call: $requiredCall"
 }
-foreach ($obsoleteCall in @('SampleBoundAnimation(', 'InstantiateAndValidateAttackFx(', 'CaptureDeterministicScreenshot(')) {
-    Assert-Contract (-not $runSmokeBody.Contains($obsoleteCall, [System.StringComparison]::Ordinal)) "RunSmoke still calls first-success validation: $obsoleteCall"
+Assert-Contract (
+    $runConsumerProofBody.Contains(
+        'mode == ValidationMode.Full',
+        [System.StringComparison]::Ordinal)
+) 'full validation calls are not protected by an explicit mode gate'
+Assert-Contract (
+    $runConsumerProofBody.Contains(
+        '"AwaitUDCPLO1Audit"',
+        [System.StringComparison]::Ordinal) -and
+    $runConsumerProofBody.Contains(
+        '"AwaitUDCPFinalAudit"',
+        [System.StringComparison]::Ordinal)
+) 'smoke/full nextAction split is absent'
+
+foreach ($characterShaderContract in @(
+    'material.shader',
+    'shader == null',
+    '!shader.isSupported',
+    '"Hidden/InternalErrorShader"',
+    'supportedCharacterShaderCount'
+)) {
+    Assert-Contract ($source.Contains($characterShaderContract, [System.StringComparison]::Ordinal)) "character shader gate missing: $characterShaderContract"
 }
+$nullShaderGateIndex = $source.IndexOf('if (shader == null)', [System.StringComparison]::Ordinal)
+$unsupportedShaderGateIndex = $source.IndexOf('if (!shader.isSupported)', [System.StringComparison]::Ordinal)
+$errorShaderGateIndex = $source.IndexOf('"Hidden/InternalErrorShader"', [System.StringComparison]::Ordinal)
+$supportedShaderCountIndex = $source.IndexOf('supportedCharacterShaderCount++;', [System.StringComparison]::Ordinal)
+$modelPassIndex = $source.IndexOf('report.modelConsumerProofPassed = true;', [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $nullShaderGateIndex -ge 0 -and
+    $unsupportedShaderGateIndex -gt $nullShaderGateIndex -and
+    $errorShaderGateIndex -gt $unsupportedShaderGateIndex -and
+    $supportedShaderCountIndex -gt $errorShaderGateIndex -and
+    $modelPassIndex -gt $supportedShaderCountIndex
+) 'character model can pass before all three Shader counterexample gates'
 
 $t2RequiredLiterals = [string[]]@(
     'LoadAllAssets<AnimationClip>()',
+    'FullAnimationLogicalName',
+    'char_14401_animations.unity3d',
+    'outOfScopeAnimationCount',
+    'totalAnimationClipCount',
+    'inScopeAnimationCount',
+    'animationUniverseBundleCount',
     'AnimationUtility.GetCurveBindings',
     'RestoreBaselinePose',
     'clip.length * 0.25f',
@@ -365,6 +434,50 @@ Assert-Contract ($fullValidationSource -match 'foreach\s*\(\s*GameObject\s+\w+\s
 Assert-Contract ($fullValidationSource -match 'binding\.type\s*==\s*typeof\(Transform\)') 'Transform eligibility is not explicit'
 Assert-Contract ($fullValidationSource -match 'result\.status\s*=\s*"Failed"') 'per-item failures are not retained'
 Assert-Contract ($fullValidationSource -notmatch '(?i)AssetRipper|Process\.Start|Unity\.exe') 'full validator contains a forbidden external runtime'
+Assert-Contract (
+    $fullValidationSource.Contains(
+        'string.Equals(source.descriptor.logicalName, FullAnimationLogicalName, StringComparison.Ordinal)',
+        [System.StringComparison]::Ordinal)
+) 'full animation universe is not bound to the effective animation bundle'
+Assert-Contract (
+    $fullValidationSource.Contains(
+        'report.outOfScopeAnimationCount += clips.Length;',
+        [System.StringComparison]::Ordinal)
+) 'non-animation-bundle clips are not retained as out-of-scope accounting'
+Assert-Contract (
+    $fullValidationSource.Contains(
+        'report.animationUniverseBundleCount != 1',
+        [System.StringComparison]::Ordinal)
+) 'full animation universe does not require exactly one effective bundle'
+Assert-Contract (
+    $fullValidationSource.Contains(
+        'report.inScopeAnimationCount + report.outOfScopeAnimationCount',
+        [System.StringComparison]::Ordinal) -and
+    $fullValidationSource.Contains(
+        'report.eligibleAnimationCount + report.ineligibleAnimationCount',
+        [System.StringComparison]::Ordinal)
+) 'animation scope/eligibility partition conservation is incomplete'
+$animationScopeGateIndex = $fullValidationSource.IndexOf(
+    'if (!string.Equals(source.descriptor.logicalName, FullAnimationLogicalName, StringComparison.Ordinal))',
+    [System.StringComparison]::Ordinal)
+$animationOutOfScopeIndex = $fullValidationSource.IndexOf(
+    'report.outOfScopeAnimationCount += clips.Length;',
+    $animationScopeGateIndex,
+    [System.StringComparison]::Ordinal)
+$animationCandidateAddIndex = $fullValidationSource.IndexOf(
+    'ordered.Add(new AnimationCandidate',
+    $animationScopeGateIndex,
+    [System.StringComparison]::Ordinal)
+$animationUniverseCheckIndex = $fullValidationSource.IndexOf(
+    'report.animationUniverseBundleCount != 1',
+    $animationCandidateAddIndex,
+    [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $animationScopeGateIndex -ge 0 -and
+    $animationOutOfScopeIndex -gt $animationScopeGateIndex -and
+    $animationCandidateAddIndex -gt $animationOutOfScopeIndex -and
+    $animationUniverseCheckIndex -gt $animationCandidateAddIndex
+) 'out-of-scope clips can enter the full character animation candidate universe'
 Assert-Contract (
     ([regex]::Matches($fullValidationSource, 'clip\.length\s*\*\s*0\.(25|50|75)f')).Count -eq 3
 ) 'animation quarter sampling set is incomplete'

@@ -56,7 +56,17 @@ namespace StellaGaia.Editor
 
         public static void RunSmoke()
         {
-            var report = CreateReport();
+            RunConsumerProof(ValidationMode.Smoke);
+        }
+
+        public static void RunFullValidation()
+        {
+            RunConsumerProof(ValidationMode.Full);
+        }
+
+        private static void RunConsumerProof(ValidationMode mode)
+        {
+            var report = CreateReport(mode);
             var loadedBundles = new List<LoadedBundle>();
             var instantiatedObjects = new List<GameObject>();
             string inputRoot = null;
@@ -72,7 +82,10 @@ namespace StellaGaia.Editor
                 AssertSeparatedRoots(expectedInputRoot, outputRoot);
                 PrepareOutputRoot(outputRoot);
                 AssertEvidencePathsAvailable(outputRoot);
-                PrepareFullValidationOutput(outputRoot);
+                if (mode == ValidationMode.Full)
+                {
+                    PrepareFullValidationOutput(outputRoot);
+                }
                 CompleteStage(report);
 
                 report.stage = "InputIdentity";
@@ -102,27 +115,49 @@ namespace StellaGaia.Editor
                     loadedBundles, instantiatedObjects, report);
                 CompleteStage(report);
 
-                report.stage = "FullAnimationValidation";
-                BeginStage(report, report.stage);
-                FullValidationSelection selection = ValidateAllAnimations(
-                    loadedBundles, character, outputRoot, report);
-                CompleteStage(report);
+                if (mode == ValidationMode.Full)
+                {
+                    report.stage = "FullAnimationValidation";
+                    BeginStage(report, report.stage);
+                    FullValidationSelection selection = ValidateAllAnimations(
+                        loadedBundles, character, outputRoot, report);
+                    CompleteStage(report);
 
-                report.stage = "FullFxValidation";
-                BeginStage(report, report.stage);
-                ValidateAllVisualEffects(
-                    loadedBundles, outputRoot, report, selection);
-                CompleteStage(report);
+                    report.stage = "FullFxValidation";
+                    BeginStage(report, report.stage);
+                    ValidateAllVisualEffects(
+                        loadedBundles, outputRoot, report, selection);
+                    CompleteStage(report);
 
-                report.stage = "AttackCombination";
-                BeginStage(report, report.stage);
-                CaptureAttackCombination(
-                    character,
-                    outputRoot,
-                    instantiatedObjects,
-                    report,
-                    selection);
-                CompleteStage(report);
+                    report.stage = "AttackCombination";
+                    BeginStage(report, report.stage);
+                    CaptureAttackCombination(
+                        character,
+                        outputRoot,
+                        instantiatedObjects,
+                        report,
+                        selection);
+                    CompleteStage(report);
+                }
+                else
+                {
+                    report.stage = "AnimationSampling";
+                    BeginStage(report, report.stage);
+                    SampleBoundAnimation(loadedBundles, character, report);
+                    CompleteStage(report);
+
+                    report.stage = "AttackFxInstantiation";
+                    BeginStage(report, report.stage);
+                    GameObject attackFx = InstantiateAndValidateAttackFx(
+                        loadedBundles, character, instantiatedObjects, report);
+                    CompleteStage(report);
+
+                    report.stage = "Screenshot";
+                    BeginStage(report, report.stage);
+                    CaptureDeterministicScreenshot(
+                        character, attackFx, outputRoot, instantiatedObjects, report);
+                    CompleteStage(report);
+                }
 
                 if (!(report.modelConsumerProofPassed &&
                       report.animationConsumerProofPassed &&
@@ -133,7 +168,9 @@ namespace StellaGaia.Editor
                 }
 
                 report.status = "Passed";
-                report.nextAction = "AwaitUDCPFinalAudit";
+                report.nextAction = mode == ValidationMode.Full
+                    ? "AwaitUDCPFinalAudit"
+                    : "AwaitUDCPLO1Audit";
                 exitCode = 0;
             }
             catch (Exception exception)
@@ -148,11 +185,12 @@ namespace StellaGaia.Editor
             }
         }
 
-        private static TerminalReport CreateReport()
+        private static TerminalReport CreateReport(ValidationMode mode)
         {
             return new TerminalReport
             {
                 schemaVersion = "udcp-direct-consumer-terminal/2.0.0",
+                validationMode = mode.ToString(),
                 status = "Running",
                 unityVersion = Application.unityVersion,
                 expectedInputRelativePath = ExpectedInputRelativePath,
@@ -172,7 +210,9 @@ namespace StellaGaia.Editor
                 exitCode = 1,
                 animationResults = new List<AnimationValidationResult>(),
                 fxResults = new List<FxValidationResult>(),
-                nextAction = "AwaitUDCPFinalAudit"
+                nextAction = mode == ValidationMode.Full
+                    ? "AwaitUDCPFinalAudit"
+                    : "AwaitUDCPLO1Audit"
             };
         }
 
@@ -521,6 +561,7 @@ namespace StellaGaia.Editor
             int rootBoneCount = 0;
             int boneCount = 0;
             int materialCount = 0;
+            int supportedCharacterShaderCount = 0;
             foreach (SkinnedMeshRenderer renderer in renderers)
             {
                 SetContext(
@@ -567,6 +608,25 @@ namespace StellaGaia.Editor
                         throw new InvalidDataException("SkinnedMeshRenderer contains a null Material.");
                     }
                     materialCount++;
+                    Shader shader = material.shader;
+                    if (shader == null)
+                    {
+                        throw new InvalidDataException("Character Material shader is null.");
+                    }
+                    if (!shader.isSupported)
+                    {
+                        throw new InvalidDataException(
+                            $"Character Material shader is unsupported: {shader.name}.");
+                    }
+                    if (string.Equals(
+                            shader.name,
+                            "Hidden/InternalErrorShader",
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            "Character Material uses Hidden/InternalErrorShader.");
+                    }
+                    supportedCharacterShaderCount++;
                     foreach (string propertyName in material.GetTexturePropertyNames())
                     {
                         Texture texture = material.GetTexture(propertyName);
@@ -590,7 +650,13 @@ namespace StellaGaia.Editor
             report.rootBoneCount = rootBoneCount;
             report.boneCount = boneCount;
             report.materialCount = materialCount;
+            report.supportedCharacterShaderCount = supportedCharacterShaderCount;
             report.textureCount = textureIds.Count;
+            if (supportedCharacterShaderCount != materialCount)
+            {
+                throw new InvalidDataException(
+                    "Character Material/Shader conservation failed.");
+            }
             report.modelConsumerProofPassed = true;
             return instance;
         }
@@ -1574,10 +1640,17 @@ namespace StellaGaia.Editor
             public int distinctColorCount;
         }
 
+        private enum ValidationMode
+        {
+            Smoke,
+            Full
+        }
+
         [Serializable]
         private sealed class TerminalReport
         {
             public string schemaVersion;
+            public string validationMode;
             public string stage;
             public string status;
             public string unityVersion;
@@ -1599,6 +1672,7 @@ namespace StellaGaia.Editor
             public int rootBoneCount;
             public int boneCount;
             public int materialCount;
+            public int supportedCharacterShaderCount;
             public int textureCount;
 
             public bool animationConsumerProofPassed;
@@ -1639,6 +1713,11 @@ namespace StellaGaia.Editor
             public int compositeDistinctColorCount;
 
             public int discoveredAnimationCount;
+            public int totalAnimationClipCount;
+            public int inScopeAnimationCount;
+            public int outOfScopeAnimationCount;
+            public int animationUniverseBundleCount;
+            public string animationUniverseBundle;
             public int ineligibleAnimationCount;
             public int eligibleAnimationCount;
             public int passedAnimationCount;
