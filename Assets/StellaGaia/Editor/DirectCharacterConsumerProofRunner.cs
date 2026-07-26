@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace StellaGaia.Editor
 {
-    public static class DirectCharacterConsumerProofRunner
+    public static partial class DirectCharacterConsumerProofRunner
     {
         private const string InputRootEnvironmentVariable = "STELLAGAIA_UDCP_INPUT_ROOT";
         private const string OutputRootEnvironmentVariable = "STELLAGAIA_UDCP_OUTPUT_ROOT";
@@ -72,6 +72,7 @@ namespace StellaGaia.Editor
                 AssertSeparatedRoots(expectedInputRoot, outputRoot);
                 PrepareOutputRoot(outputRoot);
                 AssertEvidencePathsAvailable(outputRoot);
+                PrepareFullValidationOutput(outputRoot);
                 CompleteStage(report);
 
                 report.stage = "InputIdentity";
@@ -101,21 +102,26 @@ namespace StellaGaia.Editor
                     loadedBundles, instantiatedObjects, report);
                 CompleteStage(report);
 
-                report.stage = "AnimationSampling";
+                report.stage = "FullAnimationValidation";
                 BeginStage(report, report.stage);
-                SampleBoundAnimation(loadedBundles, character, report);
+                FullValidationSelection selection = ValidateAllAnimations(
+                    loadedBundles, character, outputRoot, report);
                 CompleteStage(report);
 
-                report.stage = "AttackFxInstantiation";
+                report.stage = "FullFxValidation";
                 BeginStage(report, report.stage);
-                GameObject attackFx = InstantiateAndValidateAttackFx(
-                    loadedBundles, character, instantiatedObjects, report);
+                ValidateAllVisualEffects(
+                    loadedBundles, outputRoot, report, selection);
                 CompleteStage(report);
 
-                report.stage = "Screenshot";
+                report.stage = "AttackCombination";
                 BeginStage(report, report.stage);
-                CaptureDeterministicScreenshot(
-                    character, attackFx, outputRoot, instantiatedObjects, report);
+                CaptureAttackCombination(
+                    character,
+                    outputRoot,
+                    instantiatedObjects,
+                    report,
+                    selection);
                 CompleteStage(report);
 
                 if (!(report.modelConsumerProofPassed &&
@@ -127,7 +133,7 @@ namespace StellaGaia.Editor
                 }
 
                 report.status = "Passed";
-                report.nextAction = "AwaitUDCPLO1Audit";
+                report.nextAction = "AwaitUDCPFinalAudit";
                 exitCode = 0;
             }
             catch (Exception exception)
@@ -164,7 +170,9 @@ namespace StellaGaia.Editor
                 failureAsset = NotApplicable,
                 failureObject = NotApplicable,
                 exitCode = 1,
-                nextAction = "AwaitUDCPLO1Audit"
+                animationResults = new List<AnimationValidationResult>(),
+                fxResults = new List<FxValidationResult>(),
+                nextAction = "AwaitUDCPFinalAudit"
             };
         }
 
@@ -1629,6 +1637,27 @@ namespace StellaGaia.Editor
             public int compositeForegroundPixelCount;
             public int compositeBrightnessRange;
             public int compositeDistinctColorCount;
+
+            public int discoveredAnimationCount;
+            public int ineligibleAnimationCount;
+            public int eligibleAnimationCount;
+            public int passedAnimationCount;
+            public int failedAnimationCount;
+            public int eligibleAttackAnimationCount;
+            public List<AnimationValidationResult> animationResults;
+
+            public int discoveredFxCount;
+            public int ineligibleFxCount;
+            public int eligibleFxCount;
+            public int passedFxCount;
+            public int failedFxCount;
+            public int eligibleAttackFxCount;
+            public int passedAttackFxCount;
+            public int failedAttackFxCount;
+            public List<FxValidationResult> fxResults;
+            public string attackCombinationRelativePath;
+            public long attackCombinationByteCount;
+            public string attackCombinationSha256;
 
             public string contextBundle;
             public string contextAsset;

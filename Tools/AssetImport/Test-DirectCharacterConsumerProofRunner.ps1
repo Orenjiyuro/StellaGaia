@@ -4,6 +4,9 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $runnerPath = Join-Path $repositoryRoot 'Assets\StellaGaia\Editor\DirectCharacterConsumerProofRunner.cs'
 $metaPath = $runnerPath + '.meta'
+$fullValidationPath = Join-Path $repositoryRoot 'Assets\StellaGaia\Editor\DirectCharacterConsumerProofRunner.FullValidation.cs'
+$fullValidationMetaPath = $fullValidationPath + '.meta'
+$offlineCompilePath = Join-Path $repositoryRoot 'Tools\AssetImport\Test-DirectCharacterConsumerProofOfflineCompile.ps1'
 
 function Assert-Contract {
     param(
@@ -17,9 +20,16 @@ function Assert-Contract {
 
 Assert-Contract (Test-Path -LiteralPath $runnerPath -PathType Leaf) 'runner source is missing'
 Assert-Contract (Test-Path -LiteralPath $metaPath -PathType Leaf) 'runner meta is missing'
+Assert-Contract (Test-Path -LiteralPath $fullValidationPath -PathType Leaf) 'full validation source is missing'
+Assert-Contract (Test-Path -LiteralPath $fullValidationMetaPath -PathType Leaf) 'full validation meta is missing'
+Assert-Contract (Test-Path -LiteralPath $offlineCompilePath -PathType Leaf) 'offline compile preflight is missing'
 
 $source = [System.IO.File]::ReadAllText($runnerPath)
 $meta = [System.IO.File]::ReadAllText($metaPath)
+$fullValidationSource = [System.IO.File]::ReadAllText($fullValidationPath)
+$fullValidationMeta = [System.IO.File]::ReadAllText($fullValidationMetaPath)
+$offlineCompileSource = [System.IO.File]::ReadAllText($offlineCompilePath)
+$combinedSource = $source + "`n" + $fullValidationSource
 
 $expectedMembers = @(
     [pscustomobject]@{ Path = 'Persistent_Store/AssetBundles/char_14401.unity3d'; Length = 259486L; Sha256 = 'c42c73aa168af6a430999c0ae240ebb85c9764d75014f5961e1647dad51f413b' },
@@ -82,7 +92,7 @@ Assert-Contract (@(Compare-Object -ReferenceObject $expectedEffectivePaths -Diff
 
 $requiredLiterals = [string[]]@(
     'namespace StellaGaia.Editor',
-    'public static class DirectCharacterConsumerProofRunner',
+    'public static partial class DirectCharacterConsumerProofRunner',
     'public static void RunSmoke()',
     'STELLAGAIA_UDCP_INPUT_ROOT',
     'STELLAGAIA_UDCP_OUTPUT_ROOT',
@@ -212,9 +222,9 @@ Assert-Contract ($source -match 'stage\s*=\s*"BundleLoad"') 'BundleLoad stage is
 Assert-Contract ($source -match 'stage\s*=\s*"TerminalWrite"') 'TerminalWrite stage is absent'
 Assert-Contract ($source -match 'stage\s*=\s*"InputIdentity"') 'InputIdentity stage is absent'
 Assert-Contract ($source -match 'stage\s*=\s*"CharacterInstantiation"') 'CharacterInstantiation stage is absent'
-Assert-Contract ($source -match 'stage\s*=\s*"AnimationSampling"') 'AnimationSampling stage is absent'
-Assert-Contract ($source -match 'stage\s*=\s*"AttackFxInstantiation"') 'AttackFxInstantiation stage is absent'
-Assert-Contract ($source -match 'stage\s*=\s*"Screenshot"') 'Screenshot stage is absent'
+Assert-Contract ($source -match 'stage\s*=\s*"FullAnimationValidation"') 'FullAnimationValidation stage is absent'
+Assert-Contract ($source -match 'stage\s*=\s*"FullFxValidation"') 'FullFxValidation stage is absent'
+Assert-Contract ($source -match 'stage\s*=\s*"AttackCombination"') 'AttackCombination stage is absent'
 Assert-Contract ($source -match 'modelConsumerProofPassed\s*=\s*true') 'model consumer proof cannot pass'
 Assert-Contract ($source -match 'animationConsumerProofPassed\s*=\s*true') 'animation consumer proof cannot pass'
 Assert-Contract ($source -match 'battleFxConsumerProofPassed\s*=\s*true') 'attack FX consumer proof cannot pass'
@@ -293,4 +303,132 @@ Assert-Contract ($meta -match '(?m)^fileFormatVersion: 2$') 'meta fileFormatVers
 Assert-Contract ($meta -match '(?m)^guid: [0-9a-f]{32}$') 'meta GUID is invalid'
 Assert-Contract ($meta -match '(?m)^MonoImporter:$') 'meta importer is invalid'
 
-"UDCP-T1 static contract GREEN: selectors=17 effectiveBundles=12"
+Assert-Contract ($source.Contains('public static partial class DirectCharacterConsumerProofRunner', [System.StringComparison]::Ordinal)) 'runner is not partial'
+Assert-Contract ($fullValidationSource.Contains('public static partial class DirectCharacterConsumerProofRunner', [System.StringComparison]::Ordinal)) 'full validator is not the runner partial'
+
+$runSmokeStart = $source.IndexOf('public static void RunSmoke()', [System.StringComparison]::Ordinal)
+$createReportStart = $source.IndexOf('private static TerminalReport CreateReport()', [System.StringComparison]::Ordinal)
+Assert-Contract ($runSmokeStart -ge 0 -and $createReportStart -gt $runSmokeStart) 'RunSmoke boundary is unavailable'
+$runSmokeBody = $source.Substring($runSmokeStart, $createReportStart - $runSmokeStart)
+foreach ($requiredCall in @('ValidateAllAnimations(', 'ValidateAllVisualEffects(', 'CaptureAttackCombination(')) {
+    Assert-Contract ($runSmokeBody.Contains($requiredCall, [System.StringComparison]::Ordinal)) "RunSmoke is missing full validation call: $requiredCall"
+}
+foreach ($obsoleteCall in @('SampleBoundAnimation(', 'InstantiateAndValidateAttackFx(', 'CaptureDeterministicScreenshot(')) {
+    Assert-Contract (-not $runSmokeBody.Contains($obsoleteCall, [System.StringComparison]::Ordinal)) "RunSmoke still calls first-success validation: $obsoleteCall"
+}
+
+$t2RequiredLiterals = [string[]]@(
+    'LoadAllAssets<AnimationClip>()',
+    'AnimationUtility.GetCurveBindings',
+    'RestoreBaselinePose',
+    'clip.length * 0.25f',
+    'clip.length * 0.50f',
+    'clip.length * 0.75f',
+    'lastFrameTime',
+    'AllTransformBindingsResolved',
+    'ConstantPose',
+    'NonConstantMotion',
+    'eligibleAnimationCount',
+    'passedAnimationCount',
+    'failedAnimationCount',
+    'animationResults',
+    'eligibleAnimationCount != report.passedAnimationCount + report.failedAnimationCount',
+    'report.failedAnimationCount != 0',
+    'frameRelativePath',
+    'LoadAllAssets<GameObject>()',
+    'char_14401_fx.unity3d',
+    'char_14401_buff.unity3d',
+    'char_14401_weapons.unity3d',
+    'HasVisualComponents',
+    'SimulationTimes',
+    'Hidden/InternalErrorShader',
+    'eligibleFxCount',
+    'passedFxCount',
+    'failedFxCount',
+    'eligibleAttackFxCount',
+    'passedAttackFxCount',
+    'failedAttackFxCount',
+    'eligibleFxCount != report.passedFxCount + report.failedFxCount',
+    'report.failedFxCount != 0',
+    'report.failedAttackFxCount != 0',
+    'report.passedAttackFxCount != report.eligibleAttackFxCount',
+    'attackCombinationRelativePath',
+    'full-validation-frames',
+    'WriteBytesCreateNew'
+)
+foreach ($literal in $t2RequiredLiterals) {
+    Assert-Contract ($combinedSource.Contains($literal, [System.StringComparison]::Ordinal)) "missing T2 contract: $literal"
+}
+
+Assert-Contract ($fullValidationSource -match 'foreach\s*\(\s*AnimationClip\s+\w+\s+in\s+\w+\s*\)') 'all loaded animation clips are not enumerated'
+Assert-Contract ($fullValidationSource -match 'foreach\s*\(\s*GameObject\s+\w+\s+in\s+\w+\s*\)') 'all loaded FX GameObjects are not enumerated'
+Assert-Contract ($fullValidationSource -match 'binding\.type\s*==\s*typeof\(Transform\)') 'Transform eligibility is not explicit'
+Assert-Contract ($fullValidationSource -match 'result\.status\s*=\s*"Failed"') 'per-item failures are not retained'
+Assert-Contract ($fullValidationSource -notmatch '(?i)AssetRipper|Process\.Start|Unity\.exe') 'full validator contains a forbidden external runtime'
+Assert-Contract (
+    ([regex]::Matches($fullValidationSource, 'clip\.length\s*\*\s*0\.(25|50|75)f')).Count -eq 3
+) 'animation quarter sampling set is incomplete'
+Assert-Contract (
+    ([regex]::Matches($fullValidationSource, 'SimulationTimes\s*=\s*\{[^}]+\}')).Count -eq 1
+) 'deterministic FX simulation time set is absent'
+$animationRestoreIndex = $fullValidationSource.IndexOf(
+    'baseline.RestoreBaselinePose();',
+    [System.StringComparison]::Ordinal)
+$animationSampleIndex = $fullValidationSource.IndexOf(
+    'clip.SampleAnimation(character, sampleTime);',
+    [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $animationRestoreIndex -ge 0 -and
+    $animationSampleIndex -gt $animationRestoreIndex
+) 'animation sampling is not preceded by baseline restoration'
+$fxEligibilityIndex = $fullValidationSource.IndexOf(
+    'if (!HasVisualComponents(prefab))',
+    [System.StringComparison]::Ordinal)
+$fxAttackSubsetIndex = $fullValidationSource.IndexOf(
+    'bool isAttack = ContainsAttackToken(',
+    $fxEligibilityIndex,
+    [System.StringComparison]::Ordinal)
+Assert-Contract (
+    $fxEligibilityIndex -ge 0 -and
+    $fxAttackSubsetIndex -gt $fxEligibilityIndex
+) 'attack naming is incorrectly used as FX eligibility'
+Assert-Contract (
+    $fullValidationSource.Contains(
+        'report.failedAttackFxCount != 0',
+        [System.StringComparison]::Ordinal) -and
+    $fullValidationSource.Contains(
+        'report.passedAttackFxCount != report.eligibleAttackFxCount',
+        [System.StringComparison]::Ordinal)
+) 'attack FX subset is not required to pass in full'
+
+foreach ($requiredOfflineLiteral in @(
+    'C:\SoftWork\Unity\Editor\Data\NetCoreRuntime\dotnet.exe',
+    'C:\SoftWork\Unity\Editor\Data\DotNetSdkRoslyn\csc.dll',
+    'Data\NetStandard\ref\2.1.0',
+    'Data\NetStandard\compat\2.1.0\shims',
+    'Data\Managed\UnityEngine',
+    'UnityEditor.dll',
+    'UnityEditor.CoreModule.dll',
+    'DirectCharacterConsumerProofRunner.cs',
+    'DirectCharacterConsumerProofRunner.FullValidation.cs',
+    'Extracted\Validation\UDCP-T2-OfflineCompile',
+    '-warnaserror+',
+    'warningCount',
+    'errorCount',
+    'not a Unity import, render, or asset usability pass'
+)) {
+    Assert-Contract ($offlineCompileSource.Contains($requiredOfflineLiteral, [System.StringComparison]::OrdinalIgnoreCase)) "offline compile contract missing: $requiredOfflineLiteral"
+}
+Assert-Contract ($offlineCompileSource -notmatch '(?i)Unity\.exe|AssetRipper|Test-UnityEditorScriptCompilePreflight') 'offline compile invokes a forbidden or generic runner'
+Assert-Contract ($offlineCompileSource -notmatch '(?i)Start-Process|System\.Diagnostics\.Process') 'offline compile uses an unauthorized process launcher'
+Assert-Contract (
+    $offlineCompileSource.Contains(
+        '& $dotnetPath @arguments',
+        [System.StringComparison]::Ordinal)
+) 'offline compile does not directly invoke the Unity-owned compiler host'
+
+Assert-Contract ($fullValidationMeta -match '(?m)^fileFormatVersion: 2$') 'full validation meta fileFormatVersion is invalid'
+Assert-Contract ($fullValidationMeta -match '(?m)^guid: [0-9a-f]{32}$') 'full validation meta GUID is invalid'
+Assert-Contract ($fullValidationMeta -match '(?m)^MonoImporter:$') 'full validation meta importer is invalid'
+
+"UDCP-T2 static contract GREEN: selectors=17 effectiveBundles=12 fullValidation=all"
