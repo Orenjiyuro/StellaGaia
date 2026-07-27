@@ -22,22 +22,22 @@ function Stop-Pefp {
 
 function Get-PefpAuthorizedInputs {
     return @(
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_textures.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_materials.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_models.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_animations.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_weapons.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_buff.unity3d' }
-        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_fx.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_water.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/actor_common.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_misc.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/global.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/fx_actorcommon.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_uncollated.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/shader.unity3d' }
-        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_other.unity3d' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_textures.unity3d'; ExpectedLength = [int64]4909859; ExpectedSha256 = 'cbd84ffa6353fa7a8a8babfb133aa9bc38af245d98cb7bcabf7c78a520911ddd' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_materials.unity3d'; ExpectedLength = [int64]6682; ExpectedSha256 = '8b31e52dc4307aecc0c40b7c054f2dc653cfb776cdc2e05d41022aa55db2c9bb' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_models.unity3d'; ExpectedLength = [int64]3080984; ExpectedSha256 = '66545d7be64e115dbc7f24071c9531e1154bbff80bbad24db4cba25f3f712fb7' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_animations.unity3d'; ExpectedLength = [int64]37819874; ExpectedSha256 = '8e51afa19518df92ced48eca91263e9214840e42d41f817688eb047a2301325d' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_weapons.unity3d'; ExpectedLength = [int64]11641; ExpectedSha256 = '0dde241f4a63641dd8e1014a6accd14debef3befcc725e1ba294e5c96ac94048' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/char_14401_buff.unity3d'; ExpectedLength = [int64]3576; ExpectedSha256 = '0c24970f1992fbc118a8a0c4002cc9c5612d9507fd1d798fe8d7c2fc89e7591f' }
+        [pscustomobject]@{ Partition = 'SFXR'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401_fx.unity3d'; ExpectedLength = [int64]1944422; ExpectedSha256 = '02db4eaf46f9663c8c8949aec8ca49dcdc280a7bca3f3bd49741fde6bc4f57ab' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/char_14401.unity3d'; ExpectedLength = [int64]259486; ExpectedSha256 = 'c42c73aa168af6a430999c0ae240ebb85c9764d75014f5961e1647dad51f413b' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_water.unity3d'; ExpectedLength = [int64]29687342; ExpectedSha256 = 'e46b6016e7fee31e4fdf592ee9cf04c2c424928d160dc20c4656e2f3e9fa75d0' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/actor_common.unity3d'; ExpectedLength = [int64]10821270; ExpectedSha256 = '8c485e107b27b5ff6862c79c61ba683eae7c46ed5fdd8afb203e8ff7de6dcf64' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_misc.unity3d'; ExpectedLength = [int64]9009665; ExpectedSha256 = '26be1a7b839d6344293c1a0fad7551a53f331c45beb409362c7f5264ea21b577' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/global.unity3d'; ExpectedLength = [int64]227310; ExpectedSha256 = 'd3b70fda5eae75601e91868e2b09d2b2e8900978eea654c7aea3eb63bdfcffdc' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'xtlr_Data/StreamingAssets/InstallResource/fx_actorcommon.unity3d'; ExpectedLength = [int64]464072; ExpectedSha256 = '8b56dcb70142226a40c2819c06eab6d4a890946e0ec03ecd03690f24e2764340' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_uncollated.unity3d'; ExpectedLength = [int64]65558791; ExpectedSha256 = '65ab7ebb530d1ed2d38a82042c22d90e32732f25d599f9195b6acc69cb546e9d' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/shader.unity3d'; ExpectedLength = [int64]14421770; ExpectedSha256 = '8043bfe89e1619f4090e00014f38182077e1f521d2292aa3e223d5b1fb7c1947' }
+        [pscustomobject]@{ Partition = 'Provider'; SourceId = 'pc-install'; RelativePath = 'Persistent_Store/AssetBundles/fx_actorcommon_textures_other.unity3d'; ExpectedLength = [int64]46651397; ExpectedSha256 = '92df258baf1a587cdae35eaaceabfad755d1d414d0d165b7b9762c8da1357101' }
     )
 }
 
@@ -236,14 +236,15 @@ function Get-PefpSha256 {
 function New-PefpMetadataRecord {
     param(
         [Parameter(Mandatory)][object]$Item,
-        [Parameter(Mandatory)][string]$RelativePath,
-        [Parameter(Mandatory)][string]$Partition
+        [Parameter(Mandatory)][object]$AuthorizedInput
     )
 
     return [pscustomobject][ordered]@{
-        partition = $Partition
-        sourceId = 'pc-install'
-        relativePath = $RelativePath
+        partition = [string]$AuthorizedInput.Partition
+        sourceId = [string]$AuthorizedInput.SourceId
+        relativePath = [string]$AuthorizedInput.RelativePath
+        expectedLength = [int64]$AuthorizedInput.ExpectedLength
+        expectedSha256 = [string]$AuthorizedInput.ExpectedSha256
         length = [int64]$Item.Length
         lastWriteTimeUtc = $Item.LastWriteTimeUtc.ToString('o')
         attributes = $Item.Attributes.ToString()
@@ -260,6 +261,8 @@ function Test-PefpMetadataRecordEqual {
         $Before.partition -ceq $After.partition -and
         $Before.sourceId -ceq $After.sourceId -and
         $Before.relativePath -ceq $After.relativePath -and
+        [int64]$Before.expectedLength -eq [int64]$After.expectedLength -and
+        $Before.expectedSha256 -ceq $After.expectedSha256 -and
         [int64]$Before.length -eq [int64]$After.length -and
         $Before.lastWriteTimeUtc -ceq $After.lastWriteTimeUtc -and
         $Before.attributes -ceq $After.attributes
@@ -267,25 +270,35 @@ function Test-PefpMetadataRecordEqual {
 }
 
 function Test-PefpAuthorizedInputMetadata {
-    param([Parameter(Mandatory)][string]$SourceRoot)
+    param(
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [object[]]$Inputs
+    )
 
     $root = Assert-PefpNoReparseChain -AbsolutePath $SourceRoot -LeafKind Directory -FailurePrefix 'SourceRoot'
-    $inputs = @(Get-PefpAuthorizedInputs)
+    if ($null -eq $Inputs) {
+        $Inputs = @(Get-PefpAuthorizedInputs)
+    }
+    $inputs = @($Inputs)
     if (
         $inputs.Count -ne 16 -or
         @($inputs | Where-Object Partition -ceq 'SFXR').Count -ne 7 -or
         @($inputs | Where-Object Partition -ceq 'Provider').Count -ne 9 -or
         @($inputs.RelativePath | Sort-Object -Unique).Count -ne 16 -or
-        @($inputs | Where-Object SourceId -cne 'pc-install').Count -ne 0
+        @($inputs | Where-Object SourceId -cne 'pc-install').Count -ne 0 -or
+        @($inputs | Where-Object {
+            [int64]$_.ExpectedLength -le 0 -or
+            [string]$_.ExpectedSha256 -cnotmatch '^[0-9a-f]{64}$'
+        }).Count -ne 0
     ) {
         Stop-Pefp 'InputPartitionInvariant'
     }
 
     $rows = @()
-    foreach ($input in $inputs) {
-        Assert-PefpPortableRelativePath -RelativePath $input.RelativePath
+    foreach ($authorizedInput in $inputs) {
+        Assert-PefpPortableRelativePath -RelativePath $authorizedInput.RelativePath
         $leaf = [IO.Path]::GetFullPath(
-            (Join-Path $root $input.RelativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+            (Join-Path $root $authorizedInput.RelativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
         )
         if (-not (Test-PefpContainedPath -Root $root -Leaf $leaf)) {
             Stop-Pefp 'InputOutsideSourceRoot'
@@ -295,7 +308,10 @@ function Test-PefpAuthorizedInputMetadata {
         if ($item -isnot [IO.FileInfo] -or $item.PSIsContainer) {
             Stop-Pefp 'SourceMemberRegularFileRequired'
         }
-        $rows += New-PefpMetadataRecord -Item $item -RelativePath $input.RelativePath -Partition $input.Partition
+        if ([int64]$item.Length -ne [int64]$authorizedInput.ExpectedLength) {
+            Stop-Pefp 'SourceMemberIdentityMismatch'
+        }
+        $rows += New-PefpMetadataRecord -Item $item -AuthorizedInput $authorizedInput
     }
 
     return $rows
@@ -563,6 +579,12 @@ function Copy-PefpInputOnce {
     try {
         $source = [IO.FileStream]::new($sourcePath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
         $Counters.SourceOpenCount = [int]$Counters.SourceOpenCount + 1
+        if (
+            [int64]$source.Length -ne [int64]$Before.expectedLength -or
+            [int64]$Before.length -ne [int64]$Before.expectedLength
+        ) {
+            Stop-Pefp 'SourceMemberIdentityMismatch'
+        }
         $destination = [IO.FileStream]::new($destinationPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
         $buffer = [byte[]]::new(1024 * 1024)
         $copied = [int64]0
@@ -572,10 +594,13 @@ function Copy-PefpInputOnce {
             $copied += $read
         }
         $destination.Flush($true)
-        if ($copied -ne [int64]$Before.length) {
-            Stop-Pefp 'SourceLengthChangedDuringCopy'
+        if ($copied -ne [int64]$Before.expectedLength) {
+            Stop-Pefp 'SourceMemberIdentityMismatch'
         }
         $sha256 = [Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant()
+        if ($sha256 -cne [string]$Before.expectedSha256) {
+            Stop-Pefp 'SourceMemberIdentityMismatch'
+        }
     }
     finally {
         $hash.Dispose()
@@ -589,22 +614,24 @@ function Copy-PefpInputOnce {
 
     $destinationItem = Get-Item -LiteralPath $destinationPath -Force
     if (
-        [int64]$destinationItem.Length -ne [int64]$Before.length -or
-        (Get-PefpSha256 -LiteralPath $destinationPath) -cne $sha256
+        [int64]$destinationItem.Length -ne [int64]$Before.expectedLength -or
+        (Get-PefpSha256 -LiteralPath $destinationPath) -cne [string]$Before.expectedSha256
     ) {
-        Stop-Pefp 'StagingIdentityMismatch'
+        Stop-Pefp 'SourceMemberIdentityMismatch'
     }
     return [pscustomobject][ordered]@{
         partition = $Before.partition
         sourceId = $Before.sourceId
         relativePath = $Before.relativePath
-        length = [int64]$Before.length
+        expectedLength = [int64]$Before.expectedLength
+        expectedSha256 = [string]$Before.expectedSha256
+        length = [int64]$destinationItem.Length
         sha256 = $sha256
         lastWriteTimeUtcBefore = $Before.lastWriteTimeUtc
         attributesBefore = $Before.attributes
         stagingRelativePath = "Input/$($Before.relativePath)"
         stagingLength = [int64]$destinationItem.Length
-        stagingSha256 = $sha256
+        stagingSha256 = [string]$Before.expectedSha256
         lastWriteTimeUtcAfter = $null
         attributesAfter = $null
         unchanged = $false
@@ -625,7 +652,7 @@ function Complete-PefpInputEvidence {
         )
         [void](Assert-PefpNoReparseChain -AbsolutePath $sourcePath -LeafKind File -FailurePrefix 'SourceMemberPost' -RequiredRoot $SourceRoot)
         $afterItem = Get-Item -LiteralPath $sourcePath -Force
-        $after = New-PefpMetadataRecord -Item $afterItem -RelativePath $before.relativePath -Partition $before.partition
+        $after = New-PefpMetadataRecord -Item $afterItem -AuthorizedInput $before
         $same = Test-PefpMetadataRecordEqual -Before $before -After $after
         $InputResults[$index].lastWriteTimeUtcAfter = $after.lastWriteTimeUtc
         $InputResults[$index].attributesAfter = $after.attributes
