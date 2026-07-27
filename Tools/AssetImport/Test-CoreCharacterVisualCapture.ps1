@@ -40,6 +40,138 @@ $builder = [IO.File]::ReadAllText($builderPath)
 $invoke = [IO.File]::ReadAllText($invokePath)
 $offline = [IO.File]::ReadAllText($offlinePath)
 
+$expectedAnimationNames = @(
+    @'
+144_Attack
+144_Attack_1
+144_Attack_1_Shadow
+144_Attack_2
+144_Attack_2_Shadow
+144_Attack_3
+144_Attack_3_Hide
+144_Attack_3_Shadow
+144_Attack_4
+144_Attack_4_Shadow
+144_Attack_5
+144_Attack_5_Shadow
+144_Attack_6
+144_Attack_6_Shadow
+144_B1_Shadow
+144_B1_Shadow_0
+144_B1_Skill
+144_B1_Skill_2
+144_B2_Attack
+144_B2_Attack_2
+144_B2_Connect
+144_B2_Idle
+144_B2_Start
+144_Daze
+144_Die
+144_Dodge
+144_Hide
+144_HurtA1
+144_HurtA2
+144_HurtB
+144_Idle
+144_Out01
+144_Ready
+144_ReadyLoop
+144_Run
+144_Rush
+144_RushStop
+144_Snake_Attack_1
+144_Snake_Attack_2
+144_Snake_Attack_3
+144_Snake_Attack_3a
+144_Snake_Attack_4
+144_Snake_Attack_5
+144_Snake_Attack_6
+144_Snake_B1
+144_Snake_B1_0
+144_Snake_Ultra
+144_Ultra_01
+144_Ultra_02
+144_Ultra_03
+144_Ultra_04
+144_Ultra_05
+144_Ultra_06
+144_Ultra_07
+144_Ultra_End
+144_Ultra_NoTL
+144_Ultra_Start
+144_Ultra_TL
+144_Victory
+144_VictoryLoop
+144_Walk
+'@ -split '\r?\n'
+) | Where-Object { $_.Length -ne 0 }
+if ($expectedAnimationNames.Count -ne 61) {
+    throw 'Focused test animation registry is not 61 names.'
+}
+$animationRegistry = [regex]::Match(
+    $runner,
+    '(?s)private static readonly string\[\] ExpectedAnimationNames\s*=\s*\{(?<body>.*?)\};')
+if (-not $animationRegistry.Success) {
+    throw 'Runtime frozen animation registry could not be parsed.'
+}
+$runtimeAnimationNames = @(
+    [regex]::Matches($animationRegistry.Groups['body'].Value, '"([^"]+)"') |
+        ForEach-Object { $_.Groups[1].Value }
+)
+if (($runtimeAnimationNames -join '|') -ne ($expectedAnimationNames -join '|')) {
+    throw 'Runtime animation registry differs from the frozen 61-name list.'
+}
+
+function Test-AnimationSetGate {
+    param([Parameter(Mandatory)][string[]]$Actual)
+    $actualSet = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal)
+    foreach ($name in $Actual) {
+        [void]$actualSet.Add($name)
+    }
+    $expectedSet = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal)
+    foreach ($name in $expectedAnimationNames) {
+        [void]$expectedSet.Add($name)
+    }
+    return (
+        $Actual.Count -eq 61 -and
+        $actualSet.Count -eq 61 -and
+        $actualSet.SetEquals($expectedSet)
+    )
+}
+if (-not (Test-AnimationSetGate -Actual $expectedAnimationNames)) {
+    throw 'Correct 61-name animation registry did not pass.'
+}
+$missingOne = @($expectedAnimationNames | Select-Object -First 60)
+if (Test-AnimationSetGate -Actual $missingOne) {
+    throw 'Counterexample failed: a 60-name set passed.'
+}
+$replaced = @($expectedAnimationNames)
+$replaced[60] = '144_InjectedReplacement'
+if (Test-AnimationSetGate -Actual $replaced) {
+    throw 'Counterexample failed: same-count replacement passed.'
+}
+
+function Test-ModelGate {
+    param(
+        [bool]$AnimatorPresent,
+        [bool]$AvatarPresent,
+        [bool]$AvatarValid
+    )
+    return $AnimatorPresent -and $AvatarPresent -and $AvatarValid
+}
+if (Test-ModelGate -AnimatorPresent $true -AvatarPresent $true -AvatarValid $false) {
+    throw 'Counterexample failed: invalid Avatar passed.'
+}
+function Test-RepresentativeMotionGate {
+    param([float]$MaximumChange)
+    return $MaximumChange -gt 0.00001
+}
+if (Test-RepresentativeMotionGate -MaximumChange 0.0) {
+    throw 'Counterexample failed: zero-motion representative clip passed.'
+}
+
 $coreTuples = @(
     @('xtlr_Data/StreamingAssets/InstallResource/char_14401_textures.unity3d', '4909859L', 'cbd84ffa6353fa7a8a8babfb133aa9bc38af245d98cb7bcabf7c78a520911ddd'),
     @('xtlr_Data/StreamingAssets/InstallResource/char_14401_materials.unity3d', '6682L', '8b31e52dc4307aecc0c40b7c054f2dc653cfb776cdc2e05d41022aa55db2c9bb'),
@@ -144,6 +276,17 @@ foreach ($forbidden in @('UnityEditor', 'EverythingNormal', 'AssetRipper', 'Proc
 if (-not $runner.Contains('passedAnimationCount + report.failedAnimationCount')) {
     throw 'Animation conservation gate is missing.'
 }
+foreach ($fragment in @(
+    'ExpectedAnimationNames.Length * SampleFractions.Length',
+    'report.animatorPresent',
+    'report.avatarPresent',
+    'report.avatarValid',
+    'maximumChange <= MotionEpsilon'
+)) {
+    if (-not $runner.Contains($fragment)) {
+        throw "Corrected runtime gate fragment missing: $fragment"
+    }
+}
 if (-not $runner.Contains('SelectUniqueRepresentative')) {
     throw 'Deterministic unique idle/attack selection is missing.'
 }
@@ -195,6 +338,9 @@ foreach ($fragment in @(
     'DotNetSdkRoslyn\csc.dll',
     'CoreCharacterVisualCaptureRunner.cs',
     'CoreCharacterVisualCaptureBuilder.cs',
+    '[Parameter(Mandatory)]',
+    '[string]$OutputRoot',
+    'Offline compile OutputRoot escaped Extracted/Validation.',
     'warnaserror+',
     'runtimeWarningCount',
     'builderWarningCount',
@@ -205,4 +351,4 @@ foreach ($fragment in @(
     }
 }
 
-"CCVC focused contract GREEN: coreMembers=4 captures=11 buildStarts=1 playerStarts=1"
+"CCVC focused contract GREEN: coreMembers=4 animations=61 samples=305 captures=11 buildStarts=1 playerStarts=1"

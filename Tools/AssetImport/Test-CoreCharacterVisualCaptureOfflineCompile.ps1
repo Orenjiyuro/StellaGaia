@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$OutputRoot
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -16,7 +20,19 @@ $unityEditorFacade = Join-Path $unityManaged 'UnityEditor.dll'
 $unityEditorCore = Join-Path $unityManaged 'UnityEditor.CoreModule.dll'
 $runtimeSource = Join-Path $root 'Assets\StellaGaia\Scripts\CCVC\CoreCharacterVisualCaptureRunner.cs'
 $builderSource = Join-Path $root 'Assets\StellaGaia\Editor\CoreCharacterVisualCaptureBuilder.cs'
-$outputRoot = Join-Path $root 'Extracted\Validation\CCVC-T1-OfflineCompile'
+$validationRoot = [IO.Path]::GetFullPath(
+    (Join-Path $root 'Extracted\Validation'))
+$outputRoot = if ([IO.Path]::IsPathRooted($OutputRoot)) {
+    [IO.Path]::GetFullPath($OutputRoot)
+}
+else {
+    [IO.Path]::GetFullPath((Join-Path $root $OutputRoot))
+}
+if (-not $outputRoot.StartsWith(
+        $validationRoot + [IO.Path]::DirectorySeparatorChar,
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Offline compile OutputRoot escaped Extracted/Validation.'
+}
 $runtimeDll = Join-Path $outputRoot 'CoreCharacterVisualCaptureRunner.dll'
 $builderDll = Join-Path $outputRoot 'CoreCharacterVisualCaptureBuilder.dll'
 $runtimeLog = Join-Path $outputRoot 'runtime-compiler-output.txt'

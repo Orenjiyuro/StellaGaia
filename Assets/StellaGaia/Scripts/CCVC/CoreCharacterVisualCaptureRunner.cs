@@ -50,6 +50,71 @@ namespace StellaGaia.CCVC
 
         private static readonly float[] SampleFractions =
             { 0.0f, 0.25f, 0.50f, 0.75f, 1.0f };
+
+        private static readonly string[] ExpectedAnimationNames =
+        {
+            "144_Attack",
+            "144_Attack_1",
+            "144_Attack_1_Shadow",
+            "144_Attack_2",
+            "144_Attack_2_Shadow",
+            "144_Attack_3",
+            "144_Attack_3_Hide",
+            "144_Attack_3_Shadow",
+            "144_Attack_4",
+            "144_Attack_4_Shadow",
+            "144_Attack_5",
+            "144_Attack_5_Shadow",
+            "144_Attack_6",
+            "144_Attack_6_Shadow",
+            "144_B1_Shadow",
+            "144_B1_Shadow_0",
+            "144_B1_Skill",
+            "144_B1_Skill_2",
+            "144_B2_Attack",
+            "144_B2_Attack_2",
+            "144_B2_Connect",
+            "144_B2_Idle",
+            "144_B2_Start",
+            "144_Daze",
+            "144_Die",
+            "144_Dodge",
+            "144_Hide",
+            "144_HurtA1",
+            "144_HurtA2",
+            "144_HurtB",
+            "144_Idle",
+            "144_Out01",
+            "144_Ready",
+            "144_ReadyLoop",
+            "144_Run",
+            "144_Rush",
+            "144_RushStop",
+            "144_Snake_Attack_1",
+            "144_Snake_Attack_2",
+            "144_Snake_Attack_3",
+            "144_Snake_Attack_3a",
+            "144_Snake_Attack_4",
+            "144_Snake_Attack_5",
+            "144_Snake_Attack_6",
+            "144_Snake_B1",
+            "144_Snake_B1_0",
+            "144_Snake_Ultra",
+            "144_Ultra_01",
+            "144_Ultra_02",
+            "144_Ultra_03",
+            "144_Ultra_04",
+            "144_Ultra_05",
+            "144_Ultra_06",
+            "144_Ultra_07",
+            "144_Ultra_End",
+            "144_Ultra_NoTL",
+            "144_Ultra_Start",
+            "144_Ultra_TL",
+            "144_Victory",
+            "144_VictoryLoop",
+            "144_Walk"
+        };
         private static bool hasRun;
         private static string suppressionFailure;
 
@@ -480,6 +545,7 @@ namespace StellaGaia.CCVC
                 });
             }
             Animator animator = character.GetComponentInChildren<Animator>(true);
+            report.animatorPresent = animator != null;
             report.avatarPresent = animator != null && animator.avatar != null;
             report.avatarValid =
                 report.avatarPresent && animator.avatar.isValid;
@@ -489,7 +555,11 @@ namespace StellaGaia.CCVC
             report.materialCount = uniqueMaterials.Count;
             report.textureCount = uniqueTextures.Count;
             report.modelStructurePassed =
-                renderers.Length >= 16 && uniqueBones.Count > 0;
+                renderers.Length >= 16 &&
+                uniqueBones.Count > 0 &&
+                report.animatorPresent &&
+                report.avatarPresent &&
+                report.avatarValid;
             report.materialShaderPassed =
                 uniqueMaterials.Count > 0 && uniqueTextures.Count > 0;
         }
@@ -508,6 +578,9 @@ namespace StellaGaia.CCVC
                 animationBundle.bundle.LoadAllAssets<AnimationClip>();
             Array.Sort(clips, CompareClips);
             var names = new HashSet<string>(StringComparer.Ordinal);
+            var expectedNames = new HashSet<string>(
+                ExpectedAnimationNames,
+                StringComparer.Ordinal);
             var eligible = new List<AnimationClip>();
             foreach (AnimationClip clip in clips)
             {
@@ -525,20 +598,23 @@ namespace StellaGaia.CCVC
             report.loadedAnimationClipCount = clips.Length;
             report.eligibleAnimationClipCount = eligible.Count;
             report.uniqueAnimationNameCount = names.Count;
-            if (eligible.Count == 0)
+            report.expectedAnimationClipCount =
+                ExpectedAnimationNames.Length;
+            if (clips.Length != ExpectedAnimationNames.Length ||
+                eligible.Count != ExpectedAnimationNames.Length ||
+                names.Count != ExpectedAnimationNames.Length ||
+                !names.SetEquals(expectedNames))
             {
                 throw new InvalidDataException(
-                    "No eligible core animation clips were loaded.");
+                    "Loaded animation set does not equal the frozen 61-name registry.");
             }
 
             AnimationClip idle = SelectUniqueRepresentative(
                 eligible,
-                "144_Idle",
-                "idle");
+                "144_Idle");
             AnimationClip attack = SelectUniqueRepresentative(
                 eligible,
-                "144_Attack_1",
-                "attack");
+                "144_Attack_1");
             report.selectedIdleClip = idle.name;
             report.selectedAttackClip = attack.name;
             var pose = new PoseSnapshot(character);
@@ -563,11 +639,19 @@ namespace StellaGaia.CCVC
                         maximumChange = Mathf.Max(
                             maximumChange,
                             pose.MaximumDifference());
+                        report.completedAnimationSampleCount++;
                     }
                     result.maximumBoneChange = maximumChange;
                     result.classification = maximumChange > MotionEpsilon
                         ? "Motion"
                         : "ConstantPose";
+                    if ((ReferenceEquals(clip, idle) ||
+                         ReferenceEquals(clip, attack)) &&
+                        maximumChange <= MotionEpsilon)
+                    {
+                        throw new InvalidDataException(
+                            "Representative idle/attack clip produced no measurable bone motion.");
+                    }
                     result.status = "Passed";
                     report.passedAnimationCount++;
                 }
@@ -586,7 +670,10 @@ namespace StellaGaia.CCVC
             }
             if (report.eligibleAnimationClipCount !=
                 report.passedAnimationCount + report.failedAnimationCount ||
-                report.failedAnimationCount != 0)
+                report.failedAnimationCount != 0 ||
+                report.passedAnimationCount != ExpectedAnimationNames.Length ||
+                report.completedAnimationSampleCount !=
+                    ExpectedAnimationNames.Length * SampleFractions.Length)
             {
                 throw new InvalidDataException(
                     "Animation conservation or finite-pose gate failed.");
@@ -610,26 +697,19 @@ namespace StellaGaia.CCVC
 
         private static AnimationClip SelectUniqueRepresentative(
             List<AnimationClip> clips,
-            string exactName,
-            string token)
+            string exactName)
         {
             var exact = clips.FindAll(clip => string.Equals(
                 clip.name,
                 exactName,
                 StringComparison.OrdinalIgnoreCase));
-            if (exact.Count == 1)
-            {
-                return exact[0];
-            }
-            var tokenMatches = clips.FindAll(clip =>
-                clip.name.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0);
-            if (tokenMatches.Count != 1)
+            if (exact.Count != 1)
             {
                 throw new InvalidDataException(
-                    "Unable to uniquely select representative " + token +
-                    " clip.");
+                    "Frozen representative clip is missing or ambiguous: " +
+                    exactName);
             }
-            return tokenMatches[0];
+            return exact[0];
         }
 
         private static void CapturePose(
@@ -1187,6 +1267,7 @@ namespace StellaGaia.CCVC
             public int uniqueBoneCount;
             public int materialCount;
             public int textureCount;
+            public bool animatorPresent;
             public bool avatarPresent;
             public bool avatarValid;
             public bool avatarHuman;
@@ -1194,8 +1275,10 @@ namespace StellaGaia.CCVC
             public bool modelStructurePassed;
             public bool materialShaderPassed;
             public int loadedAnimationClipCount;
+            public int expectedAnimationClipCount;
             public int eligibleAnimationClipCount;
             public int uniqueAnimationNameCount;
+            public int completedAnimationSampleCount;
             public int passedAnimationCount;
             public int failedAnimationCount;
             public string selectedIdleClip;
