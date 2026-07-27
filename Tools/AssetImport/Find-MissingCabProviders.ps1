@@ -51,7 +51,13 @@ function Get-McbrContract {
         candidateExtensions = @('.unity3d', '.bundle', '.assetbundle', '.ab')
         cabPattern = 'CAB-[0-9a-fA-F]{32}'
         chunkSize = 65536
-        overlapByteCount = 96
+        overlapByteCount = 512
+        maxUnityFsHeaderBytes = 4096
+        maxUnityFsBlockInfoBytes = 67108864
+        maxCandidateFileCount = 100000
+        maxCandidateEntryCount = 100000
+        maxSingleEntryUncompressedBytes = [int64]536870912
+        maxTotalEntryUncompressedBytes = [int64]8589934592
         overallTimeoutMilliseconds = 1800000
         maxFileOpenCountPerCandidate = 1
         allowedDecisions = @(
@@ -76,7 +82,13 @@ function Get-McbrContract {
             OutputAlreadyExists = 'SuppressOutput'
             SourceBoundary = 'BlockedSourceBoundary'
             SourceIdentityDrift = 'BlockedSourceBoundary'
-            ScanCap = 'BlockedScanCap'
+            OverallTimeout = 'BlockedScanCap'
+            CandidateFileCap = 'BlockedScanCap'
+            CandidateEntryCap = 'BlockedScanCap'
+            SingleEntryByteCap = 'BlockedScanCap'
+            TotalEntryByteCap = 'BlockedScanCap'
+            InternalFailure = 'BlockedScanCap'
+            TerminalWriteFailure = 'SanitizedStdout'
         }
         nextAction = 'AwaitMCBRLO1Audit'
     }
@@ -147,7 +159,7 @@ function Test-McbrJsonArrayProperty {
 function Assert-McbrDeadline {
     param([Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc)
     if ([DateTimeOffset]::UtcNow -ge $DeadlineUtc) {
-        Stop-Mcbr 'ScanCap'
+        Stop-Mcbr 'OverallTimeout'
     }
 }
 
@@ -398,21 +410,275 @@ function Read-McbrFrozenEvidence {
     }
 }
 
+function Read-McbrBeUInt16 {
+    param([byte[]] $Bytes, [ref] $Position)
+    if ($Position.Value + 2 -gt $Bytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+    $value = ([uint16]$Bytes[$Position.Value] -shl 8) -bor [uint16]$Bytes[$Position.Value + 1]
+    $Position.Value += 2
+    return [uint16]$value
+}
+
+function Read-McbrBeUInt32 {
+    param([byte[]] $Bytes, [ref] $Position)
+    if ($Position.Value + 4 -gt $Bytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+    [uint32]$value = 0
+    for ($index = 0; $index -lt 4; $index++) {
+        $value = ($value -shl 8) -bor [uint32]$Bytes[$Position.Value + $index]
+    }
+    $Position.Value += 4
+    return $value
+}
+
+function Read-McbrBeUInt64 {
+    param([byte[]] $Bytes, [ref] $Position)
+    if ($Position.Value + 8 -gt $Bytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+    [uint64]$value = 0
+    for ($index = 0; $index -lt 8; $index++) {
+        $value = ($value -shl 8) -bor [uint64]$Bytes[$Position.Value + $index]
+    }
+    $Position.Value += 8
+    return $value
+}
+
+function Read-McbrNullAscii {
+    param(
+        [byte[]] $Bytes,
+        [ref] $Position,
+        [int] $MaximumLength = 1024
+    )
+    $start = $Position.Value
+    $end = $start
+    while ($end -lt $Bytes.Length -and $Bytes[$end] -ne 0 -and ($end - $start) -le $MaximumLength) {
+        $end++
+    }
+    if ($end -ge $Bytes.Length -or $Bytes[$end] -ne 0 -or ($end - $start) -gt $MaximumLength) {
+        Stop-Mcbr 'UnityFsInvalid'
+    }
+    $value = [Text.Encoding]::ASCII.GetString($Bytes, $start, $end - $start)
+    $Position.Value = $end + 1
+    return $value
+}
+
+function Get-McbrUnityFsHeader {
+    param(
+        [Parameter(Mandatory)][byte[]] $HeaderBytes,
+        [Parameter(Mandatory)][int64] $KnownLength,
+        [Parameter(Mandatory)][int] $MaximumBlockInfoBytes
+    )
+    if ($HeaderBytes.Length -lt 8) {
+        return $null
+    }
+    if (-not [Text.Encoding]::ASCII.GetString($HeaderBytes, 0, [Math]::Min(7, $HeaderBytes.Length)).StartsWith('UnityFS', [StringComparison]::Ordinal)) {
+        return [pscustomobject]@{ isUnityFs = $false; valid = $false }
+    }
+    try {
+        $position = 0
+        $signature = Read-McbrNullAscii -Bytes $HeaderBytes -Position ([ref]$position) -MaximumLength 16
+        if ($signature -cne 'UnityFS') { return [pscustomobject]@{ isUnityFs = $false; valid = $false } }
+        $formatVersion = Read-McbrBeUInt32 -Bytes $HeaderBytes -Position ([ref]$position)
+        $unityVersion = Read-McbrNullAscii -Bytes $HeaderBytes -Position ([ref]$position) -MaximumLength 128
+        $unityRevision = Read-McbrNullAscii -Bytes $HeaderBytes -Position ([ref]$position) -MaximumLength 128
+        $bundleSize = Read-McbrBeUInt64 -Bytes $HeaderBytes -Position ([ref]$position)
+        $compressedBlockInfoSize = Read-McbrBeUInt32 -Bytes $HeaderBytes -Position ([ref]$position)
+        $uncompressedBlockInfoSize = Read-McbrBeUInt32 -Bytes $HeaderBytes -Position ([ref]$position)
+        $flags = Read-McbrBeUInt32 -Bytes $HeaderBytes -Position ([ref]$position)
+        if (
+            $formatVersion -lt 6 -or
+            [string]::IsNullOrWhiteSpace($unityVersion) -or
+            [string]::IsNullOrWhiteSpace($unityRevision) -or
+            [uint64]$bundleSize -ne [uint64]$KnownLength -or
+            $compressedBlockInfoSize -eq 0 -or
+            $uncompressedBlockInfoSize -eq 0 -or
+            $compressedBlockInfoSize -gt $MaximumBlockInfoBytes -or
+            $uncompressedBlockInfoSize -gt $MaximumBlockInfoBytes
+        ) {
+            return [pscustomobject]@{ isUnityFs = $true; valid = $false }
+        }
+        [int64]$blockInfoOffset = if (($flags -band 0x80) -ne 0) {
+            $KnownLength - $compressedBlockInfoSize
+        }
+        elseif (($flags -band 0x200) -ne 0) {
+            [int64](($position + 15) -band (-bnot 15))
+        }
+        else {
+            $position
+        }
+        if ($blockInfoOffset -lt $position -or $blockInfoOffset + $compressedBlockInfoSize -gt $KnownLength) {
+            return [pscustomobject]@{ isUnityFs = $true; valid = $false }
+        }
+        return [pscustomobject][ordered]@{
+            isUnityFs = $true
+            valid = $true
+            formatVersion = [uint32]$formatVersion
+            headerLength = [int]$position
+            blockInfoOffset = [int64]$blockInfoOffset
+            compressedBlockInfoSize = [int]$compressedBlockInfoSize
+            uncompressedBlockInfoSize = [int]$uncompressedBlockInfoSize
+            blockInfoCompression = [int]($flags -band 0x3f)
+            flags = [uint32]$flags
+        }
+    }
+    catch {
+        if ($_.Exception.Message -ceq 'MCBR:UnityFsInvalid') {
+            return $null
+        }
+        throw
+    }
+}
+
+function Expand-McbrLz4Block {
+    param(
+        [Parameter(Mandatory)][byte[]] $CompressedBytes,
+        [Parameter(Mandatory)][int] $ExpectedLength
+    )
+    $output = [byte[]]::new($ExpectedLength)
+    $source = 0
+    $target = 0
+    while ($source -lt $CompressedBytes.Length) {
+        $token = [int]$CompressedBytes[$source++]
+        $literalLength = $token -shr 4
+        if ($literalLength -eq 15) {
+            do {
+                if ($source -ge $CompressedBytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+                $extension = [int]$CompressedBytes[$source++]
+                $literalLength += $extension
+            } while ($extension -eq 255)
+        }
+        if (
+            $source + $literalLength -gt $CompressedBytes.Length -or
+            $target + $literalLength -gt $output.Length
+        ) {
+            Stop-Mcbr 'UnityFsInvalid'
+        }
+        if ($literalLength -gt 0) {
+            [Array]::Copy($CompressedBytes, $source, $output, $target, $literalLength)
+            $source += $literalLength
+            $target += $literalLength
+        }
+        if ($source -eq $CompressedBytes.Length) {
+            break
+        }
+        if ($source + 2 -gt $CompressedBytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+        $offset = [int]$CompressedBytes[$source] -bor ([int]$CompressedBytes[$source + 1] -shl 8)
+        $source += 2
+        if ($offset -le 0 -or $offset -gt $target) { Stop-Mcbr 'UnityFsInvalid' }
+        $matchLength = $token -band 0x0f
+        if ($matchLength -eq 15) {
+            do {
+                if ($source -ge $CompressedBytes.Length) { Stop-Mcbr 'UnityFsInvalid' }
+                $extension = [int]$CompressedBytes[$source++]
+                $matchLength += $extension
+            } while ($extension -eq 255)
+        }
+        $matchLength += 4
+        if ($target + $matchLength -gt $output.Length) { Stop-Mcbr 'UnityFsInvalid' }
+        for ($index = 0; $index -lt $matchLength; $index++) {
+            $output[$target + $index] = $output[$target - $offset + $index]
+        }
+        $target += $matchLength
+    }
+    if ($target -ne $ExpectedLength) { Stop-Mcbr 'UnityFsInvalid' }
+    return $output
+}
+
+function Get-McbrUnityFsDirectoryNodes {
+    param(
+        [Parameter(Mandatory)][object] $Header,
+        [Parameter(Mandatory)][byte[]] $CompressedBlockInfo,
+        [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
+    )
+    Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
+    try {
+        $blockInfo = switch ([int]$Header.blockInfoCompression) {
+            0 {
+                if ($CompressedBlockInfo.Length -ne [int]$Header.uncompressedBlockInfoSize) {
+                    Stop-Mcbr 'UnityFsInvalid'
+                }
+                $CompressedBlockInfo
+            }
+            { $_ -in @(2, 3) } {
+                Expand-McbrLz4Block `
+                    -CompressedBytes $CompressedBlockInfo `
+                    -ExpectedLength ([int]$Header.uncompressedBlockInfoSize)
+            }
+            default { Stop-Mcbr 'UnityFsInvalid' }
+        }
+        $position = 0
+        if ($blockInfo.Length -lt 20) { Stop-Mcbr 'UnityFsInvalid' }
+        $position += 16
+        $blockCount = Read-McbrBeUInt32 -Bytes $blockInfo -Position ([ref]$position)
+        if ($blockCount -gt 1000000) { Stop-Mcbr 'UnityFsInvalid' }
+        [uint64]$totalUncompressedData = 0
+        for ($blockIndex = 0; $blockIndex -lt $blockCount; $blockIndex++) {
+            Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
+            $uncompressedSize = Read-McbrBeUInt32 -Bytes $blockInfo -Position ([ref]$position)
+            [void](Read-McbrBeUInt32 -Bytes $blockInfo -Position ([ref]$position))
+            [void](Read-McbrBeUInt16 -Bytes $blockInfo -Position ([ref]$position))
+            $totalUncompressedData += [uint64]$uncompressedSize
+        }
+        $nodeCount = Read-McbrBeUInt32 -Bytes $blockInfo -Position ([ref]$position)
+        if ($nodeCount -gt 1000000) { Stop-Mcbr 'UnityFsInvalid' }
+        $nodes = [Collections.Generic.List[object]]::new()
+        for ($nodeIndex = 0; $nodeIndex -lt $nodeCount; $nodeIndex++) {
+            Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
+            $offset = Read-McbrBeUInt64 -Bytes $blockInfo -Position ([ref]$position)
+            $size = Read-McbrBeUInt64 -Bytes $blockInfo -Position ([ref]$position)
+            $flags = Read-McbrBeUInt32 -Bytes $blockInfo -Position ([ref]$position)
+            $name = Read-McbrNullAscii -Bytes $blockInfo -Position ([ref]$position) -MaximumLength 4096
+            if (
+                [string]::IsNullOrWhiteSpace($name) -or
+                $offset -gt $totalUncompressedData -or
+                $size -gt $totalUncompressedData -or
+                $offset + $size -gt $totalUncompressedData
+            ) {
+                Stop-Mcbr 'UnityFsInvalid'
+            }
+            $nodes.Add([pscustomobject][ordered]@{
+                nodeIndex = $nodeIndex
+                offset = [uint64]$offset
+                size = [uint64]$size
+                flags = [uint32]$flags
+                name = $name
+            })
+        }
+        if ($position -ne $blockInfo.Length) { Stop-Mcbr 'UnityFsInvalid' }
+        return [pscustomobject][ordered]@{
+            valid = $true
+            nodes = @($nodes)
+        }
+    }
+    catch {
+        if ($_.Exception.Message -ceq 'MCBR:UnityFsInvalid') {
+            return [pscustomobject][ordered]@{
+                valid = $false
+                nodes = @()
+            }
+        }
+        throw
+    }
+}
+
 function Find-McbrCabTokensInStream {
     param(
         [Parameter(Mandatory)][IO.Stream] $Stream,
+        [Parameter(Mandatory)][int64] $KnownLength,
         [Parameter(Mandatory)][ValidateRange(1, 1048576)][int] $ChunkSize,
         [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
     )
-    if (-not $Stream.CanRead) {
+    if (-not $Stream.CanRead -or $KnownLength -lt 0) {
         Stop-Mcbr 'UnreadableStream'
     }
+    $contract = Get-McbrContract
     $hash = [Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
     $buffer = [byte[]]::new($ChunkSize)
     $carry = [byte[]]::new(0)
-    $prefix = [Collections.Generic.List[byte]]::new()
+    $headerCapture = [Collections.Generic.List[byte]]::new()
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $rawMatches = [Collections.Generic.List[object]]::new()
+    $unityHeader = $null
+    $headerRejected = $false
+    $blockInfoBuffer = $null
+    [int]$blockInfoCopied = 0
     [int64]$processed = 0
     try {
         while ($true) {
@@ -422,8 +688,38 @@ function Find-McbrCabTokensInStream {
                 break
             }
             $hash.AppendData($buffer, 0, $read)
-            for ($index = 0; $index -lt $read -and $prefix.Count -lt 8; $index++) {
-                $prefix.Add($buffer[$index])
+            for ($index = 0; $index -lt $read -and $headerCapture.Count -lt $contract.maxUnityFsHeaderBytes; $index++) {
+                $headerCapture.Add($buffer[$index])
+            }
+            if ($null -eq $unityHeader -and -not $headerRejected) {
+                $candidateHeader = Get-McbrUnityFsHeader `
+                    -HeaderBytes $headerCapture.ToArray() `
+                    -KnownLength $KnownLength `
+                    -MaximumBlockInfoBytes $contract.maxUnityFsBlockInfoBytes
+                if ($null -ne $candidateHeader) {
+                    if ($candidateHeader.isUnityFs -and $candidateHeader.valid) {
+                        $unityHeader = $candidateHeader
+                        $blockInfoBuffer = [byte[]]::new([int]$unityHeader.compressedBlockInfoSize)
+                    }
+                    else {
+                        $headerRejected = $true
+                    }
+                }
+            }
+            [int64]$chunkStart = $processed
+            [int64]$chunkEnd = $processed + $read
+            if ($null -ne $unityHeader) {
+                [int64]$infoStart = $unityHeader.blockInfoOffset
+                [int64]$infoEnd = $infoStart + $unityHeader.compressedBlockInfoSize
+                [int64]$copyStart = [Math]::Max($chunkStart, $infoStart)
+                [int64]$copyEnd = [Math]::Min($chunkEnd, $infoEnd)
+                if ($copyEnd -gt $copyStart) {
+                    $sourceIndex = [int]($copyStart - $chunkStart)
+                    $destinationIndex = [int]($copyStart - $infoStart)
+                    $copyCount = [int]($copyEnd - $copyStart)
+                    [Array]::Copy($buffer, $sourceIndex, $blockInfoBuffer, $destinationIndex, $copyCount)
+                    $blockInfoCopied += $copyCount
+                }
             }
             $combined = [byte[]]::new($carry.Length + $read)
             if ($carry.Length -gt 0) {
@@ -437,57 +733,79 @@ function Find-McbrCabTokensInStream {
                 $cabId = $match.Value.ToLowerInvariant()
                 $identity = "$absoluteOffset`0$cabId"
                 if ($seen.Add($identity)) {
-                    $contextStart = [Math]::Max(0, $match.Index - 32)
+                    $contextStart = [Math]::Max(0, $match.Index - $contract.overlapByteCount)
                     $contextLength = $match.Index - $contextStart
                     $preceding = if ($contextLength -gt 0) { $text.Substring($contextStart, $contextLength) } else { '' }
+                    $lastArchive = $preceding.LastIndexOf('archive:/', [StringComparison]::OrdinalIgnoreCase)
+                    $lastBoundary = [Math]::Max(
+                        [Math]::Max($preceding.LastIndexOf([char]0), $preceding.LastIndexOf("`n", [StringComparison]::Ordinal)),
+                        $preceding.LastIndexOf("`r", [StringComparison]::Ordinal)
+                    )
                     $rawMatches.Add([pscustomobject][ordered]@{
                         cabId = $cabId
                         offset = $absoluteOffset
-                        archiveReference = $preceding.EndsWith('archive:/', [StringComparison]::OrdinalIgnoreCase)
+                        archiveReference = $lastArchive -ge 0 -and $lastArchive -gt $lastBoundary
                     })
                 }
             }
             $processed += $read
-            $keep = [Math]::Min(96, $combined.Length)
+            $keep = [Math]::Min($contract.overlapByteCount, $combined.Length)
             $carry = [byte[]]::new($keep)
             if ($keep -gt 0) {
                 [Array]::Copy($combined, $combined.Length - $keep, $carry, 0, $keep)
             }
         }
-        $header = [Text.Encoding]::ASCII.GetString($prefix.ToArray())
-        $hasUnityBundleHeader = (
-            $header.StartsWith('UnityFS', [StringComparison]::Ordinal) -or
-            $header.StartsWith('UnityRaw', [StringComparison]::Ordinal) -or
-            $header.StartsWith('UnityWeb', [StringComparison]::Ordinal)
-        )
-        $ordered = @($rawMatches | Sort-Object offset)
-        $providerCandidateAssigned = $false
+        if ($processed -ne $KnownLength) {
+            Stop-Mcbr 'SourceIdentityDrift'
+        }
+        $directory = [pscustomobject]@{ valid = $false; nodes = @() }
+        if (
+            $null -ne $unityHeader -and
+            $blockInfoCopied -eq [int]$unityHeader.compressedBlockInfoSize
+        ) {
+            $directory = Get-McbrUnityFsDirectoryNodes `
+                -Header $unityHeader `
+                -CompressedBlockInfo $blockInfoBuffer `
+                -DeadlineUtc $DeadlineUtc
+        }
+        [int64]$infoStart = if ($null -ne $unityHeader) { $unityHeader.blockInfoOffset } else { -1 }
+        [int64]$infoEnd = if ($null -ne $unityHeader) {
+            $unityHeader.blockInfoOffset + $unityHeader.compressedBlockInfoSize
+        }
+        else {
+            -1
+        }
         $matches = @(
-            foreach ($row in $ordered) {
-                $disposition = 'Ambiguous'
-                $evidence = 'AsciiCabTokenOnly'
-                if ($row.archiveReference) {
-                    $disposition = 'DependencyOnlyReference'
-                    $evidence = 'ArchiveReferencePrefix'
-                }
-                elseif ($hasUnityBundleHeader -and -not $providerCandidateAssigned) {
-                    $disposition = 'ProviderCandidate'
-                    $evidence = 'UnityBundleHeaderAndFirstNonDependencyCabIdentity'
-                    $providerCandidateAssigned = $true
+            foreach ($row in @($rawMatches | Sort-Object offset)) {
+                if ($infoStart -ge 0 -and $row.offset -ge $infoStart -and $row.offset -lt $infoEnd) {
+                    continue
                 }
                 [pscustomobject][ordered]@{
                     cabId = $row.cabId
                     offset = [int64]$row.offset
-                    disposition = $disposition
-                    evidence = $evidence
+                    disposition = if ($row.archiveReference) { 'DependencyOnlyReference' } else { 'Ambiguous' }
+                    evidence = if ($row.archiveReference) { 'ArchiveReferencePath' } else { 'RawAsciiCabTokenOnly' }
+                }
+            }
+            if ($directory.valid) {
+                foreach ($node in $directory.nodes) {
+                    foreach ($nodeMatch in [regex]::Matches($node.name, $contract.cabPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+                        [pscustomobject][ordered]@{
+                            cabId = $nodeMatch.Value.ToLowerInvariant()
+                            offset = [int64]$node.nodeIndex
+                            disposition = 'ProviderCandidate'
+                            evidence = 'UnityFsDirectoryNode'
+                        }
+                    }
                 }
             }
         )
         return [pscustomobject][ordered]@{
             byteCount = $processed
             sha256 = [Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant()
-            hasUnityBundleHeader = $hasUnityBundleHeader
-            matches = $matches
+            unityFsDirectoryParsed = [bool]$directory.valid
+            unityFsDirectoryNodeCount = @($directory.nodes).Count
+            matches = @($matches | Sort-Object offset, disposition, cabId)
         }
     }
     finally {
@@ -519,6 +837,7 @@ function Get-McbrDirectoryCandidateFiles {
     param(
         [Parameter(Mandatory)][string] $Root,
         [Parameter(Mandatory)][string[]] $CandidateExtensions,
+        [Parameter(Mandatory)][int] $MaxCandidateFileCount,
         [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
     )
     $stack = [Collections.Generic.Stack[string]]::new()
@@ -536,24 +855,57 @@ function Get-McbrDirectoryCandidateFiles {
             }
             elseif ($item -is [IO.FileInfo] -and (Test-McbrCandidateAssetPath -Path $item.Name -CandidateExtensions $CandidateExtensions)) {
                 $files.Add($item)
+                if ($files.Count -gt $MaxCandidateFileCount) {
+                    Stop-Mcbr 'CandidateFileCap'
+                }
             }
         }
     }
     return @($files | Sort-Object FullName)
 }
 
-function Find-McbrCabTokensInApkBytes {
+function Get-McbrSeekableStreamSha256 {
     param(
-        [Parameter(Mandatory)][byte[]] $Bytes,
-        [Parameter(Mandatory)][string] $SourceId,
-        [Parameter(Mandatory)][string] $RelativePath,
-        [Parameter(Mandatory)][int] $ChunkSize,
+        [Parameter(Mandatory)][IO.Stream] $Stream,
         [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
     )
-    $memory = [IO.MemoryStream]::new($Bytes, $false)
+    if (-not $Stream.CanRead -or -not $Stream.CanSeek) {
+        Stop-Mcbr 'SourceBoundary'
+    }
+    $Stream.Position = 0
+    $hash = [Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
+    $buffer = [byte[]]::new(65536)
+    try {
+        while ($true) {
+            Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
+            $read = $Stream.Read($buffer, 0, $buffer.Length)
+            if ($read -eq 0) { break }
+            $hash.AppendData($buffer, 0, $read)
+        }
+        return [Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant()
+    }
+    finally {
+        $hash.Dispose()
+        $Stream.Position = 0
+    }
+}
+
+function Find-McbrCabTokensInApkStream {
+    param(
+        [Parameter(Mandatory)][IO.FileStream] $Stream,
+        [Parameter(Mandatory)][string] $SourceId,
+        [Parameter(Mandatory)][string] $RelativePath,
+        [Parameter(Mandatory)][int64] $FileLength,
+        [Parameter(Mandatory)][int] $ChunkSize,
+        [Parameter(Mandatory)][int] $MaxCandidateEntryCount,
+        [Parameter(Mandatory)][int64] $MaxSingleEntryUncompressedBytes,
+        [Parameter(Mandatory)][int64] $MaxTotalEntryUncompressedBytes,
+        [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
+    )
+    $apkSha256 = Get-McbrSeekableStreamSha256 -Stream $Stream -DeadlineUtc $DeadlineUtc
     $archive = $null
     try {
-        $archive = [IO.Compression.ZipArchive]::new($memory, [IO.Compression.ZipArchiveMode]::Read, $true)
+        $archive = [IO.Compression.ZipArchive]::new($Stream, [IO.Compression.ZipArchiveMode]::Read, $true)
         $entries = @(
             $archive.Entries |
                 Where-Object {
@@ -562,7 +914,11 @@ function Find-McbrCabTokensInApkBytes {
                 } |
                 Sort-Object FullName
         )
+        if ($entries.Count -gt $MaxCandidateEntryCount) {
+            Stop-Mcbr 'CandidateEntryCap'
+        }
         $matches = [Collections.Generic.List[object]]::new()
+        [int64]$totalUncompressedBytes = 0
         foreach ($entry in $entries) {
             Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
             if (
@@ -572,9 +928,20 @@ function Find-McbrCabTokensInApkBytes {
             ) {
                 Stop-Mcbr 'SourceBoundary'
             }
+            if ([int64]$entry.Length -gt $MaxSingleEntryUncompressedBytes) {
+                Stop-Mcbr 'SingleEntryByteCap'
+            }
+            $totalUncompressedBytes += [int64]$entry.Length
+            if ($totalUncompressedBytes -gt $MaxTotalEntryUncompressedBytes) {
+                Stop-Mcbr 'TotalEntryByteCap'
+            }
             $entryStream = $entry.Open()
             try {
-                $scan = Find-McbrCabTokensInStream -Stream $entryStream -ChunkSize $ChunkSize -DeadlineUtc $DeadlineUtc
+                $scan = Find-McbrCabTokensInStream `
+                    -Stream $entryStream `
+                    -KnownLength ([int64]$entry.Length) `
+                    -ChunkSize $ChunkSize `
+                    -DeadlineUtc $DeadlineUtc
             }
             finally {
                 $entryStream.Dispose()
@@ -588,8 +955,8 @@ function Find-McbrCabTokensInApkBytes {
                     relativePath = $RelativePath
                     archiveEntry = $entry.FullName
                     offset = [int64]$match.offset
-                    fileLength = [int64]$Bytes.Length
-                    fileSha256 = ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes))).ToLowerInvariant()
+                    fileLength = $FileLength
+                    fileSha256 = $apkSha256
                     entryLength = [int64]$entry.Length
                     entrySha256 = $scan.sha256
                     evidence = $match.evidence
@@ -597,7 +964,9 @@ function Find-McbrCabTokensInApkBytes {
             }
         }
         return [pscustomobject][ordered]@{
-            archiveEntryCount = $entries.Count
+            candidateEntryCount = $entries.Count
+            totalEntryUncompressedBytes = $totalUncompressedBytes
+            apkShaComputationCount = 1
             matches = @($matches)
         }
     }
@@ -608,38 +977,6 @@ function Find-McbrCabTokensInApkBytes {
         if ($null -ne $archive) {
             $archive.Dispose()
         }
-        $memory.Dispose()
-    }
-}
-
-function Read-McbrFileBytesOnce {
-    param(
-        [Parameter(Mandatory)][string] $LiteralPath,
-        [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc
-    )
-    $stream = [IO.File]::Open($LiteralPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-    $memory = [IO.MemoryStream]::new()
-    $hash = [Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
-    $buffer = [byte[]]::new(65536)
-    try {
-        while ($true) {
-            Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
-            $read = $stream.Read($buffer, 0, $buffer.Length)
-            if ($read -eq 0) {
-                break
-            }
-            $hash.AppendData($buffer, 0, $read)
-            $memory.Write($buffer, 0, $read)
-        }
-        return [pscustomobject][ordered]@{
-            bytes = $memory.ToArray()
-            sha256 = [Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant()
-        }
-    }
-    finally {
-        $hash.Dispose()
-        $memory.Dispose()
-        $stream.Dispose()
     }
 }
 
@@ -651,6 +988,10 @@ function New-McbrScanState {
         scannedSourceCount = 0
         scannedFileCount = 0
         scannedArchiveEntryCount = 0
+        candidateFileCount = 0
+        candidateEntryCount = 0
+        totalEntryUncompressedBytes = [int64]0
+        apkShaComputationCount = 0
         scannedBytes = [int64]0
         fileOpenCount = 0
         sourceUnchanged = $true
@@ -678,17 +1019,33 @@ function Invoke-McbrBoundaryScan {
             $preLength = [int64]$pre.Length
             $preTime = $pre.LastWriteTimeUtc
             $preAttributes = [int]$pre.Attributes
-            $file = Read-McbrFileBytesOnce -LiteralPath $pre.FullName -DeadlineUtc $DeadlineUtc
+            if ($State.candidateFileCount + 1 -gt $Contract.maxCandidateFileCount) {
+                Stop-Mcbr 'CandidateFileCap'
+            }
+            $stream = [IO.File]::Open($pre.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
             $State.fileOpenCount++
             $State.scannedFileCount++
-            $State.scannedBytes += $file.bytes.Length
-            $apk = Find-McbrCabTokensInApkBytes `
-                -Bytes $file.bytes `
-                -SourceId $source.sourceId `
-                -RelativePath $pre.Name `
-                -ChunkSize $Contract.chunkSize `
-                -DeadlineUtc $DeadlineUtc
-            $State.scannedArchiveEntryCount += $apk.archiveEntryCount
+            $State.candidateFileCount++
+            try {
+                $apk = Find-McbrCabTokensInApkStream `
+                    -Stream $stream `
+                    -SourceId $source.sourceId `
+                    -RelativePath $pre.Name `
+                    -FileLength $preLength `
+                    -ChunkSize $Contract.chunkSize `
+                    -MaxCandidateEntryCount $Contract.maxCandidateEntryCount `
+                    -MaxSingleEntryUncompressedBytes $Contract.maxSingleEntryUncompressedBytes `
+                    -MaxTotalEntryUncompressedBytes $Contract.maxTotalEntryUncompressedBytes `
+                    -DeadlineUtc $DeadlineUtc
+            }
+            finally {
+                $stream.Dispose()
+            }
+            $State.scannedBytes += $preLength
+            $State.scannedArchiveEntryCount += $apk.candidateEntryCount
+            $State.candidateEntryCount += $apk.candidateEntryCount
+            $State.totalEntryUncompressedBytes += $apk.totalEntryUncompressedBytes
+            $State.apkShaComputationCount += $apk.apkShaComputationCount
             foreach ($match in $apk.matches) {
                 if ($target.Contains($match.cabId)) {
                     $State.matches.Add($match)
@@ -704,21 +1061,30 @@ function Invoke-McbrBoundaryScan {
         $files = Get-McbrDirectoryCandidateFiles `
             -Root $source.canonicalRoot `
             -CandidateExtensions $Contract.candidateExtensions `
+            -MaxCandidateFileCount $Contract.maxCandidateFileCount `
             -DeadlineUtc $DeadlineUtc
+        if ($State.candidateFileCount + $files.Count -gt $Contract.maxCandidateFileCount) {
+            Stop-Mcbr 'CandidateFileCap'
+        }
         foreach ($fileInfo in $files) {
             Assert-McbrDeadline -DeadlineUtc $DeadlineUtc
             $preLength = [int64]$fileInfo.Length
             $preTime = $fileInfo.LastWriteTimeUtc
             $preAttributes = [int]$fileInfo.Attributes
             $stream = [IO.File]::Open($fileInfo.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+            $State.fileOpenCount++
+            $State.scannedFileCount++
+            $State.candidateFileCount++
             try {
-                $scan = Find-McbrCabTokensInStream -Stream $stream -ChunkSize $Contract.chunkSize -DeadlineUtc $DeadlineUtc
+                $scan = Find-McbrCabTokensInStream `
+                    -Stream $stream `
+                    -KnownLength $preLength `
+                    -ChunkSize $Contract.chunkSize `
+                    -DeadlineUtc $DeadlineUtc
             }
             finally {
                 $stream.Dispose()
             }
-            $State.fileOpenCount++
-            $State.scannedFileCount++
             $State.scannedBytes += $scan.byteCount
             $relativePath = Get-McbrPortableRelativePath -Root $source.canonicalRoot -Path $fileInfo.FullName
             foreach ($match in $scan.matches) {
@@ -751,7 +1117,7 @@ function Invoke-McbrBoundaryScan {
 function Get-McbrCabAccounting {
     param(
         [Parameter(Mandatory)][string[]] $TargetCabIds,
-        [Parameter(Mandatory)][object[]] $Matches
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]] $Matches
     )
     $rows = @(
         foreach ($cabId in $TargetCabIds) {
@@ -835,9 +1201,19 @@ function New-McbrTerminalResult {
         artifactId = $Contract.artifactId
         status = 'Pending'
         decision = $null
+        stage = 'EvidenceLoaded'
+        failureCode = $null
+        exceptionType = $null
         head = $Head
         elapsedMilliseconds = [int64]0
         timeoutMilliseconds = [int64]$Contract.overallTimeoutMilliseconds
+        caps = [pscustomobject][ordered]@{
+            maxCandidateFileCount = $Contract.maxCandidateFileCount
+            maxCandidateEntryCount = $Contract.maxCandidateEntryCount
+            maxSingleEntryUncompressedBytes = $Contract.maxSingleEntryUncompressedBytes
+            maxTotalEntryUncompressedBytes = $Contract.maxTotalEntryUncompressedBytes
+            overallTimeoutMilliseconds = $Contract.overallTimeoutMilliseconds
+        }
         sourceBoundaryValidated = $false
         scanCompleted = $false
         sourceScanLOUsed = 0
@@ -846,6 +1222,10 @@ function New-McbrTerminalResult {
         scannedSourceCount = 0
         scannedFileCount = 0
         scannedArchiveEntryCount = 0
+        candidateFileCount = 0
+        candidateEntryCount = 0
+        totalEntryUncompressedBytes = [int64]0
+        apkShaComputationCount = 0
         scannedBytes = [int64]0
         fileOpenCount = 0
         cabAccounting = @()
@@ -863,6 +1243,38 @@ function New-McbrTerminalResult {
         blockers = @()
         nextAction = $Contract.nextAction
     }
+}
+
+function Set-McbrFailureDiagnostic {
+    param(
+        [Parameter(Mandatory)][object] $Terminal,
+        [Parameter(Mandatory)][string] $Stage,
+        [Parameter(Mandatory)][Exception] $Exception,
+        [Parameter(Mandatory)][object] $State,
+        [Parameter(Mandatory)][object] $Evidence
+    )
+    $code = if ($Exception.Message -match '^MCBR:([A-Za-z0-9]+)$') {
+        $Matches[1]
+    }
+    else {
+        'InternalFailure'
+    }
+    $Terminal.stage = $Stage
+    $Terminal.failureCode = $code
+    $Terminal.exceptionType = $Exception.GetType().FullName
+    if ($code -in @('SourceBoundary', 'SourceIdentityDrift') -or $Stage -ceq 'SourceBoundary') {
+        $Terminal.decision = 'BlockedSourceBoundary'
+    }
+    else {
+        $Terminal.decision = 'BlockedScanCap'
+    }
+    $Terminal.status = 'Blocked'
+    $Terminal.blockers = @($code)
+    $Terminal.cabAccounting = Get-McbrCabAccounting `
+        -TargetCabIds $Evidence.targetCabIds `
+        -Matches @($State.matches)
+    $Terminal.matches = @($State.matches | Sort-Object cabId, sourceId, relativePath, archiveEntry, offset)
+    return $Terminal
 }
 
 function Write-McbrJsonCreateNew {
@@ -914,18 +1326,22 @@ function Invoke-McbrProductionScan {
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
     $deadline = [DateTimeOffset]::UtcNow.AddMilliseconds($contract.overallTimeoutMilliseconds)
     $script:McbrEvidence = Read-McbrFrozenEvidence -Contract $contract -DeadlineUtc $deadline
-    $head = (& git -C $contract.repositoryRoot rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0 -or $head -cnotmatch '^[0-9a-f]{40}$') {
-        Stop-Mcbr 'HeadIdentityFailure'
-    }
-    $terminal = New-McbrTerminalResult -Contract $contract -Head $head -Evidence $script:McbrEvidence
+    $terminal = New-McbrTerminalResult -Contract $contract -Head ('0' * 40) -Evidence $script:McbrEvidence
     $state = New-McbrScanState
+    $stage = 'HeadIdentity'
     try {
+        $head = (& git -C $contract.repositoryRoot rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0 -or $head -cnotmatch '^[0-9a-f]{40}$') {
+            Stop-Mcbr 'HeadIdentityFailure'
+        }
+        $terminal.head = $head
+        $stage = 'SourceBoundary'
         $boundaries = Get-McbrValidatedSourceBoundaries `
             -LocatorPath (Get-McbrProductionLocatorPath) `
             -ScanSourceKinds $contract.scanSourceKinds `
             -DeadlineUtc $deadline
         $state.sourceBoundaryValidated = $true
+        $stage = 'SourceScan'
         Invoke-McbrBoundaryScan `
             -Contract $contract `
             -Boundaries $boundaries `
@@ -934,6 +1350,7 @@ function Invoke-McbrProductionScan {
         if (-not $state.sourceUnchanged) {
             Stop-Mcbr 'SourceIdentityDrift'
         }
+        $stage = 'Accounting'
         $accounting = Get-McbrCabAccounting `
             -TargetCabIds $script:McbrEvidence.targetCabIds `
             -Matches @($state.matches)
@@ -953,26 +1370,15 @@ function Invoke-McbrProductionScan {
         }
         $terminal.cabAccounting = $accounting
         $terminal.matches = @($state.matches | Sort-Object cabId, sourceId, relativePath, archiveEntry, offset)
+        $terminal.stage = 'Complete'
     }
     catch {
-        $code = if ($_.Exception.Message -match '^MCBR:(.+)$') { $Matches[1] } else { 'UnclassifiedFailure' }
-        if ($code -ceq 'ScanCap') {
-            $terminal.decision = 'BlockedScanCap'
-            $terminal.status = 'Blocked'
-            $terminal.blockers = @('OverallTimeout')
-            $terminal.cabAccounting = Get-McbrCabAccounting `
-                -TargetCabIds $script:McbrEvidence.targetCabIds `
-                -Matches @($state.matches)
-            $terminal.matches = @($state.matches | Sort-Object cabId, sourceId, relativePath, archiveEntry, offset)
-        }
-        elseif ($code -in @('SourceBoundary', 'SourceIdentityDrift')) {
-            $terminal.decision = 'BlockedSourceBoundary'
-            $terminal.status = 'Blocked'
-            $terminal.blockers = @($code)
-        }
-        else {
-            throw
-        }
+        $terminal = Set-McbrFailureDiagnostic `
+            -Terminal $terminal `
+            -Stage $stage `
+            -Exception $_.Exception `
+            -State $state `
+            -Evidence $script:McbrEvidence
     }
     finally {
         $stopwatch.Stop()
@@ -984,11 +1390,32 @@ function Invoke-McbrProductionScan {
     $terminal.scannedSourceCount = [int]$state.scannedSourceCount
     $terminal.scannedFileCount = [int]$state.scannedFileCount
     $terminal.scannedArchiveEntryCount = [int]$state.scannedArchiveEntryCount
+    $terminal.candidateFileCount = [int]$state.candidateFileCount
+    $terminal.candidateEntryCount = [int]$state.candidateEntryCount
+    $terminal.totalEntryUncompressedBytes = [int64]$state.totalEntryUncompressedBytes
+    $terminal.apkShaComputationCount = [int]$state.apkShaComputationCount
     $terminal.scannedBytes = [int64]$state.scannedBytes
     $terminal.fileOpenCount = [int]$state.fileOpenCount
     $terminal.sourceUnchanged = [bool]$state.sourceUnchanged
     $terminal.sourcePathLeakCount = 0
-    Write-McbrJsonCreateNew -LiteralPath $outputPath -Value $terminal
+    try {
+        Write-McbrJsonCreateNew -LiteralPath $outputPath -Value $terminal
+    }
+    catch {
+        $emergency = [pscustomobject][ordered]@{
+            schemaVersion = $contract.schemaVersion
+            artifactId = $contract.artifactId
+            status = 'Blocked'
+            decision = 'BlockedScanCap'
+            stage = 'TerminalWrite'
+            failureCode = 'TerminalWriteFailure'
+            exceptionType = $_.Exception.GetType().FullName
+            evidenceComplete = $true
+            nextAction = $contract.nextAction
+        }
+        Write-Output ($emergency | ConvertTo-Json -Compress)
+        Stop-Mcbr 'TerminalWriteFailure'
+    }
 }
 
 if ($env:STELLAGAIA_MCBR_TEST_MODE -cne '1') {
